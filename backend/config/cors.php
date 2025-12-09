@@ -22,11 +22,11 @@ return [
     'allowed_origins' => [
         'http://localhost:5173',
         'http://localhost:3000',
-        'https://is207-q13.helios.id.vn',
+        'https://vietmarket.helios.id.vn',
     ],
 
     'allowed_origins_patterns' => [
-        '/^https:\/\/is207-q13.*\.helios\.id\.vn$/',
+        '/^https:\/\/vietmarket.*\.helios\.id\.vn$/',
     ],
 
     'allowed_headers' => ['*'],
