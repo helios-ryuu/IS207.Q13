@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.4.7
+    container_name: mysql
+    restart: unless-stopped
+    env_file: [ .env.docker ]
+    volumes:
+      - database-mysql:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  database-mysql:
+
+# docker compose up -d
+# docker compose down -v
+# docker system prune -a

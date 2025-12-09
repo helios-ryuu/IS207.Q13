@@ -1,0 +1,36 @@
+# ----------------------------
+# Laravel Backend
+# ----------------------------
+/vendor             # thư viện Composer
+/node_modules       # nếu backend có Node (npm/yarn) dùng cho mix/vite
+/.env              # file config nhạy cảm
+/.env.*            # các env khác
+/.idea
+/.vscode
+/.git
+/.github
+/storage/debugbar
+/storage/logs
+/storage/framework/cache/data
+/storage/framework/sessions
+/storage/framework/views
+/public/hot
+/public/storage
+/public/mix-manifest
+
+# ----------------------------
+# React Frontend (Vite)
+# ----------------------------
+frontend/node_modules
+frontend/dist        # thư mục build
+frontend/.vite       # cache Vite
+frontend/.env
+frontend/.env.*      # env frontend
+frontend/.idea
+frontend/.vscode
+frontend/.git
+frontend/.DS_Store   # MacOS
+frontend/.cache
+frontend/yarn-error.log
+frontend/package-lock.json
+frontend/yarn.lock

@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+.github
+
+docker-compose.build.yml
+*.docx
