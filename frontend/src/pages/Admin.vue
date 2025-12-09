@@ -1,80 +1,130 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../utils/useAuth'
+import { useToast } from '../utils/useToast'
+import api from '../utils/api'
 import Header from '../components/Header-HomePage.vue'
 import Footer from '../components/Footer.vue'
 
 const { user } = useAuth()
+const { showSuccess, showError } = useToast()
 
-// Mock data with more details
+// Stats data from API
 const stats = ref({ 
-  users: 1284, 
-  usersGrowth: '+12%',
-  postsPending: 12, 
-  postsGrowth: '-8%',
-  sales: '₫125,400,000',
-  salesGrowth: '+24%',
-  activeUsers: 847,
-  activeGrowth: '+5%'
+  users: 0, 
+  usersGrowth: '+0%',
+  postsPending: 0, 
+  postsGrowth: '+0%',
+  sales: '₫0',
+  salesGrowth: '+0%',
+  activeUsers: 0,
+  activeGrowth: '+0%'
 })
 
-const pendingPosts = ref([
-  { 
-    id: 'P1001', 
-    title: 'Bán bàn gỗ cũ', 
-    author: 'Nguyen Van A', 
-    date: '2025-11-01',
-    category: 'Đồ gia dụng',
-    price: '500,000₫',
-    status: 'pending'
-  },
-  { 
-    id: 'P1002', 
-    title: 'Cần mua xe đạp', 
-    author: 'Tran Thi B', 
-    date: '2025-11-03',
-    category: 'Xe cộ',
-    price: '2,500,000₫',
-    status: 'pending'
-  },
-  { 
-    id: 'P1003', 
-    title: 'Laptop Dell XPS 13', 
-    author: 'Le Van C', 
-    date: '2025-11-05',
-    category: 'Đồ điện tử',
-    price: '15,000,000₫',
-    status: 'pending'
-  },
-])
+const pendingPosts = ref([])
+const recentActivities = ref([])
+const loading = ref(false)
 
-const recentActivities = ref([
-  { action: 'Người dùng mới đăng ký', user: 'Pham Van D', time: '5 phút trước' },
-  { action: 'Bài đăng được phê duyệt', user: 'Admin', time: '10 phút trước' },
-  { action: 'Giao dịch thành công', user: 'Nguyen E', time: '15 phút trước' },
-])
-
-function approve(postId){
-  const idx = pendingPosts.value.findIndex(p=>p.id===postId)
-  if(idx!==-1) {
-    pendingPosts.value[idx].status = 'approved'
-    setTimeout(() => {
-      pendingPosts.value.splice(idx,1)
-      stats.value.postsPending--
-    }, 600)
+// Fetch dashboard statistics
+async function fetchStats() {
+  try {
+    const response = await api.get('/admin/statistics/dashboard')
+    if (response.data.success) {
+      stats.value = response.data.data
+    }
+  } catch (err) {
+    console.error('Failed to fetch stats:', err)
+    console.error('Error response:', err.response?.data)
+    const errorMsg = err.response?.data?.message || 'Không thể tải thống kê'
+    showError(errorMsg)
   }
 }
 
-function reject(postId){
-  const idx = pendingPosts.value.findIndex(p=>p.id===postId)
-  if(idx!==-1) {
-    pendingPosts.value[idx].status = 'rejected'
-    setTimeout(() => {
-      pendingPosts.value.splice(idx,1)
-      stats.value.postsPending--
-    }, 600)
+// Fetch pending posts
+async function fetchPendingPosts() {
+  try {
+    const response = await api.get('/admin/posts?status=pending')
+    if (response.data.success) {
+      pendingPosts.value = response.data.data
+    }
+  } catch (err) {
+    console.error('Failed to fetch posts:', err)
+    showError('Không thể tải danh sách bài đăng')
   }
 }
+
+// Fetch recent activities
+async function fetchActivities() {
+  try {
+    const response = await api.get('/admin/activities/recent')
+    if (response.data.success) {
+      recentActivities.value = response.data.data
+    }
+  } catch (err) {
+    console.error('Failed to fetch activities:', err)
+  }
+}
+
+// Approve post
+async function approve(postId) {
+  const post = pendingPosts.value.find(p => p.id === postId)
+  if (!post) return
+
+  try {
+    const response = await api.put(`/admin/posts/${post.raw_id}/approve`)
+    if (response.data.success) {
+      post.status = 'approved'
+      showSuccess('Bài đăng đã được phê duyệt')
+      
+      setTimeout(() => {
+        pendingPosts.value = pendingPosts.value.filter(p => p.id !== postId)
+        fetchStats() // Refresh stats
+      }, 600)
+    }
+  } catch (err) {
+    showError(err.response?.data?.message || 'Không thể phê duyệt bài đăng')
+  }
+}
+
+// Reject post
+async function reject(postId) {
+  const post = pendingPosts.value.find(p => p.id === postId)
+  if (!post) return
+
+  try {
+    const response = await api.put(`/admin/posts/${post.raw_id}/reject`)
+    if (response.data.success) {
+      post.status = 'rejected'
+      showSuccess('Bài đăng đã bị từ chối')
+      
+      setTimeout(() => {
+        pendingPosts.value = pendingPosts.value.filter(p => p.id !== postId)
+        fetchStats() // Refresh stats
+      }, 600)
+    }
+  } catch (err) {
+    showError(err.response?.data?.message || 'Không thể từ chối bài đăng')
+  }
+}
+
+// Refresh all data
+async function refreshData() {
+  loading.value = true
+  await Promise.all([
+    fetchStats(),
+    fetchPendingPosts(),
+    fetchActivities()
+  ])
+  loading.value = false
+  showSuccess('Dữ liệu đã được làm mới')
+}
+
+// Load data on mount
+onMounted(() => {
+  fetchStats()
+  fetchPendingPosts()
+  fetchActivities()
+})
 
 const activeTab = ref('pending') // pending, approved, rejected
 
@@ -159,8 +209,8 @@ const activeTab = ref('pending') // pending, approved, rejected
                 <h2>📋 Bài đăng chờ phê duyệt</h2>
                 <span class="badge-count">{{ pendingPosts.length }}</span>
               </div>
-              <button class="refresh-btn">
-                <span class="refresh-icon">🔄</span> Làm mới
+              <button class="refresh-btn" @click="refreshData" :disabled="loading">
+                <span class="refresh-icon">🔄</span> {{ loading ? 'Đang tải...' : 'Làm mới' }}
               </button>
             </div>
             

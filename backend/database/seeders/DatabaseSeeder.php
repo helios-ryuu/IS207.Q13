@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
         // Chạy ProductSeeder sau khi đã có User
         $this->call([
             ProductSeeder::class,
+            ProductPostSeeder::class,
         ]);
     }
 }

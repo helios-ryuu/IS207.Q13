@@ -5,6 +5,8 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ShippingAddressController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ProductPostController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
@@ -119,4 +121,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions', [TransactionController::class, 'index']);      // Xem danh sách
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);  // Xem chi tiết
     Route::post('/transactions/verify', [TransactionController::class, 'verify']); // Xác thực
+});
+
+// --- ADMIN ROUTES ---
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    // Dashboard Statistics
+    Route::get('/statistics/dashboard', [AdminController::class, 'getDashboardStats']);
+    Route::get('/activities/recent', [AdminController::class, 'getRecentActivities']);
+    
+    // Product Post Management
+    Route::get('/posts', [ProductPostController::class, 'index']);
+    Route::get('/posts/{id}', [ProductPostController::class, 'show']);
+    Route::put('/posts/{id}/approve', [ProductPostController::class, 'approve']);
+    Route::put('/posts/{id}/reject', [ProductPostController::class, 'reject']);
 });
