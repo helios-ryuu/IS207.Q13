@@ -62,6 +62,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import api from '../utils/api';
 
 // --- COMPONENT IMPORTS ---
 import Header from '../components/Header-HomePage.vue';
@@ -70,124 +71,84 @@ import ProductCard from '../components/Product/ProductCard_NoReceive.vue';
 import SearchFilterBar from '../components/SearchFilterBar.vue';
 import Footer from '../components/Footer.vue';
 
-// --- "DATABASE" GIẢ LẬP (KHÔI PHỤC DỮ LIỆU ĐẸP) ---
-const mockDB = [
-  {
-    id: 1,
-    title: 'Áo thun nam tay ngắn hè 2024',
-    price: '150.000 đ',
-    originalPrice: '250.000 đ',
-    seller: 'Shop Thời Trang',
-    location: 'Quận 1, TP. HCM',
-    imageUrl: 'https://via.placeholder.com/200/eeeeee/cccccc?text=Image+1',
-    username: 'Shop Thời Trang'
-  },
-  {
-    id: 2,
-    title: 'Tai nghe Bluetooth không dây X15',
-    price: '320.000 đ',
-    originalPrice: '',
-    seller: 'Điện Tử Xanh',
-    location: 'Q. Cầu Giấy, Hà Nội',
-    imageUrl: 'https://via.placeholder.com/200/eeeeee/cccccc?text=Image+2',
-    username: 'Điện Tử Xanh'
-  },
-  {
-    id: 3,
-    title: 'Bàn phím cơ DareU EK87',
-    price: '790.000 đ',
-    originalPrice: '990.000 đ',
-    seller: 'PC Gear',
-    location: 'Quận 3, TP. HCM',
-    imageUrl: 'https://via.placeholder.com/200/eeeeee/cccccc?text=Image+3',
-    username: 'PC Gear'
-  },
-  {
-    id: 4,
-    title: 'Sofa giường đa năng thông minh',
-    price: '2.800.000 đ',
-    originalPrice: '',
-    seller: 'Nội Thất Giá Kho',
-    location: 'Q. Bình Thạnh, TP. HCM',
-    imageUrl: 'https://via.placeholder.com/200/eeeeee/cccccc?text=Image+4',
-    username: 'Nội Thất Giá Kho'
-  }
-];
-
-// Thêm 26 sản phẩm mẫu nữa để test "Xem thêm"
-for (let i = 5; i <= 30; i++) {
-  mockDB.push({
-    id: i,
-    title: `Sản phẩm mẫu ${i}`,
-    price: `${(i * 100 + 50)}.000 đ`,
-    originalPrice: `${(i * 100 + 150)}.000 đ`,
-    seller: 'Shop VietMarket',
-    location: `Quận ${i % 12 + 1}, TP. HCM`,
-    imageUrl: `https://via.placeholder.com/200/${Math.floor(Math.random()*16777215).toString(16)}/FFFFFF?text=Product+${i}`,
-    username: 'Shop VietMarket'
-  });
-}
-// --- KẾT THÚC DATABASE GIẢ LẬP ---
-
 // --- PAGE STATE ---
 const activeTab = ref('for-you');
 const products = ref([]);
 const loading = ref(false);
 const pageToLoad = ref(1);
 const hasMoreProducts = ref(true);
+const totalProducts = ref(0);
 
-// --- HÀM LẤY DỮ LIỆU (ĐÃ SỬA) ---
-const fetchProducts = () => { // Bỏ async
+// Format price helper
+const formatPrice = (price) => {
+  if (!price) return '';
+  return new Intl.NumberFormat('vi-VN').format(price) + ' đ';
+};
+
+// Map API response to component format
+const mapProduct = (item) => ({
+  id: item.id,
+  title: item.name,
+  price: formatPrice(item.price_range?.min || item.variants?.[0]?.price),
+  originalPrice: '',
+  seller: item.seller?.full_name || item.seller?.name || 'Shop VietMarket',
+  location: 'TP. HCM',
+  imageUrl: item.image || item.variants?.[0]?.images?.[0]?.image_url || 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image',
+  username: item.seller?.username || 'seller'
+});
+
+// --- FETCH PRODUCTS FROM API ---
+const fetchProducts = async () => {
   if (loading.value) return;
   loading.value = true;
 
   try {
-    const isInitialLoad = (pageToLoad.value === 1);
-    const limit = isInitialLoad ? 12 : 8; // Lần đầu 12, sau đó 8
-    const offset = isInitialLoad ? 0 : 12 + (pageToLoad.value - 2) * 8;
+    const limit = pageToLoad.value === 1 ? 12 : 8;
+    const response = await api.get('/products', {
+      params: {
+        page: pageToLoad.value,
+        per_page: limit,
+      }
+    });
 
-    // === NƠI BẠN GỌI API THẬT ===
-    // (Trong API thật, bạn sẽ dùng await axios.get(...) ở đây)
-    // const response = await axios.get(`/api/products?tab=${activeTab.value}&page=${pageToLoad.value}&limit=${limit}`);
-    // const newData = response.data.products;
+    const apiData = response.data.data || response.data;
+    const newProducts = Array.isArray(apiData) ? apiData : apiData.data || [];
+    
+    // Map and append products
+    const mappedProducts = newProducts.map(mapProduct);
+    products.value.push(...mappedProducts);
 
-    // === PHẦN ĐÃ SỬA: BỔ SUNG LẠI DỮ LIỆU GIẢ LẬP ===
-    const newData = mockDB.slice(offset, offset + limit);
-    // ==========================================
-
-    // Nối dữ liệu mới vào danh sách hiện tại
-    products.value.push(...newData);
-
-    // Kiểm tra xem còn sản phẩm để tải nữa không
-    if (newData.length < limit || products.value.length === mockDB.length) {
-      hasMoreProducts.value = false;
-    }
+    // Check if more products available
+    const meta = response.data.meta || response.data;
+    totalProducts.value = meta.total || newProducts.length;
+    hasMoreProducts.value = products.value.length < totalProducts.value;
 
   } catch (error) {
     console.error('Lỗi khi tải sản phẩm:', error);
+    hasMoreProducts.value = false;
   } finally {
     loading.value = false;
   }
 };
 
-// Gọi hàm fetchProducts() khi component được mount
+// Load on mount
 onMounted(() => {
-  fetchProducts(); // Tự động tải 12 SP đầu tiên
+  fetchProducts();
 });
 
-// --- HÀM KHI CHUYỂN TAB ---
+// --- TAB CHANGE ---
 const setActiveTab = (tabName) => {
   activeTab.value = tabName;
-  products.value = []; // Xóa sản phẩm cũ
-  pageToLoad.value = 1; // Reset về trang 1
-  hasMoreProducts.value = true; // Reset nút "Xem thêm"
-  fetchProducts(); // Tải 12 SP đầu tiên cho tab mới
+  products.value = [];
+  pageToLoad.value = 1;
+  hasMoreProducts.value = true;
+  fetchProducts();
 };
 
-// --- HÀM MỚI KHI NHẤN "XEM THÊM" ---
+// --- LOAD MORE ---
 const loadMore = () => {
-  pageToLoad.value++; // Tăng số trang
-  fetchProducts(); // Tải 8 sản phẩm tiếp theo
+  pageToLoad.value++;
+  fetchProducts();
 };
 </script>
 

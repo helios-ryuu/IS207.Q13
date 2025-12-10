@@ -9,9 +9,20 @@ class CategorySeeder extends Seeder
 {
     public function run(): void
     {
-        $categories = ['Electronics', 'Fashion', 'Home & Garden', 'Toys', 'Books'];
+        $categories = [
+            'Điện tử',
+            'Thời trang',
+            'Xe cộ',
+            'Nội thất',
+            'Thú cưng',
+            'Bất động sản'
+        ];
+
         foreach ($categories as $cat) {
-            Category::firstOrCreate(['name' => $cat]);
+            // Check if exists to avoid unique constraint error
+            if (!Category::where('name', $cat)->exists()) {
+                Category::create(['name' => $cat]);
+            }
         }
     }
 }

@@ -149,14 +149,15 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router'; // Import useRouter
+import { useRoute, useRouter } from 'vue-router';
+import api from '../utils/api';
 import Header from "../components/Header-Other.vue";
 import Footer from "../components/Footer.vue";
 import CommentSection from '../components/CommentSection.vue';
 import ProductCard from '../components/Product/ProductCard_NoReceive.vue';
 
 const route = useRoute();
-const router = useRouter(); // Khởi tạo router
+const router = useRouter();
 const product = ref(null);
 const loading = ref(true);
 
@@ -193,7 +194,6 @@ watch(() => route.params.id, (newId) => {
 // === HÀM XỬ LÝ CHAT ===
 const handleChat = () => {
   if (!product.value) return;
-  // Chuyển hướng sang trang chat và gửi kèm thông tin
   router.push({
     path: '/chat',
     query: {
@@ -205,6 +205,75 @@ const handleChat = () => {
   });
 };
 
+// Format price helper
+const formatPrice = (price) => {
+  if (!price) return '0';
+  return new Intl.NumberFormat('vi-VN').format(price);
+};
+
+// Map API product to component format
+const mapProductFromApi = (data) => {
+  const variant = data.variants?.[0] || {};
+  const images = [];
+  
+  // Collect images from all variants
+  if (data.variants) {
+    data.variants.forEach(v => {
+      if (v.images) {
+        v.images.forEach(img => images.push(img.image_url));
+      }
+    });
+  }
+  
+  // Fallback placeholder if no images
+  if (images.length === 0) {
+    images.push('https://via.placeholder.com/600x400/eeeeee/cccccc?text=No+Image');
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description || 'Mô tả sản phẩm',
+    price: formatPrice(variant.price || data.price_range?.min),
+    tags: data.categories?.map(c => c.name) || [],
+    location: 'TP. HCM',
+    lastUpdated: 'Hôm nay',
+    images: images,
+    seller: {
+      id: data.seller?.id || 0,
+      name: data.seller?.full_name || data.seller?.username || 'Shop VietMarket',
+      avatar: data.seller?.avatar || 'https://via.placeholder.com/50/FFD60A/333333?text=S',
+      listings: 10,
+      rating: 5.0,
+      reviews: 100
+    },
+    marketPrice: {
+      min: formatPrice(data.price_range?.min) + ' đ',
+      max: formatPrice(data.price_range?.max) + ' đ',
+      current: formatPrice(variant.price) + ' đ',
+      position: '50%',
+      minPosition: '20%',
+      maxPosition: '20%'
+    },
+    detailedDescription: data.description || 'Mô tả chi tiết sản phẩm',
+    specs: [
+      { label: 'Màu sắc:', value: variant.color || 'N/A' },
+      { label: 'Kích thước:', value: variant.size || 'N/A' },
+      { label: 'Tình trạng:', value: data.status === 'active' ? 'Còn hàng' : 'Hết hàng' }
+    ],
+    comments: []
+  };
+};
+
+// Map product for listing cards
+const mapProductCard = (item) => ({
+  id: item.id,
+  title: item.name,
+  price: formatPrice(item.price_range?.min || item.variants?.[0]?.price) + ' đ',
+  location: 'TP. HCM',
+  imageUrl: item.image || item.variants?.[0]?.images?.[0]?.image_url || 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image'
+});
+
 const fetchProductDetail = async () => {
   loading.value = true;
   visibleSellerCount.value = 4;
@@ -212,35 +281,31 @@ const fetchProductDetail = async () => {
 
   const productId = route.params.id;
   try {
-    await new Promise(r => setTimeout(r, 500));
-    product.value = {
-      id: productId,
-      name: 'iPhone 17 Promax 512GB',
-      description: 'Mô tả ngắn gọn về sản phẩm...',
-      price: '25.000.000',
-      tags: ['Tag 1', 'Tag 2'],
-      location: 'Quận 1, TP. HCM',
-      lastUpdated: 'Hôm nay',
-      images: ['https://via.placeholder.com/600x400/eeeeee/cccccc?text=Image+1', 'https://via.placeholder.com/600x400/ff0000/ffffff?text=Image+2+(Red)'],
-      seller: { id: 'seller123', name: 'Huy Nguyen', avatar: 'https://via.placeholder.com/50/FFD60A/333333?text=H', listings: 10, rating: 5.0, reviews: 100 },
-      marketPrice: { min: '9.48 tr', max: '11.58 tr', current: '10.5 tr', position: '50%', minPosition: '20%', maxPosition: '20%' },
-      detailedDescription: 'Mô tả cơ bản cho 1 sản phẩm...',
-      specs: [{ label: 'Hãng:', value: 'Apple' }, { label: 'Dòng máy:', value: 'Iphone 17 pro max' }, { label: 'Tình trạng:', value: 'Đã sử dụng' }],
-      comments: [{ id: 1, author: 'Nguyen Van A', avatar: 'https://via.placeholder.com/40/FFD60A/333333?text=A', text: 'Bình luận...', timestamp: '2 tháng trước' }, { id: 2, author: 'Nguyen Van B', avatar: 'https://via.placeholder.com/40/007BFF/FFFFFF?text=B', text: 'Sản phẩm tốt!', timestamp: '2 tháng trước' }]
-    };
+    // Fetch product detail
+    const response = await api.get(`/products/${productId}`);
+    const data = response.data.data || response.data;
+    product.value = mapProductFromApi(data);
 
-    // Fake data cho Tin khác
-    sellerListings.value = Array.from({ length: 10 }, (_, i) => ({
-      id: 100 + i + 1, title: `Tin khác ${i + 1}`, price: `${i + 1}.000.000 đ`, location: 'Tp Hồ Chí Minh', imageUrl: `https://via.placeholder.com/200/eeeeee/cccccc?text=Seller+${i + 1}`
-    }));
-    // Fake data cho Tin tương tự
-    similarListings.value = Array.from({ length: 20 }, (_, i) => ({
-      id: 200 + i + 1, title: `Tin tương tự ${i + 1}`, price: `${i + 5}.000.000 đ`, location: 'Tp Hồ Chí Minh', imageUrl: `https://via.placeholder.com/200/eeeeee/cccccc?text=Similar+${i + 1}`
-    }));
+    // Fetch similar products (all products as fallback)
+    const similarResponse = await api.get('/products', { params: { per_page: 20 } });
+    const similarData = similarResponse.data.data || similarResponse.data;
+    const allProducts = Array.isArray(similarData) ? similarData : similarData.data || [];
+    
+    // Filter out current product
+    const otherProducts = allProducts.filter(p => p.id !== parseInt(productId));
+    similarListings.value = otherProducts.map(mapProductCard);
+    
+    // Seller listings (products from same seller)
+    const sellerProducts = allProducts.filter(p => p.seller?.id === data.seller?.id && p.id !== parseInt(productId));
+    sellerListings.value = sellerProducts.map(mapProductCard);
 
-  } catch (error) { console.error(error); }
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    product.value = null;
+  }
   loading.value = false;
 };
+
 onMounted(() => { fetchProductDetail(); });
 </script>
 
