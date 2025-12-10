@@ -43,6 +43,9 @@ Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
 Route::get('/products/{id}/reviews/stats', [ReviewController::class, 'stats']);
 Route::get('/sellers/{id}/reviews', [SellerReviewController::class, 'index']);
 
+// Similar products (Public)
+Route::get('/products/{id}/similar', [ProductController::class, 'similar']);
+
 
 // --- PROTECTED ROUTES (Phải đăng nhập) ---
 Route::middleware('auth:sanctum')->group(function () {
@@ -86,6 +89,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/user/favorites/{productId}', [FavoriteController::class, 'destroy']);
     Route::post('/user/favorites/{productId}/toggle', [FavoriteController::class, 'toggle']);
     Route::get('/user/favorites/{productId}/check', [FavoriteController::class, 'check']);
+
+    // USER LISTINGS
+    Route::get('/user/listings', [ProductController::class, 'getUserListings']);
+
     // --- PRODUCT REVIEWS (Auth) ---
     Route::post('/products/{id}/reviews', [ReviewController::class, 'store']);
     Route::put('/reviews/{id}', [\App\Http\Controllers\ReviewController::class, 'update']);
