@@ -30,8 +30,10 @@ RUN set -eux; \
 COPY --from=composer-base /app/vendor ./vendor
 COPY . .
 
-RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache
+RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache \
+    && rm -rf /app/bootstrap/cache/*.php
 
 EXPOSE 8000
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Clear caches and start server
+CMD php artisan config:clear && php artisan cache:clear && php artisan serve --host=0.0.0.0 --port=8000
