@@ -2,11 +2,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../utils/useAuth'
+import { useToast } from '../utils/useToast'
+import api from '../utils/api'
 import Header from '../components/Header-HomePage.vue'
 import Footer from '../components/Footer.vue'
 
 const router = useRouter()
-const { user } = useAuth()
+const { user, updateUser } = useAuth()
+const { showToast } = useToast()
 
 // Form fields
 const name = ref('')
@@ -31,15 +34,20 @@ const errors = ref({})
 
 onMounted(() => {
   if (user?.value) {
-    name.value = user.value.name || ''
+    name.value = user.value.full_name || user.value.name || ''
     email.value = user.value.email || ''
+    phone.value = user.value.phone_number || ''
+    location.value = user.value.address || ''
     bio.value = user.value.bio || ''
-    phone.value = user.value.phone || ''
-    location.value = user.value.location || ''
     website.value = user.value.website || ''
     facebook.value = user.value.facebook || ''
     instagram.value = user.value.instagram || ''
     twitter.value = user.value.twitter || ''
+    
+    // Set avatar preview if exists
+    if (user.value.avatar_url) {
+      avatarPreview.value = user.value.avatar_url
+    }
   }
 })
 
@@ -117,41 +125,69 @@ const handleSave = async () => {
   }
   
   isSaving.value = true
+  errors.value = {}
   
   try {
-    // TODO: Implement API call to save profile
-    const formData = new FormData()
-    formData.append('name', name.value)
-    formData.append('bio', bio.value)
-    formData.append('phone', phone.value)
-    formData.append('email', email.value)
-    formData.append('location', location.value)
-    formData.append('website', website.value)
-    formData.append('facebook', facebook.value)
-    formData.append('instagram', instagram.value)
-    formData.append('twitter', twitter.value)
+    // 1. Update profile info (map to backend field names)
+    const profileData = {
+      full_name: name.value,
+      phone_number: phone.value,
+      address: location.value,
+      bio: bio.value,
+      website: website.value,
+      facebook: facebook.value,
+      instagram: instagram.value,
+      twitter: twitter.value,
+    }
     
+    const profileResponse = await api.put('/user/profile', profileData)
+    
+    // 2. Upload avatar if changed
+    let newAvatarUrl = null
     if (avatarFile.value) {
-      formData.append('avatar', avatarFile.value)
+      const avatarFormData = new FormData()
+      avatarFormData.append('avatar', avatarFile.value)
+      
+      const avatarResponse = await api.post('/user/change-avatar', avatarFormData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      
+      // Get new avatar URL from response
+      if (avatarResponse.data?.avatar_url) {
+        newAvatarUrl = avatarResponse.data.avatar_url
+      }
     }
     
-    if (coverFile.value) {
-      formData.append('cover', coverFile.value)
+    // 3. Upload cover if changed (not supported yet)
+    // TODO: Implement cover photo feature
+    
+    // Update local user data
+    if (profileResponse.data?.data) {
+      const updatedUserData = { ...profileResponse.data.data }
+      // Add new avatar_url if uploaded
+      if (newAvatarUrl) {
+        updatedUserData.avatar_url = newAvatarUrl
+      }
+      updateUser(updatedUserData)
     }
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    console.log('Profile updated:', Object.fromEntries(formData))
-    
-    // Show success message
-    alert('Cập nhật hồ sơ thành công!')
+    showToast('Cập nhật hồ sơ thành công!', 'success')
     
     // Redirect to profile
-    router.push('/profile/social')
+    setTimeout(() => {
+      router.push('/profile/social')
+    }, 1000)
   } catch (error) {
     console.error('Failed to update profile:', error)
-    alert('Có lỗi xảy ra khi cập nhật hồ sơ')
+    
+    if (error.response?.data?.errors) {
+      errors.value = error.response.data.errors
+      showToast('Vui lòng kiểm tra lại thông tin', 'error')
+    } else {
+      showToast(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật hồ sơ', 'error')
+    }
   } finally {
     isSaving.value = false
   }

@@ -60,6 +60,16 @@ return [
             'report' => false,
         ],
 
+        'gcs' => [
+            'driver' => 'gcs',
+            'project_id' => env('GOOGLE_CLOUD_PROJECT_ID'),
+            'bucket' => env('GOOGLE_CLOUD_STORAGE_BUCKET'),
+            'path_prefix' => env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', ''),
+            'storage_api_uri' => env('GOOGLE_CLOUD_STORAGE_API_URI', 'https://storage.googleapis.com'),
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*

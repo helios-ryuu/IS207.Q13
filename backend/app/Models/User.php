@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -22,6 +23,11 @@ class User extends Authenticatable
         'address',
         'gender',
         'avatar',
+        'bio',
+        'website',
+        'facebook',
+        'instagram',
+        'twitter',
         'status',
         'role',
     ];
@@ -31,6 +37,8 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $appends = ['avatar_url'];
+
     protected function casts(): array
     {
         return [
@@ -39,6 +47,23 @@ class User extends Authenticatable
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    // Accessor for avatar URL
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (!$this->avatar) {
+            return null;
+        }
+
+        $disk = config('filesystems.default');
+        
+        if ($disk === 'gcs') {
+            $bucket = config('filesystems.disks.gcs.bucket');
+            return "https://storage.googleapis.com/{$bucket}/{$this->avatar}";
+        }
+        
+        return asset('storage/' . $this->avatar);
     }
 
     // Relationships

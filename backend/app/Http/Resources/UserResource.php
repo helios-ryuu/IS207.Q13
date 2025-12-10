@@ -17,7 +17,13 @@ class UserResource extends JsonResource
             'phone_number' => $this->phone_number,
             'address' => $this->address,
             'gender' => $this->gender,
-            'avatar' => $this->avatar, // Giả sử có cột avatar, nếu chưa có thì null
+            'avatar' => $this->avatar,
+            'avatar_url' => $this->avatar_url, // Full URL from accessor
+            'bio' => $this->bio,
+            'website' => $this->website,
+            'facebook' => $this->facebook,
+            'instagram' => $this->instagram,
+            'twitter' => $this->twitter,
             'role' => $this->role,
             'joined_at' => $this->created_at->format('Y-m-d'),
         ];

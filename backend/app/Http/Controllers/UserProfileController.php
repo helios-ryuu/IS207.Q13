@@ -63,29 +63,92 @@ class UserProfileController extends Controller
     // 4. Đổi Avatar
     public function changeAvatar(Request $request): JsonResponse
     {
-        $request->validate([
-            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // Max 2MB
-        ]);
+        try {
+            \Log::info('[AVATAR] Upload started', [
+                'user_id' => $request->user()->id,
+                'disk' => config('filesystems.default'),
+                'gcs_config' => [
+                    'project_id' => config('filesystems.disks.gcs.project_id'),
+                    'bucket' => config('filesystems.disks.gcs.bucket'),
+                ]
+            ]);
 
-        $user = $request->user();
+            $request->validate([
+                'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // Max 2MB
+            ]);
 
-        if ($request->file('avatar')) {
-            // Xóa ảnh cũ nếu có (tùy chọn)
-            if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
+            $user = $request->user();
+            $disk = config('filesystems.default');
+
+            \Log::info('[AVATAR] Validation passed', [
+                'disk' => $disk,
+                'has_file' => $request->hasFile('avatar'),
+            ]);
+
+            if ($request->file('avatar')) {
+                // Xóa ảnh cũ nếu có
+                if ($user->avatar) {
+                    try {
+                        \Log::info('[AVATAR] Deleting old avatar', ['path' => $user->avatar]);
+                        Storage::disk($disk)->delete($user->avatar);
+                    } catch (\Exception $e) {
+                        \Log::warning('[AVATAR] Failed to delete old avatar', [
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+
+                // Generate unique filename: avatars/users/user-{id}-{hash}.jpg
+                $extension = $request->file('avatar')->getClientOriginalExtension();
+                $filename = 'user-' . $user->id . '-' . uniqid() . '.' . $extension;
+                
+                \Log::info('[AVATAR] Storing file', [
+                    'filename' => $filename,
+                    'disk' => $disk,
+                    'size' => $request->file('avatar')->getSize()
+                ]);
+
+                $path = $request->file('avatar')->storeAs('avatars/users', $filename, $disk);
+                
+                \Log::info('[AVATAR] File stored', ['path' => $path]);
+                
+                // Lưu đường dẫn vào DB
+                $user->update(['avatar' => $path]);
             }
 
-            // Lưu ảnh mới vào thư mục 'avatars' trong storage/app/public
-            $path = $request->file('avatar')->store('avatars', 'public');
-            
-            // Lưu đường dẫn vào DB
-            $user->update(['avatar' => $path]);
-        }
+            // Tạo public URL dựa vào disk
+            if ($disk === 'gcs') {
+                $bucket = config('filesystems.disks.gcs.bucket');
+                $avatarUrl = "https://storage.googleapis.com/{$bucket}/{$user->avatar}";
+            } else {
+                $avatarUrl = asset('storage/' . $user->avatar);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Avatar updated successfully',
-            'avatar_url' => asset('storage/' . $user->avatar)
-        ]);
+            \Log::info('[AVATAR] Upload completed', ['url' => $avatarUrl]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Avatar updated successfully',
+                'avatar_url' => $avatarUrl
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('[AVATAR] Validation error', [
+                'errors' => $e->errors()
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            \Log::error('[AVATAR] Upload failed', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload avatar: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

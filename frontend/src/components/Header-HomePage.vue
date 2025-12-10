@@ -94,7 +94,7 @@
           <template v-else>
             <router-link to="/manage-posts" class="manage-btn">Quản lý tin</router-link>
             <div class="avatar-wrapper" @click.stop="toggleUserMenu">
-              <img src="/avatar.jpg" alt="Avatar" class="avatar">
+              <img :src="user?.avatar_url || '/avatar.jpg'" alt="Avatar" class="avatar">
               <font-awesome-icon icon="chevron-down" class="arrow-small" />
               <div v-if="isUserMenuOpen" class="user-dropdown">
                 <router-link to="/profile/social">Trang cá nhân</router-link>

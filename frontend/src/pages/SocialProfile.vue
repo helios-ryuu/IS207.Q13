@@ -83,7 +83,13 @@ const stats = computed(()=>({
         </div>
         <div class="hero-inner">
           <div class="avatar-wrapper">
-            <div class="avatar">{{ user?.name ? user.name.charAt(0) : 'U' }}</div>
+            <img 
+              v-if="user?.avatar_url" 
+              :src="user.avatar_url" 
+              alt="Avatar" 
+              class="avatar avatar-img"
+            />
+            <div v-else class="avatar">{{ user?.name ? user.name.charAt(0) : 'U' }}</div>
             <div class="avatar-ring"></div>
           </div>
           <div class="meta">
@@ -329,6 +335,12 @@ const stats = computed(()=>({
   color: #3b82f6;
   position: relative;
   z-index: 2;
+}
+
+.avatar.avatar-img {
+  object-fit: cover;
+  font-size: unset;
+  font-weight: unset;
 }
 
 .avatar-ring {
