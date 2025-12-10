@@ -2,98 +2,59 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../utils/useAuth'
+import { useToast } from '../utils/useToast'
+import api from '../utils/api'
 import Header from '../components/Header-HomePage.vue'
 import Footer from '../components/Footer.vue'
 
 const router = useRouter()
 const { user, isLoggedIn } = useAuth()
+const { showToast } = useToast()
 
 // Filter & Sort
 const selectedCategory = ref('all')
 const sortBy = ref('recent') // recent, price-asc, price-desc
 const searchQuery = ref('')
 
-// Sample favorites data
-const favorites = ref([
-  {
-    id: 1,
-    title: 'iPhone 13 Pro Max 256GB - Máy đẹp 99%',
-    price: 18500000,
-    image: 'https://via.placeholder.com/300/667eea/ffffff?text=iPhone+13',
-    location: 'Quận 1, TP.HCM',
-    category: 'Đồ điện tử',
-    condition: 'Như mới',
-    postedDate: '2025-11-20',
-    savedDate: '2025-11-25',
-    seller: 'Nguyễn Văn A',
-    isFeatured: true
-  },
-  {
-    id: 2,
-    title: 'Honda SH 2020 - Xe chính chủ, biển số đẹp',
-    price: 72000000,
-    image: 'https://via.placeholder.com/300/f59e0b/ffffff?text=Honda+SH',
-    location: 'Quận 3, TP.HCM',
-    category: 'Xe cộ',
-    condition: 'Đã sử dụng',
-    postedDate: '2025-11-18',
-    savedDate: '2025-11-26',
-    seller: 'Trần Thị B',
-    isFeatured: false
-  },
-  {
-    id: 3,
-    title: 'Macbook Pro M1 2021 - Fullbox chưa active',
-    price: 28000000,
-    image: 'https://via.placeholder.com/300/8b5cf6/ffffff?text=Macbook+Pro',
-    location: 'Quận 7, TP.HCM',
-    category: 'Đồ điện tử',
-    condition: 'Mới 100%',
-    postedDate: '2025-11-22',
-    savedDate: '2025-11-27',
-    seller: 'Lê Văn C',
-    isFeatured: true
-  },
-  {
-    id: 4,
-    title: 'Sofa góc L cao cấp - Chất liệu bền đẹp',
-    price: 9500000,
-    image: 'https://via.placeholder.com/300/10b981/ffffff?text=Sofa',
-    location: 'Quận 2, TP.HCM',
-    category: 'Đồ gia dụng, Nội thất, Cây cảnh',
-    condition: 'Như mới',
-    postedDate: '2025-11-15',
-    savedDate: '2025-11-28',
-    seller: 'Phạm Thị D',
-    isFeatured: false
-  },
-  {
-    id: 5,
-    title: 'Samsung Galaxy S23 Ultra 256GB',
-    price: 22000000,
-    image: 'https://via.placeholder.com/300/06b6d4/ffffff?text=Galaxy+S23',
-    location: 'Quận 10, TP.HCM',
-    category: 'Đồ điện tử',
-    condition: 'Mới 100%',
-    postedDate: '2025-11-23',
-    savedDate: '2025-11-29',
-    seller: 'Hoàng Văn E',
-    isFeatured: true
-  },
-  {
-    id: 6,
-    title: 'Bàn làm việc gỗ công nghiệp 1m2',
-    price: 1200000,
-    image: 'https://via.placeholder.com/300/ec4899/ffffff?text=Ban+Lam+Viec',
-    location: 'Quận 5, TP.HCM',
-    category: 'Đồ gia dụng, Nội thất, Cây cảnh',
-    condition: 'Đã sử dụng',
-    postedDate: '2025-11-10',
-    savedDate: '2025-11-30',
-    seller: 'Võ Văn F',
-    isFeatured: false
+// Loading & Error states
+const isLoading = ref(true)
+const error = ref(null)
+const isRemoving = ref(null) // ID của sản phẩm đang xóa
+
+// Favorites data từ API
+const favorites = ref([])
+
+// Fetch favorites từ API
+const fetchFavorites = async () => {
+  isLoading.value = true
+  error.value = null
+  
+  try {
+    const response = await api.get('/user/favorites')
+    
+    if (response.data.success) {
+      favorites.value = response.data.data.map(item => ({
+        id: item.id,
+        title: item.title,
+        price: item.price,
+        image: item.image || 'https://via.placeholder.com/300/667eea/ffffff?text=No+Image',
+        location: item.location,
+        category: item.category,
+        condition: item.condition,
+        postedDate: item.posted_date,
+        savedDate: item.saved_date,
+        seller: item.seller,
+        isFeatured: false
+      }))
+    }
+  } catch (err) {
+    console.error('Failed to fetch favorites:', err)
+    error.value = err.response?.data?.message || 'Không thể tải danh sách yêu thích'
+    showToast(error.value, 'error')
+  } finally {
+    isLoading.value = false
   }
-])
+}
 
 const categories = computed(() => {
   const cats = new Set(favorites.value.map(f => f.category))
@@ -139,9 +100,25 @@ const stats = computed(() => ({
   }).length
 }))
 
-const removeFavorite = (id) => {
-  if (confirm('Bạn có chắc muốn xóa sản phẩm này khỏi danh sách yêu thích?')) {
-    favorites.value = favorites.value.filter(f => f.id !== id)
+const removeFavorite = async (id) => {
+  if (!confirm('Bạn có chắc muốn xóa sản phẩm này khỏi danh sách yêu thích?')) {
+    return
+  }
+  
+  isRemoving.value = id
+  
+  try {
+    const response = await api.delete(`/user/favorites/${id}`)
+    
+    if (response.data.success) {
+      favorites.value = favorites.value.filter(f => f.id !== id)
+      showToast('Đã xóa khỏi danh sách yêu thích', 'success')
+    }
+  } catch (err) {
+    console.error('Failed to remove favorite:', err)
+    showToast(err.response?.data?.message || 'Không thể xóa sản phẩm', 'error')
+  } finally {
+    isRemoving.value = null
   }
 }
 
@@ -154,6 +131,7 @@ const formatPrice = (price) => {
 }
 
 const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A'
   const date = new Date(dateStr)
   const now = new Date()
   const diff = Math.floor((now - date) / (1000 * 60 * 60 * 24))
@@ -164,15 +142,39 @@ const formatDate = (dateStr) => {
   return date.toLocaleDateString('vi-VN')
 }
 
-const clearAll = () => {
-  if (confirm('Bạn có chắc muốn xóa tất cả sản phẩm yêu thích?')) {
-    favorites.value = []
+const clearAll = async () => {
+  if (!confirm('Bạn có chắc muốn xóa tất cả sản phẩm yêu thích?')) {
+    return
   }
+  
+  isLoading.value = true
+  
+  try {
+    // Xóa từng sản phẩm (có thể tạo API clear-all sau)
+    for (const fav of favorites.value) {
+      await api.delete(`/user/favorites/${fav.id}`)
+    }
+    favorites.value = []
+    showToast('Đã xóa tất cả sản phẩm yêu thích', 'success')
+  } catch (err) {
+    console.error('Failed to clear favorites:', err)
+    showToast('Không thể xóa tất cả sản phẩm', 'error')
+    // Refresh lại danh sách
+    await fetchFavorites()
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const retryFetch = () => {
+  fetchFavorites()
 }
 
 onMounted(() => {
   if (!isLoggedIn.value) {
     router.push('/login')
+  } else {
+    fetchFavorites()
   }
 })
 </script>
@@ -234,7 +236,24 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="filteredFavorites.length === 0" class="empty-state">
+      <!-- Loading State -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải danh sách yêu thích...</p>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="error-state">
+        <div class="error-icon">⚠️</div>
+        <h2 class="error-title">Có lỗi xảy ra</h2>
+        <p class="error-text">{{ error }}</p>
+        <button class="retry-btn" @click="retryFetch">
+          Thử lại
+        </button>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="filteredFavorites.length === 0" class="empty-state">
         <div class="empty-icon">💔</div>
         <h2 class="empty-title">
           {{ favorites.length === 0 ? 'Chưa có sản phẩm yêu thích' : 'Không tìm thấy kết quả' }}
@@ -250,10 +269,19 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- Products Grid -->
       <div v-else class="products-grid">
         <div v-for="item in filteredFavorites" :key="item.id" class="product-card">
           <div class="card-badge" v-if="item.isFeatured">⭐ Nổi bật</div>
-          <button class="remove-btn" @click.stop="removeFavorite(item.id)">✕</button>
+          <button 
+            class="remove-btn" 
+            :class="{ 'is-removing': isRemoving === item.id }"
+            :disabled="isRemoving === item.id"
+            @click.stop="removeFavorite(item.id)"
+          >
+            <span v-if="isRemoving === item.id" class="btn-spinner"></span>
+            <span v-else>✕</span>
+          </button>
           
           <div class="product-image" @click="viewProduct(item.id)">
             <img :src="item.image" :alt="item.title" />
@@ -493,6 +521,95 @@ onMounted(() => {
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
+}
+
+/* Loading State */
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.loading-state p {
+  color: #64748b;
+  margin-top: 1rem;
+  font-size: 15px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #fee2e2;
+  border-top-color: #ef4444;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.error-icon {
+  font-size: 64px;
+  margin-bottom: 1rem;
+}
+
+.error-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+}
+
+.error-text {
+  color: #64748b;
+  margin-bottom: 2rem;
+  font-size: 15px;
+}
+
+.retry-btn {
+  padding: 1rem 2rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 40px rgba(239, 68, 68, 0.4);
+}
+
+/* Button Spinner */
+.btn-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+.remove-btn.is-removing {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .empty-title {
