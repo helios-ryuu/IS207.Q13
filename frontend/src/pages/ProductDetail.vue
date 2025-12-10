@@ -286,18 +286,38 @@ const fetchProductDetail = async () => {
     const data = response.data.data || response.data;
     product.value = mapProductFromApi(data);
 
-    // Fetch similar products (all products as fallback)
-    const similarResponse = await api.get('/products', { params: { per_page: 20 } });
-    const similarData = similarResponse.data.data || similarResponse.data;
-    const allProducts = Array.isArray(similarData) ? similarData : similarData.data || [];
+    // Fetch similar products từ API mới
+    try {
+      const similarResponse = await api.get(`/products/${productId}/similar`);
+      if (similarResponse.data.success) {
+        similarListings.value = similarResponse.data.data.map(item => ({
+          id: item.id,
+          title: item.title,
+          price: formatPrice(item.price) + ' đ',
+          location: item.location || 'TP. HCM',
+          imageUrl: item.image || 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image',
+          seller: item.seller,
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching similar products:', err);
+      similarListings.value = [];
+    }
     
-    // Filter out current product
-    const otherProducts = allProducts.filter(p => p.id !== parseInt(productId));
-    similarListings.value = otherProducts.map(mapProductCard);
-    
-    // Seller listings (products from same seller)
-    const sellerProducts = allProducts.filter(p => p.seller?.id === data.seller?.id && p.id !== parseInt(productId));
-    sellerListings.value = sellerProducts.map(mapProductCard);
+    // Fetch seller listings (products from same seller)
+    if (data.seller?.id) {
+      try {
+        const sellerResponse = await api.get(`/products/seller/${data.seller.id}`);
+        const sellerData = sellerResponse.data.data || sellerResponse.data;
+        const sellerProducts = Array.isArray(sellerData) ? sellerData : sellerData.data || [];
+        sellerListings.value = sellerProducts
+          .filter(p => p.id !== parseInt(productId))
+          .map(mapProductCard);
+      } catch (err) {
+        console.error('Error fetching seller products:', err);
+        sellerListings.value = [];
+      }
+    }
 
   } catch (error) {
     console.error('Error fetching product:', error);

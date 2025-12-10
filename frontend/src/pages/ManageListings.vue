@@ -65,13 +65,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '../utils/useAuth';
+import api from '../utils/api';
 import Header from '../components/Header-Other.vue';
 import Footer from '../components/Footer.vue';
 import ManageListingCard from '../components/Product/ManageListingCard.vue';
 
-const { user } = useAuth();
+const { user, isLoggedIn } = useAuth();
 
 const tabs = [
   { id: 'active', label: 'Đang hiển thị' },
@@ -84,23 +85,56 @@ const tabs = [
 ];
 
 const activeTab = ref('active');
+const allListings = ref([]);
+const isLoading = ref(false);
+const error = ref(null);
 
-// Dữ liệu gốc (Giả lập Database)
-const allListings = [
-  { id: 1, status: 'active', title: 'Máy quạt mini giá tốt', condition: 'Đã sử dụng', price: '400.000 đ', location: 'Bình Dương', imageUrl: 'https://via.placeholder.com/150/ccffcc/000000?text=Fan+1', userName: user.value?.name || 'Tôi', userAvatar: 'https://via.placeholder.com/30/6366f1/ffffff?text=Me' },
-  { id: 2, status: 'active', title: 'Iphone 12 Promax cũ', condition: 'Đã sử dụng', price: '10.500.000 đ', location: 'TP. HCM', imageUrl: 'https://via.placeholder.com/150/eee/000?text=Phone', userName: user.value?.name || 'Tôi', userAvatar: 'https://via.placeholder.com/30/6366f1/ffffff?text=Me' },
-  { id: 3, status: 'expired', title: 'Tai nghe cũ (Đã bán)', condition: 'Cũ', price: '50.000 đ', location: 'TP. HCM', imageUrl: 'https://via.placeholder.com/150/eee/000?text=Headphone', userName: user.value?.name || 'Tôi', userAvatar: 'https://via.placeholder.com/30/6366f1/ffffff?text=Me' },
-  // Các trạng thái khác đang để trống để test giao diện Empty State
-];
+// Fetch listings từ API
+const fetchListings = async () => {
+  if (!isLoggedIn.value) return;
+  
+  isLoading.value = true;
+  error.value = null;
+  
+  try {
+    const response = await api.get('/user/listings');
+    
+    if (response.data.success) {
+      // Map API data sang format phù hợp với component
+      allListings.value = response.data.data.map(item => ({
+        id: item.id,
+        status: item.status,
+        title: item.title,
+        condition: 'Đã sử dụng',
+        price: new Intl.NumberFormat('vi-VN').format(item.price) + ' đ',
+        location: 'Việt Nam',
+        imageUrl: item.image || 'https://via.placeholder.com/150/eee/000?text=No+Image',
+        userName: user.value?.full_name || 'Tôi',
+        userAvatar: user.value?.avatar || 'https://via.placeholder.com/30/6366f1/ffffff?text=Me',
+        category: item.category,
+        createdAt: item.created_at,
+      }));
+    }
+  } catch (err) {
+    console.error('Failed to fetch listings:', err);
+    error.value = err.response?.data?.message || 'Không thể tải danh sách tin đăng';
+  } finally {
+    isLoading.value = false;
+  }
+};
 
 // Computed property để lọc tin theo Tab đang chọn
 const filteredListings = computed(() => {
-  return allListings.filter(item => item.status === activeTab.value);
+  return allListings.value.filter(item => item.status === activeTab.value);
 });
 
 const selectTab = (tabId) => {
   activeTab.value = tabId;
 };
+
+onMounted(() => {
+  fetchListings();
+});
 </script>
 
 <style scoped>
