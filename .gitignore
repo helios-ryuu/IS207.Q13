@@ -4,7 +4,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-.github
+.github/instructions/
 
 docker-compose.build.yml
 *.docx
