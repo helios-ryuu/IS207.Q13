@@ -68,24 +68,32 @@ class UserProfileController extends Controller
         ]);
 
         $user = $request->user();
+        $disk = config('filesystems.default');
 
         if ($request->file('avatar')) {
-            // Xóa ảnh cũ nếu có (tùy chọn)
+            // Xóa ảnh cũ nếu có
             if ($user->avatar) {
-                Storage::disk('public')->delete($user->avatar);
+                Storage::disk($disk)->delete($user->avatar);
             }
 
-            // Lưu ảnh mới vào thư mục 'avatars' trong storage/app/public
-            $path = $request->file('avatar')->store('avatars', 'public');
+            // Generate unique filename: avatars/users/user-{id}-{hash}.jpg
+            $extension = $request->file('avatar')->getClientOriginalExtension();
+            $filename = 'user-' . $user->id . '-' . uniqid() . '.' . $extension;
+            $path = $request->file('avatar')->storeAs('avatars/users', $filename, $disk);
             
             // Lưu đường dẫn vào DB
             $user->update(['avatar' => $path]);
         }
 
+        // Tạo public URL dựa vào disk
+        $avatarUrl = $disk === 'gcs' 
+            ? Storage::disk($disk)->url($user->avatar)
+            : asset('storage/' . $user->avatar);
+
         return response()->json([
             'success' => true,
             'message' => 'Avatar updated successfully',
-            'avatar_url' => asset('storage/' . $user->avatar)
+            'avatar_url' => $avatarUrl
         ]);
     }
 }

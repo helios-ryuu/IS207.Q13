@@ -60,12 +60,12 @@ Seminar nhóm: SEO trang web trong thời đại ngày nay khi có AI Search. C�
 
 1. **Tải PHP phiên bản phù hợp**
    - Truy cập [https://windows.php.net/download/](https://windows.php.net/download/)
-   - Tải phiên bản **PHP 8.5.0** (Non Thread Safe) - Zip file
+   - Tải phiên bản **PHP 8.5.0 VS17 x64 Non Thread Safe** - Zip file
 
 2. **Giải nén và di chuyển**
    - Giải nén file zip vừa tải
    - Đổi tên thành `php-8.5.0`
-   - Di chuyển thư mục PHP vào ổ C: `C:\php-8.4.14`
+   - Di chuyển thư mục PHP vào ổ C: `C:\php-8.5.0`
 
 3. **Cấu hình biến môi trường**
    - Mở **View advance system setting** → **Environment Variables...**
@@ -239,22 +239,24 @@ docker compose down -v
 
 ## CÔNG NGHỆ SỬ DỤNG
 
+> 📅 **Cập nhật:** 10 tháng 12 năm 2025
+
 ### Backend
 
-1. **Ngôn ngữ:** [PHP](https://www.php.net/)
-2. **Framework:** [Laravel](https://laravel.com/)
-3. **Authentication:** [Laravel Sanctum](https://laravel.com/docs/11.x/sanctum)
+1. **Ngôn ngữ:** [PHP 8.5.0](https://www.php.net/) (VS17 x64 Non Thread Safe)
+2. **Framework:** [Laravel 12.0](https://laravel.com/)
+3. **Authentication:** [Laravel Sanctum 4.2](https://laravel.com/docs/11.x/sanctum)
 
 ### Frontend
 
 1. **Ngôn ngữ:** [HTML](https://developer.mozilla.org/en-US/docs/Web/HTML), [CSS](https://developer.mozilla.org/en-US/docs/Web/CSS), [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 2. **Framework và công cụ:**
-    * [Vite](https://vitejs.dev/) - Build tool
-    * [Vue 3](https://vuejs.org/) - Progressive JavaScript framework
+    * [Vite 7.2.7](https://vitejs.dev/) - Build tool
+    * [Vue 3.5.25](https://vuejs.org/) - Progressive JavaScript framework
 
 ### Database
 
-**Hệ quản trị cơ sở dữ liệu:** [MySQL](https://www.mysql.com/)
+**Hệ quản trị cơ sở dữ liệu:** [MySQL 8.4.7](https://www.mysql.com/)
 
 ### Deployment - Nền tảng triển khai
 
@@ -263,6 +265,8 @@ docker compose down -v
 2. **Backend API:** Dịch vụ Laravel API được triển khai lên [Google Cloud Run](https://cloud.google.com/run) thông qua [Cloud Build trigger](https://docs.cloud.google.com/build/docs) (nhánh `main` trigger build khi push)
 
 3. **Cơ sở dữ liệu:** Sử dụng [Google Cloud SQL](https://cloud.google.com/sql) (managed database) với MySQL 8.4.7 instance để lưu trữ dữ liệu người dùng, sản phẩm, giao dịch, v.v.
+
+4. **File Storage:** Sử dụng [Google Cloud Storage](https://cloud.google.com/storage) (bucket: `vietmarket`) để lưu trữ avatar người dùng, ảnh sản phẩm và các file upload khác
 
 ### CI/CD & DevOps
 
