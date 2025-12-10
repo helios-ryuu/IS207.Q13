@@ -14,6 +14,11 @@ function login(newToken, userInfo = null){
   if(userInfo) localStorage.setItem(userKey, JSON.stringify(userInfo))
 }
 
+function updateUser(userInfo) {
+  user.value = userInfo
+  localStorage.setItem(userKey, JSON.stringify(userInfo))
+}
+
 async function logout(){
   try {
     await api.post('/auth/logout')
@@ -35,6 +40,7 @@ export function useAuth(){
     user,
     isLoggedIn,
     login,
+    updateUser,
     logout
   }
 }
