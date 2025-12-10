@@ -58,9 +58,12 @@ class User extends Authenticatable
 
         $disk = config('filesystems.default');
         
-        return $disk === 'gcs' 
-            ? Storage::disk($disk)->url($this->avatar)
-            : asset('storage/' . $this->avatar);
+        if ($disk === 'gcs') {
+            $bucket = config('filesystems.disks.gcs.bucket');
+            return "https://storage.googleapis.com/{$bucket}/{$this->avatar}";
+        }
+        
+        return asset('storage/' . $this->avatar);
     }
 
     // Relationships

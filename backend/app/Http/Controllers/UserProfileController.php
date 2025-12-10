@@ -117,9 +117,12 @@ class UserProfileController extends Controller
             }
 
             // Tạo public URL dựa vào disk
-            $avatarUrl = $disk === 'gcs' 
-                ? Storage::disk($disk)->url($user->avatar)
-                : asset('storage/' . $user->avatar);
+            if ($disk === 'gcs') {
+                $bucket = config('filesystems.disks.gcs.bucket');
+                $avatarUrl = "https://storage.googleapis.com/{$bucket}/{$user->avatar}";
+            } else {
+                $avatarUrl = asset('storage/' . $user->avatar);
+            }
 
             \Log::info('[AVATAR] Upload completed', ['url' => $avatarUrl]);
 
