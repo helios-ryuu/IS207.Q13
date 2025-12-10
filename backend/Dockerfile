@@ -19,10 +19,13 @@ RUN set -eux; \
         libzip-dev \
         oniguruma-dev \
         mysql-client \
+        icu-dev \
+        icu-libs \
     && docker-php-ext-install \
         pdo_mysql \
         bcmath \
-        zip
+        zip \
+        intl
 
 COPY --from=composer-base /app/vendor ./vendor
 COPY . .
