@@ -13,11 +13,12 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductVariantController;
 use App\Http\Controllers\ProductImageController;
 use App\Http\Controllers\SearchController;
-use App\Http\Controllers\ReviewController ;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SellerReviewController;
+use App\Http\Controllers\FavoriteController;
 // --- PUBLIC ROUTES (Ai cũng xem được) ---
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -26,7 +27,16 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/search', [SearchController::class, 'search']);
-// ... (Giữ nguyên các route public khác) ...
+
+// Categories
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{id}', [CategoryController::class, 'show']);
+
+// Product endpoints bổ sung
+Route::get('/products/trending', [SearchController::class, 'trending']);
+Route::get('/products/newest', [SearchController::class, 'newest']);
+Route::get('/products/recommended', [SearchController::class, 'recommended']);
+Route::get('/products/seller/{sellerId}', [ProductController::class, 'getSellerProducts']);
 
 // Xem Review (Chỉ có GET là Public)
 Route::get('/products/{id}/reviews', [ReviewController::class, 'index']);
@@ -68,6 +78,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+
+    // FAVORITES
+    Route::get('/user/favorites', [FavoriteController::class, 'index']);
+    Route::get('/user/favorites/count', [FavoriteController::class, 'count']);
+    Route::post('/user/favorites/{productId}', [FavoriteController::class, 'store']);
+    Route::delete('/user/favorites/{productId}', [FavoriteController::class, 'destroy']);
+    Route::post('/user/favorites/{productId}/toggle', [FavoriteController::class, 'toggle']);
+    Route::get('/user/favorites/{productId}/check', [FavoriteController::class, 'check']);
     // --- PRODUCT REVIEWS (Auth) ---
     Route::post('/products/{id}/reviews', [ReviewController::class, 'store']);
     Route::put('/reviews/{id}', [\App\Http\Controllers\ReviewController::class, 'update']);
@@ -82,7 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
-    
+
     // Variant Management
     Route::post('/products/{id}/variants', [ProductVariantController::class, 'store']);
     Route::put('/variants/{id}', [ProductVariantController::class, 'update']);
@@ -128,7 +146,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // Dashboard Statistics
     Route::get('/statistics/dashboard', [AdminController::class, 'getDashboardStats']);
     Route::get('/activities/recent', [AdminController::class, 'getRecentActivities']);
-    
+
     // Product Post Management
     Route::get('/posts', [ProductPostController::class, 'index']);
     Route::get('/posts/{id}', [ProductPostController::class, 'show']);
