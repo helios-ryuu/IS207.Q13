@@ -73,17 +73,27 @@
           </div>
 
           <div class="seller-info">
-            <img :src="product?.seller.avatar" :alt="product?.seller.name" class="seller-avatar">
+            <img
+                :src="product?.seller.avatar"
+                :alt="product?.seller.name"
+                class="seller-avatar"
+                @click="goToSellerProfile"
+                style="cursor: pointer"
+            >
             <div class="seller-details">
-              <strong>{{ product?.seller.name }}</strong> <br>
+              <strong
+                  @click="goToSellerProfile"
+                  style="cursor: pointer"
+              >{{ product?.seller.name }}</strong> <br>
               <a href="#">Lịch sử hoạt động</a>
             </div>
             <div class="seller-stats">
               <div class="stat-item"><strong>{{ product?.seller.listings }}</strong> <span>SĐ bán</span></div>
               <div class="stat-item"><strong>{{ product?.seller.rating }} ⭐</strong> <br> <span>{{ product?.seller.reviews }} đánh giá</span></div>
             </div>
-            <button class="btn-view-profile">Xem trang</button>
+            <button class="btn-view-profile" @click="goToSellerProfile">Xem trang</button>
           </div>
+
           <div class="quick-chat">
             <span>Chat nhanh:</span>
             <button class="btn-quick-message">Bạn có ship hàng không? </button>
@@ -161,7 +171,6 @@ const router = useRouter();
 const product = ref(null);
 const loading = ref(true);
 
-// State "Xem thêm"
 const sellerListings = ref([]);
 const similarListings = ref([]);
 const visibleSellerCount = ref(4);
@@ -205,18 +214,25 @@ const handleChat = () => {
   });
 };
 
-// Format price helper
+// === HÀM CHUYỂN HƯỚNG TỚI TRANG NGƯỜI BÁN ===
+const goToSellerProfile = () => {
+  if (product.value && product.value.seller) {
+    // Chuyển tới route /seller/:id
+    router.push({
+      name: 'SellerProfile',
+      params: { id: product.value.seller.id }
+    });
+  }
+};
+
 const formatPrice = (price) => {
   if (!price) return '0';
   return new Intl.NumberFormat('vi-VN').format(price);
 };
 
-// Map API product to component format
 const mapProductFromApi = (data) => {
   const variant = data.variants?.[0] || {};
   const images = [];
-  
-  // Collect images from all variants
   if (data.variants) {
     data.variants.forEach(v => {
       if (v.images) {
@@ -224,8 +240,6 @@ const mapProductFromApi = (data) => {
       }
     });
   }
-  
-  // Fallback placeholder if no images
   if (images.length === 0) {
     images.push('https://via.placeholder.com/600x400/eeeeee/cccccc?text=No+Image');
   }
@@ -265,7 +279,6 @@ const mapProductFromApi = (data) => {
   };
 };
 
-// Map product for listing cards
 const mapProductCard = (item) => ({
   id: item.id,
   title: item.name,
@@ -281,12 +294,10 @@ const fetchProductDetail = async () => {
 
   const productId = route.params.id;
   try {
-    // Fetch product detail
     const response = await api.get(`/products/${productId}`);
     const data = response.data.data || response.data;
     product.value = mapProductFromApi(data);
 
-    // Fetch similar products từ API mới
     try {
       const similarResponse = await api.get(`/products/${productId}/similar`);
       if (similarResponse.data.success) {
@@ -303,16 +314,15 @@ const fetchProductDetail = async () => {
       console.error('Error fetching similar products:', err);
       similarListings.value = [];
     }
-    
-    // Fetch seller listings (products from same seller)
+
     if (data.seller?.id) {
       try {
         const sellerResponse = await api.get(`/products/seller/${data.seller.id}`);
         const sellerData = sellerResponse.data.data || sellerResponse.data;
         const sellerProducts = Array.isArray(sellerData) ? sellerData : sellerData.data || [];
         sellerListings.value = sellerProducts
-          .filter(p => p.id !== parseInt(productId))
-          .map(mapProductCard);
+            .filter(p => p.id !== parseInt(productId))
+            .map(mapProductCard);
       } catch (err) {
         console.error('Error fetching seller products:', err);
         sellerListings.value = [];
@@ -330,6 +340,7 @@ onMounted(() => { fetchProductDetail(); });
 </script>
 
 <style scoped>
+/* CSS giữ nguyên như cũ */
 .product-detail-page { background-color: #f4f4f4; padding-bottom: 30px; }
 .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 .breadcrumbs { font-size: 0.9rem; color: #555; padding: 20px 0; }

@@ -4,12 +4,12 @@
       class="product-card-link"
   >
     <div class="product-card">
-      <button 
-        class="favorite-btn" 
-        :class="{ 'is-favorited': isFavorited, 'is-loading': isToggling }"
-        :disabled="isToggling"
-        @click.stop.prevent="toggleFavorite"
-        :title="isFavorited ? 'Bỏ yêu thích' : 'Thêm yêu thích'"
+      <button
+          class="favorite-btn"
+          :class="{ 'is-favorited': isFavorited, 'is-loading': isToggling }"
+          :disabled="isToggling"
+          @click.stop.prevent="toggleFavorite"
+          :title="isFavorited ? 'Bỏ yêu thích' : 'Thêm yêu thích'"
       >
         <span v-if="isToggling" class="btn-spinner"></span>
         <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" :fill="isFavorited ? '#ef4444' : 'white'" :stroke="isFavorited ? '#ef4444' : '#888'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -27,10 +27,14 @@
           <span class="current-price">{{ product.price }}</span>
           <span v-if="product.originalPrice" class="original-price">{{ product.originalPrice }}</span>
         </div>
-        <div class="seller-info">
-          <div class="avatar-placeholder"></div>
+
+        <div class="seller-info" @click.prevent="goToSeller">
+          <div class="avatar-placeholder">
+            <img v-if="product.userAvatar" :src="product.userAvatar" class="avatar-img" />
+          </div>
           <span class="seller-name">{{ product.seller || product.username }}</span>
         </div>
+
         <span class="location">{{ product.location }}</span>
       </div>
     </div>
@@ -39,6 +43,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router' // 1. Thêm import useRouter
 import { useAuth } from '../../utils/useAuth'
 import api from '../../utils/api'
 
@@ -50,16 +55,23 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['favorite-changed'])
-
+const router = useRouter() // 2. Khởi tạo router
 const { isLoggedIn } = useAuth()
 
 const isFavorited = ref(false)
 const isToggling = ref(false)
 
-// Kiểm tra trạng thái yêu thích khi mount
+// === BỔ SUNG: Hàm chuyển trang Seller ===
+const goToSeller = () => {
+  // Lấy ID người bán từ prop, nếu không có thì dùng ID giả định 123
+  const sellerId = props.product.sellerId || props.product.userId || 123;
+  router.push(`/seller/${sellerId}`);
+}
+
+// Các logic cũ giữ nguyên
 const checkFavoriteStatus = async () => {
   if (!isLoggedIn.value || !props.product?.id) return
-  
+
   try {
     const response = await api.get(`/user/favorites/${props.product.id}/check`)
     if (response.data.success) {
@@ -70,20 +82,19 @@ const checkFavoriteStatus = async () => {
   }
 }
 
-// Toggle yêu thích
 const toggleFavorite = async () => {
   if (!isLoggedIn.value) {
     alert('Vui lòng đăng nhập để thêm vào yêu thích')
     return
   }
-  
+
   if (!props.product?.id) return
-  
+
   isToggling.value = true
-  
+
   try {
     const response = await api.post(`/user/favorites/${props.product.id}/toggle`)
-    
+
     if (response.data.success) {
       isFavorited.value = response.data.is_favorited
       emit('favorite-changed', {
@@ -111,22 +122,6 @@ onMounted(() => {
   display: block;
 }
 
-.product-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-decoration: none;
-  transition: text-decoration 0.2s;
-}
-
-.product-card:hover .product-title {
-  text-decoration: underline;
-}
-
 .product-card {
   background-color: white;
   border-radius: 8px;
@@ -135,11 +130,18 @@ onMounted(() => {
   position: relative;
   transition: transform 0.2s;
   cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .product-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.product-card:hover .product-title {
+  text-decoration: underline;
 }
 
 .favorite-btn {
@@ -199,6 +201,8 @@ onMounted(() => {
 .product-image-wrapper {
   overflow: hidden;
   height: 200px;
+  width: 100%;
+  background-color: #f9f9f9;
 }
 
 .product-image {
@@ -209,46 +213,89 @@ onMounted(() => {
 
 .product-info {
   padding: 10px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+  margin: 0 0 8px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: text-decoration 0.2s;
 }
 
 .price-section {
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .current-price {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
   color: #ff4500;
   margin-right: 8px;
 }
 
 .original-price {
-  font-size: 14px;
-  color: #888;
+  font-size: 13px;
+  color: #999;
   text-decoration: line-through;
 }
 
+/* === SỬA STYLE SELLER-INFO === */
 .seller-info {
   display: flex;
   align-items: center;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
+  margin-top: auto;
+  /* Thêm hiệu ứng chuột để biết là bấm được */
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity 0.2s;
+}
+
+.seller-info:hover {
+  opacity: 0.8;
 }
 
 .avatar-placeholder {
-  width: 24px;
-  height: 24px;
-  background-color: #e9e9e9;
+  width: 20px;
+  height: 20px;
+  background-color: #e0e0e0;
   border-radius: 50%;
-  margin-right: 8px;
+  margin-right: 6px;
+  overflow: hidden; /* Để ảnh avatar không bị tràn */
 }
 
-.seller-name, .location {
-  font-size: 13px;
-  color: #666;
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.seller-name {
+  font-size: 12px;
+  color: #777;
   text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.seller-name:hover, .location:hover {
+/* Khi hover vào dòng seller info thì tên người bán gạch chân */
+.seller-info:hover .seller-name {
   text-decoration: underline;
+  color: #007bff;
+}
+
+.location {
+  font-size: 12px;
+  color: #777;
+  display: block;
+  margin-top: 2px;
 }
 </style>
