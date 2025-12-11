@@ -12,82 +12,85 @@ class OrderSeeder extends Seeder
 {
     public function run(): void
     {
-        $buyer = User::where('email', 'buyer@example.com')->first();
-        $seller = User::where('email', 'seller@example.com')->first();
+        $customers = User::where('role', 'customer')->get();
+        $variants = ProductVariant::with('product')->where('status', 'active')->get();
 
-        if (!$buyer || !$seller)
+        if ($customers->isEmpty() || $variants->isEmpty())
             return;
 
-        // Lấy địa chỉ mặc định của buyer
-        $address = DB::table('shipping_addresses')
-            ->where('user_id', $buyer->id)
-            ->where('is_default', true)
-            ->first();
-
-        if (!$address)
-            return;
-
-        // Lấy một số variants để tạo đơn hàng
-        $variants = ProductVariant::with('product')
-            ->whereHas('product', fn($q) => $q->where('seller_id', $seller->id))
-            ->take(3)
-            ->get();
-
-        if ($variants->isEmpty())
-            return;
-
-        // Tạo 2 đơn hàng mẫu với các trạng thái khác nhau
-        $orders = [
-            [
-                'status' => 'delivered',
-                'payment_method' => 'cash',
-                'notes' => 'Giao nhanh giùm em',
-                'delivery_date' => now()->subDays(25),
-                'created_ago' => 30,
-            ],
-            [
-                'status' => 'pending',
-                'payment_method' => 'bank_transfer',
-                'notes' => 'Gọi trước khi giao',
-                'delivery_date' => null,
-                'created_ago' => 2,
-            ],
+        // Valid statuses: pending, confirmed, processing, shipped, delivered, cancelled, refunded
+        $statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'delivered', 'delivered', 'cancelled'];
+        $paymentMethods = ['cash', 'bank_transfer', 'wallet'];
+        $notes = [
+            'Giao nhanh giùm em',
+            'Gọi trước khi giao',
+            'Để ở bảo vệ nếu không có người nhận',
+            'Ship giờ hành chính',
+            'Giao cuối tuần',
+            null,
+            null,
         ];
 
-        foreach ($orders as $index => $orderData) {
-            $variant = $variants[$index % count($variants)];
+        $orderCount = 0;
+        $targetCount = 25;
 
-            // Kiểm tra đã tồn tại chưa dựa trên notes và user
-            $exists = DB::table('orders')
-                ->where('user_id', $buyer->id)
-                ->where('notes', $orderData['notes'])
-                ->exists();
+        // Keep looping until we reach target or exhausted attempts
+        $attempts = 0;
+        $maxAttempts = 100;
 
-            if ($exists)
-                continue;
+        while ($orderCount < $targetCount && $attempts < $maxAttempts) {
+            $attempts++;
 
-            $orderId = DB::table('orders')->insertGetId([
-                'user_id' => $buyer->id,
-                'address_id' => $address->id,
-                'order_date' => now()->subDays($orderData['created_ago']),
-                'delivery_date' => $orderData['delivery_date'],
-                'shipping_fee' => 30000,
-                'status' => $orderData['status'],
-                'payment_method' => $orderData['payment_method'],
-                'tracking_code' => 'VN' . strtoupper(Str::random(10)),
-                'notes' => $orderData['notes'],
-                'created_at' => now()->subDays($orderData['created_ago']),
-                'updated_at' => now()->subDays($orderData['created_ago'] - 1),
-            ]);
+            foreach ($customers as $customer) {
+                if ($orderCount >= $targetCount)
+                    break;
 
-            // Tạo order detail (chú ý: dùng unit_price, không có updated_at)
-            DB::table('order_details')->insert([
-                'order_id' => $orderId,
-                'variant_id' => $variant->id,
-                'quantity' => 1,
-                'unit_price' => $variant->price,
-                'created_at' => now(),
-            ]);
+                $address = DB::table('shipping_addresses')
+                    ->where('user_id', $customer->id)
+                    ->inRandomOrder()
+                    ->first();
+
+                if (!$address)
+                    continue;
+
+                $status = $statuses[array_rand($statuses)];
+                $createdAgo = rand(1, 60);
+                $deliveryDate = null;
+
+                if ($status === 'delivered') {
+                    $deliveryDate = now()->subDays($createdAgo - rand(1, 5));
+                }
+
+                $orderId = DB::table('orders')->insertGetId([
+                    'user_id' => $customer->id,
+                    'address_id' => $address->id,
+                    'order_date' => now()->subDays($createdAgo),
+                    'delivery_date' => $deliveryDate,
+                    'shipping_fee' => [0, 15000, 25000, 30000][array_rand([0, 15000, 25000, 30000])],
+                    'status' => $status,
+                    'payment_method' => $paymentMethods[array_rand($paymentMethods)],
+                    'tracking_code' => 'VN' . strtoupper(Str::random(10)),
+                    'notes' => $notes[array_rand($notes)],
+                    'created_at' => now()->subDays($createdAgo),
+                    'updated_at' => now()->subDays(max(0, $createdAgo - rand(1, 5))),
+                ]);
+
+                // Add 1-3 order details per order
+                $numDetails = rand(1, 3);
+                $selectedVariants = $variants->random(min($numDetails, $variants->count()));
+
+                foreach ($selectedVariants as $variant) {
+                    DB::table('order_details')->insert([
+                        'order_id' => $orderId,
+                        'variant_id' => $variant->id,
+                        'quantity' => rand(1, 3),
+                        'unit_price' => $variant->price,
+                        'created_at' => now()->subDays($createdAgo),
+                    ]);
+                }
+
+                $orderCount++;
+            }
         }
     }
 }

@@ -11,29 +11,41 @@ class FavoriteSeeder extends Seeder
 {
     public function run(): void
     {
-        $buyer = User::where('email', 'buyer@example.com')->first();
+        $customers = User::where('role', 'customer')->get();
+        $products = Product::where('status', 'active')->get();
 
-        if (!$buyer)
+        if ($customers->isEmpty() || $products->isEmpty())
             return;
 
-        // Lấy 5 sản phẩm ngẫu nhiên để thêm vào yêu thích
-        $products = Product::inRandomOrder()->take(5)->get();
+        $favoriteCount = 0;
+        $targetCount = 30;
 
-        foreach ($products as $product) {
-            $exists = DB::table('favorites')
-                ->where('user_id', $buyer->id)
-                ->where('product_id', $product->id)
-                ->exists();
+        foreach ($customers as $customer) {
+            // Each customer favorites 3-8 products
+            $numFavorites = rand(3, 8);
+            $selectedProducts = $products->random(min($numFavorites, $products->count()));
 
-            if ($exists)
-                continue;
+            foreach ($selectedProducts as $product) {
+                if ($favoriteCount >= $targetCount)
+                    break 2;
 
-            DB::table('favorites')->insert([
-                'user_id' => $buyer->id,
-                'product_id' => $product->id,
-                'created_at' => now()->subDays(rand(1, 14)),
-                'updated_at' => now()->subDays(rand(1, 7)),
-            ]);
+                $exists = DB::table('favorites')
+                    ->where('user_id', $customer->id)
+                    ->where('product_id', $product->id)
+                    ->exists();
+
+                if ($exists)
+                    continue;
+
+                DB::table('favorites')->insert([
+                    'user_id' => $customer->id,
+                    'product_id' => $product->id,
+                    'created_at' => now()->subDays(rand(1, 30)),
+                    'updated_at' => now()->subDays(rand(0, 7)),
+                ]);
+
+                $favoriteCount++;
+            }
         }
     }
 }
