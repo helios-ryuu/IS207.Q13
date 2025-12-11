@@ -68,7 +68,7 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
               Chat
             </button>
-            <button class="btn-add-cart">Thêm vào giỏ hàng</button>
+            <button class="btn-add-cart" @click="handleAddToCart">Thêm vào giỏ hàng</button>
             <button class="btn-buy-now">Đặt hàng</button>
           </div>
 
@@ -164,11 +164,13 @@ import Header from "../components/layout/SearchHeader.vue";
 import Footer from "../components/layout/AppFooter.vue";
 import CommentSection from '../components/CommentSection.vue';
 import ProductCard from '../components/product/ProductCardSimple.vue';
+import { useCart } from '../stores/cart';
 
 const route = useRoute();
 const router = useRouter();
 const product = ref(null);
 const loading = ref(true);
+const { addToCart } = useCart();
 
 // State "Xem thêm"
 const sellerListings = ref([]);
@@ -221,6 +223,16 @@ const goToSellerProfile = () => {
       name: 'SellerProfile', // Đảm bảo tên route này khớp với trong router/index.js
       params: { id: product.value.seller.id }
     });
+  }
+};
+
+// === HÀM THÊM VÀO GIỎ HÀNG ===
+const handleAddToCart = () => {
+  if (!product.value) return;
+  
+  const success = addToCart(product.value);
+  if (success) {
+    alert('Đã thêm sản phẩm vào giỏ hàng!');
   }
 };
 

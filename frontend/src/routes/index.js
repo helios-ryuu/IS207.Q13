@@ -16,6 +16,7 @@ import Chat from '../pages/Chat.vue';
 import SalesOrderManagement from '../pages/SalesOrderManagement.vue';
 import CreatePost from '../pages/CreatePost.vue';
 import SellerProfile from '../pages/SellerProfile.vue';
+import Cart from '../pages/Cart.vue';
 
 const routes = [
     {
@@ -111,6 +112,11 @@ const routes = [
         path: '/seller/:id',
         name: 'SellerProfile',
         component: SellerProfile
+    },
+    {
+        path: '/cart',
+        name: 'Cart',
+        component: Cart
     }
 ]
 

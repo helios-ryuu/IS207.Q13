@@ -43,6 +43,10 @@
           <button class="icon-btn" title="Yêu thích" @click="$router.push('/favorites')">
             <font-awesome-icon icon="heart" />
           </button>
+          <button class="icon-btn" title="Giỏ hàng" @click="$router.push('/cart')">
+            <font-awesome-icon icon="shopping-cart" />
+            <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
+          </button>
           <button class="icon-btn" title="Trò chuyện" @click="handleChatClick">
             <font-awesome-icon icon="comment" />
           </button>
@@ -129,6 +133,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router'; 
 import LocationPickerModal from '../modals/LocationPickerModal.vue';
 import { useAuth } from '../../utils/useAuth';
+import { useCart } from '../../stores/cart';
 // import LoginModal from './LoginModal.vue'; // <-- ĐÃ XÓA (Không dùng modal)
 
 const isCategoryMenuOpen = ref(false);
@@ -137,6 +142,7 @@ const router = useRouter();
 
 // Lấy trạng thái từ useAuth
 const { isLoggedIn, user, logout } = useAuth();
+const { cartCount } = useCart();
 const isUserMenuOpen = ref(false);
 
 const isLocationPickerOpen = ref(false);
@@ -354,6 +360,23 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
   cursor: pointer;
   font-size: 1.4rem;
   color: #333;
+  position: relative;
+}
+
+.cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
 }
 .post-btn {
   background-color: #f5a623;
