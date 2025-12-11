@@ -85,7 +85,7 @@
                   @click="goToSellerProfile"
                   style="cursor: pointer"
               >{{ product?.seller.name }}</strong> <br>
-              <a href="#">Lịch sử hoạt động</a>
+              <a href="#" @click.prevent="goToSellerProfile">Lịch sử hoạt động</a>
             </div>
             <div class="seller-stats">
               <div class="stat-item"><strong>{{ product?.seller.listings }}</strong> <span>SĐ bán</span></div>
@@ -93,7 +93,6 @@
             </div>
             <button class="btn-view-profile" @click="goToSellerProfile">Xem trang</button>
           </div>
-
           <div class="quick-chat">
             <span>Chat nhanh:</span>
             <button class="btn-quick-message">Bạn có ship hàng không? </button>
@@ -171,6 +170,7 @@ const router = useRouter();
 const product = ref(null);
 const loading = ref(true);
 
+// State "Xem thêm"
 const sellerListings = ref([]);
 const similarListings = ref([]);
 const visibleSellerCount = ref(4);
@@ -217,19 +217,20 @@ const handleChat = () => {
 // === HÀM CHUYỂN HƯỚNG TỚI TRANG NGƯỜI BÁN ===
 const goToSellerProfile = () => {
   if (product.value && product.value.seller) {
-    // Chuyển tới route /seller/:id
     router.push({
-      name: 'SellerProfile',
+      name: 'SellerProfile', // Đảm bảo tên route này khớp với trong router/index.js
       params: { id: product.value.seller.id }
     });
   }
 };
 
+// Helper Format Price
 const formatPrice = (price) => {
   if (!price) return '0';
   return new Intl.NumberFormat('vi-VN').format(price);
 };
 
+// Map API Data
 const mapProductFromApi = (data) => {
   const variant = data.variants?.[0] || {};
   const images = [];
@@ -340,7 +341,6 @@ onMounted(() => { fetchProductDetail(); });
 </script>
 
 <style scoped>
-/* CSS giữ nguyên như cũ */
 .product-detail-page { background-color: #f4f4f4; padding-bottom: 30px; }
 .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 .breadcrumbs { font-size: 0.9rem; color: #555; padding: 20px 0; }
