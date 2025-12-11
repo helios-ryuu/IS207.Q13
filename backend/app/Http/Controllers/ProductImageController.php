@@ -39,15 +39,27 @@ class ProductImageController extends Controller
             $variantId = $variant->id;
         }
 
-        // Upload
-        $url = $this->imageService->upload($request->file('image'), 'products');
+        try {
+            // Upload
+            $url = $this->imageService->upload($request->file('image'), 'products');
 
-        $image = ProductImage::create([
-            'variant_id' => $variantId,
-            'image_url' => $url
-        ]);
+            $image = ProductImage::create([
+                'variant_id' => $variantId,
+                'image_url' => $url
+            ]);
 
-        return response()->json(['message' => 'Image uploaded', 'data' => $image], 201);
+            return response()->json(['message' => 'Image uploaded', 'data' => $image], 201);
+        } catch (\Exception $e) {
+            \Log::error('Image upload failed: ' . $e->getMessage(), [
+                'product_id' => $productId,
+                'variant_id' => $variantId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Upload failed: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getTraceAsString() : null
+            ], 500);
+        }
     }
 
     // 7. DELETE /api/images/{id}

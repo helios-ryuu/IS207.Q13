@@ -12,11 +12,20 @@ class ImageUploadService
     {
         // Tạo tên file unique
         $fileName = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-        // Upload vào storage/app/public/{folder}
-        $path = $file->storeAs($folder, $fileName, 'public');
-        
-        // Trả về đường dẫn public (cần chạy php artisan storage:link)
-        return Storage::url($path);
+
+        // Upload vào disk tương ứng
+        $path = $file->storeAs($folder, $fileName, $this->disk);
+
+        // Trả về URL
+        if ($this->disk === 'gcs') {
+            // Manually construct GCS public URL
+            $bucket = config('filesystems.disks.gcs.bucket');
+            $storageUri = config('filesystems.disks.gcs.storage_api_uri', 'https://storage.googleapis.com');
+            return $storageUri . '/' . $bucket . '/' . $path;
+        }
+
+        // Return relative URL for local storage (works with any port)
+        return '/storage/' . $path;
     }
 
     public function delete(string $path): bool

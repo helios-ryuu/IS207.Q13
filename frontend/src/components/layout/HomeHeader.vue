@@ -109,10 +109,6 @@
       </div>
     </div>
   </header>
-  <AuthRedirectModal
-    v-if="isAuthModalOpen"
-    @close="isAuthModalOpen = false"
-  />
 </template>
 
 <script setup>
