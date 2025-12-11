@@ -28,7 +28,7 @@
         <button class="shop-now-btn" @click="goToProducts">
           <font-awesome-icon icon="shopping-bag" /> Mua sắm ngay
         </button>
-        <button class="support-btn">
+        <button class="support-btn" @click="goToSupport">
           <font-awesome-icon icon="headset" /> Liên hệ hỗ trợ
         </button>
       </div>
@@ -229,6 +229,11 @@ const selectCategory = (categoryName) => {
 // Hàm cho nút "Mua sắm ngay"
 const goToProducts = () => {
   router.push('/products');
+};
+
+// --- Chuyển hướng đến trang Hỗ trợ ---
+const goToSupport = () => {
+  router.push('/support'); // Chuyển đến đường dẫn '/support'
 };
 
 const handleClickOutside = (event) => {
