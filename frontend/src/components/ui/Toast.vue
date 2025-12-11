@@ -16,8 +16,7 @@
 <script setup>
 defineProps({
   message: String,
-  type: String,
-  key: [String, Number]
+  type: String
 })
 
 defineEmits(['close'])

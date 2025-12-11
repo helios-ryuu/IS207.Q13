@@ -231,13 +231,38 @@ const formatPrice = (price) => {
 };
 
 // Map API Data
+// Helper to resolve image URL (same as ManageListings)
+const getImageUrl = (url) => {
+  if (!url) return 'https://via.placeholder.com/600x400/eeeeee/cccccc?text=No+Image';
+  
+  // If already full URL (not localhost without port), return as is
+  if (url.startsWith('http') && !url.includes('localhost/')) return url;
+  
+  // Fix absolute localhost URLs (missing port 8000)
+  if (url.startsWith('http://localhost/')) {
+    return url.replace('http://localhost/', 'http://localhost:8000/');
+  }
+  
+  // If relative URL starting with /storage, prepend backend URL
+  if (url.startsWith('/storage')) {
+    return 'http://localhost:8000' + url;
+  }
+  
+  return url;
+};
+
+// Map API product to component format
 const mapProductFromApi = (data) => {
   const variant = data.variants?.[0] || {};
   const images = [];
   if (data.variants) {
     data.variants.forEach(v => {
       if (v.images) {
-        v.images.forEach(img => images.push(img.image_url));
+        v.images.forEach(img => {
+          // Handle both string URLs and object with image_url property
+          const url = typeof img === 'string' ? img : img.image_url;
+          if (url) images.push(getImageUrl(url));
+        });
       }
     });
   }
@@ -257,7 +282,7 @@ const mapProductFromApi = (data) => {
     seller: {
       id: data.seller?.id || 0,
       name: data.seller?.full_name || data.seller?.username || 'Shop VietMarket',
-      avatar: data.seller?.avatar || 'https://via.placeholder.com/50/FFD60A/333333?text=S',
+      avatar: getImageUrl(data.seller?.avatar) || 'https://via.placeholder.com/50/FFD60A/333333?text=S',
       listings: 10,
       rating: 5.0,
       reviews: 100
@@ -272,8 +297,8 @@ const mapProductFromApi = (data) => {
     },
     detailedDescription: data.description || 'Mô tả chi tiết sản phẩm',
     specs: [
-      { label: 'Màu sắc:', value: variant.color || 'N/A' },
-      { label: 'Kích thước:', value: variant.size || 'N/A' },
+      { label: 'Màu sắc:', value: variant.color || 'Không xác định' },
+      { label: 'Kích thước:', value: variant.size || 'Không xác định' },
       { label: 'Tình trạng:', value: data.status === 'active' ? 'Còn hàng' : 'Hết hàng' }
     ],
     comments: []
@@ -285,7 +310,7 @@ const mapProductCard = (item) => ({
   title: item.name,
   price: formatPrice(item.price_range?.min || item.variants?.[0]?.price) + ' đ',
   location: 'TP. HCM',
-  imageUrl: item.image || item.variants?.[0]?.images?.[0]?.image_url || 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image'
+  imageUrl: getImageUrl(item.image || item.variants?.[0]?.images?.[0]?.image_url)
 });
 
 const fetchProductDetail = async () => {

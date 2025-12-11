@@ -27,6 +27,11 @@ RUN set -eux; \
         zip \
         intl
 
+# Configure PHP upload limits
+RUN echo "upload_max_filesize = 10M" >> /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "post_max_size = 12M" >> /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "max_execution_time = 60" >> /usr/local/etc/php/conf.d/uploads.ini
+
 COPY --from=composer-base /app/vendor ./vendor
 COPY . .
 
