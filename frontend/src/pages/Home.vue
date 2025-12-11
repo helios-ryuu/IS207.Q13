@@ -65,11 +65,11 @@ import { ref, onMounted } from 'vue';
 import api from '../utils/api';
 
 // --- COMPONENT IMPORTS ---
-import Header from '../components/Header-HomePage.vue';
+import Header from '../components/layout/HomeHeader.vue';
+import Footer from '../components/layout/AppFooter.vue';
 import CategoryGrid from '../components/CategoryGrid.vue';
-import ProductCard from '../components/Product/ProductCard_NoReceive.vue';
+import ProductCard from '../components/product/ProductCardSimple.vue';
 import SearchFilterBar from '../components/SearchFilterBar.vue';
-import Footer from '../components/Footer.vue';
 
 // --- PAGE STATE ---
 const activeTab = ref('for-you');

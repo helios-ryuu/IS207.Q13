@@ -239,12 +239,12 @@
 import { useRoute } from 'vue-router';
 
 import { ref, computed, onMounted, watch } from 'vue';
-import ProductCard from '../components/Product/ProductCard.vue';
-import CategoryModal from '../components/CategoryModal.vue';
-import AdvancedFilterModal from '../components/AdvancedFilterModal.vue';
-import PriceFilterModal from '../components/PriceFilterModal.vue';
-import ConditionModal from '../components/ConditionModal.vue';
-import HeaderOther from '../components/Header-Other.vue';
+import ProductCard from '../components/product/ProductCard.vue';
+import CategoryModal from '../components/modals/CategoryModal.vue';
+import AdvancedFilterModal from '../components/modals/AdvancedFilterModal.vue';
+import PriceFilterModal from '../components/modals/PriceFilterModal.vue';
+import ConditionModal from '../components/modals/ConditionModal.vue';
+import HeaderOther from '../components/layout/SearchHeader.vue';
 
 const route = useRoute(); // Lấy thông tin URL hiện tại
 

@@ -24,7 +24,21 @@ const { toastMessage, toastType, toastKey, closeToast } = useToast()
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Google Sans', 'Google Sans Text', system-ui, -apple-system, sans-serif;
   color: #333;
+}
+
+/* Force all elements to inherit font */
+button,
+input,
+textarea,
+select,
+optgroup,
+option {
+  font-family: inherit;
+}
+
+::placeholder {
+  font-family: inherit;
 }
 </style>
