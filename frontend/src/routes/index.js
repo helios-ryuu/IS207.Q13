@@ -15,6 +15,7 @@ import ProductDetail from '../pages/ProductDetail.vue';
 import Chat from '../pages/Chat.vue';
 import SalesOrderManagement from '../pages/SalesOrderManagement.vue';
 import CreatePost from '../pages/CreatePost.vue';
+import SellerProfile from '../pages/SellerProfile.vue';
 
 const routes = [
     {
@@ -105,6 +106,11 @@ const routes = [
     {
         path: '/sales-orders',
         component: SalesOrderManagement
+    },
+    {
+        path: '/seller/:id',
+        name: 'SellerProfile',
+        component: SellerProfile
     }
 ]
 
