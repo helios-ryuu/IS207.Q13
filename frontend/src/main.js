@@ -19,16 +19,16 @@ import {
     faSnowflake, faSoap, faShirt, faClock, faShoePrints, faShoppingBag, faSprayCan, faGem,
     faGuitar, faBook, faFutbol, faImage, faGamepad, faCompactDisc,
     faPrint, faScrewdriverWrench, faDrumstickBite, faBacon, faEgg, faMugHot, 
-    faBirthdayCake, faCandyCane, faCocktail, faEllipsisH,
-    faBars, faSearch, faHeart, faComment, faBell,
+    faBirthdayCake, faCandyCane, faCocktail, faEllipsisH, faCheck,
+    faBars, faSearch, faHeart, faComment, faBell, faComments, faStore, faCalendarAlt, faSort,
     faLocationCrosshairs, faBuilding, faChevronRight, faArrowLeft, faHeadset
 } from '@fortawesome/free-solid-svg-icons'
 
 
 // 2. THÊM VÀO THƯ VIỆN
 library.add(
-    faHome, faTags, faEnvelope, 
-    faMapMarkerAlt, faFilter, faTrash, 
+    faHome, faTags, faEnvelope, faCheck,
+    faMapMarkerAlt, faFilter, faTrash,  faCalendarAlt, faSort,
     faChevronDown, faTimes, faChevronUp,
     faChair, faBed, faBlender, faUtensils, faFan, 
     faLightbulb, faTree, faToilet, faCouch,
@@ -36,7 +36,7 @@ library.add(
     faMobileAlt, faTabletAlt, faLaptop, faDesktop, faCamera, faTv, 
     faStopwatch, faPlug, faMicrochip,
     faCar, faMotorcycle, faTruck, faBolt, faBicycle, faTractor, faCog,
-    faDog, faCat, faFish, faBone, faDove,
+    faDog, faCat, faFish, faBone, faDove, faComments, faStore,
     faSnowflake, faSoap, faShirt, faClock, faShoePrints, faShoppingBag, faSprayCan, faGem,
     faGuitar, faBook, faFutbol, faImage, faGamepad, faCompactDisc,
     faPrint, faScrewdriverWrench,faDrumstickBite, faBacon, faEgg, faMugHot, 
