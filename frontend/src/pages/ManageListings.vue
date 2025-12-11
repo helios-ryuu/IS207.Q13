@@ -108,7 +108,7 @@ const fetchListings = async () => {
         condition: 'Đã sử dụng',
         price: new Intl.NumberFormat('vi-VN').format(item.price) + ' đ',
         location: 'Việt Nam',
-        imageUrl: item.image || 'https://via.placeholder.com/150/eee/000?text=No+Image',
+        imageUrl: getImageUrl(item.image),
         userName: user.value?.full_name || 'Tôi',
         userAvatar: user.value?.avatar || 'https://via.placeholder.com/30/6366f1/ffffff?text=Me',
         category: item.category,
@@ -121,6 +121,26 @@ const fetchListings = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+// Helper to resolve image URL
+const getImageUrl = (url) => {
+  if (!url) return 'https://via.placeholder.com/150/eee/000?text=No+Image';
+  
+  // If already full URL (not localhost without port), return as is
+  if (url.startsWith('http') && !url.includes('localhost/')) return url;
+  
+  // Fix absolute localhost URLs (missing port 8000)
+  if (url.startsWith('http://localhost/')) {
+    return url.replace('http://localhost/', 'http://localhost:8000/');
+  }
+  
+  // If relative URL starting with /storage, prepend backend URL
+  if (url.startsWith('/storage')) {
+    return 'http://localhost:8000' + url;
+  }
+  
+  return url;
 };
 
 // Computed property để lọc tin theo Tab đang chọn

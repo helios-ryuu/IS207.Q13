@@ -22,7 +22,7 @@ class ProductImageController extends Controller
     public function storeProductImage(Request $request, $productId)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240',
             'variant_id' => 'nullable|exists:product_variants,id'
         ]);
 
@@ -35,7 +35,8 @@ class ProductImageController extends Controller
         $variantId = $request->variant_id;
         if (!$variantId) {
             $variant = $product->variants()->first();
-            if (!$variant) return response()->json(['message' => 'Product has no variants'], 400);
+            if (!$variant)
+                return response()->json(['message' => 'Product has no variants'], 400);
             $variantId = $variant->id;
         }
 
@@ -54,7 +55,7 @@ class ProductImageController extends Controller
     public function destroy($id)
     {
         $image = ProductImage::findOrFail($id);
-        
+
         // Check ownership qua relationship
         if (auth()->id() !== $image->variant->product->seller_id) {
             return response()->json(['message' => 'Forbidden'], 403);
@@ -62,7 +63,7 @@ class ProductImageController extends Controller
 
         // Xóa file vật lý
         $this->imageService->delete($image->image_url);
-        
+
         $image->delete();
 
         return response()->json(['message' => 'Image deleted']);
@@ -83,7 +84,7 @@ class ProductImageController extends Controller
         // Chỉ nên cho phép nếu path nằm trong folder allowed hoặc user sở hữu.
         // Đây là ví dụ cơ bản:
         $path = $request->get('path'); // Nên gửi qua body hoặc query param
-        if($path && $this->imageService->delete($path)) {
+        if ($path && $this->imageService->delete($path)) {
             return response()->json(['message' => 'Deleted']);
         }
         return response()->json(['message' => 'File not found or cannot delete'], 404);

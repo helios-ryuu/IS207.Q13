@@ -122,10 +122,6 @@
     @close="isLocationPickerOpen = false"
     @applyLocation="handleLocationApply"
   />
-  <AuthRedirectModal
-    v-if="isAuthModalOpen"
-    @close="isAuthModalOpen = false"
-  />
 </template>
 
 <script setup>
