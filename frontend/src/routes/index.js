@@ -40,17 +40,20 @@ const routes = [
     {
         path: '/profile',
         name: 'Profile',
-        component: Profile
+        component: Profile,
+        meta: { requiresAuth: true }
     },
     {
         path: '/profile/edit',
         name: 'EditProfile',
-        component: EditProfile
+        component: EditProfile,
+        meta: { requiresAuth: true }
     },
     {
         path: '/favorites',
         name: 'Favorites',
-        component: Favorites
+        component: Favorites,
+        meta: { requiresAuth: true }
     },
     {
         path: '/forgot',
@@ -70,7 +73,8 @@ const routes = [
     {
         path: '/orders',
         name: 'OrderManagement',
-        component: OrderManagement
+        component: OrderManagement,
+        meta: { requiresAuth: true }
     },
     {
         path: '/product/:id', // ":id" là một tham số động
@@ -80,12 +84,14 @@ const routes = [
     {
         path: '/chat',
         name: 'Chat',
-        component: Chat
+        component: Chat,
+        meta: { requiresAuth: true }
     },
     {
         path: '/manage-posts',
         name: 'ManageListings',
-        component: ManageListings
+        component: ManageListings,
+        meta: { requiresAuth: true }
     },
     {
         path: '/post',
@@ -107,20 +113,32 @@ const router = createRouter({
     routes
 })
 
-// Global guard: protect admin route
+// Global guard: protect routes
 import { useAuth } from '../utils/useAuth'
 
 router.beforeEach((to, from, next) => {
     const { isLoggedIn, user } = useAuth()
+
+    // Check admin routes
     if (to.meta && to.meta.requiresAdmin) {
         if (isLoggedIn.value && user.value && user.value.role === 'admin') {
             next()
         } else {
             next({ path: '/login' })
         }
-    } else {
+    }
+    // Check auth routes
+    else if (to.meta && to.meta.requiresAuth) {
+        if (isLoggedIn.value) {
+            next()
+        } else {
+            next({ path: '/login' })
+        }
+    }
+    else {
         next()
     }
 })
 
 export default router
+

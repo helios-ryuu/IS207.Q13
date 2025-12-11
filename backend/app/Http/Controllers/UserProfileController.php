@@ -6,14 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
+use App\Services\ImageUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
 class UserProfileController extends Controller
 {
+    protected ImageUploadService $imageService;
+
+    public function __construct(ImageUploadService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
+
     // 1. Xem Profile
     public function show(Request $request): JsonResponse
     {
@@ -64,84 +71,36 @@ class UserProfileController extends Controller
     public function changeAvatar(Request $request): JsonResponse
     {
         try {
-            \Log::info('[AVATAR] Upload started', [
-                'user_id' => $request->user()->id,
-                'disk' => config('filesystems.default'),
-                'gcs_config' => [
-                    'project_id' => config('filesystems.disks.gcs.project_id'),
-                    'bucket' => config('filesystems.disks.gcs.bucket'),
-                ]
-            ]);
-
             $request->validate([
                 'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // Max 2MB
             ]);
 
             $user = $request->user();
-            $disk = config('filesystems.default');
-
-            \Log::info('[AVATAR] Validation passed', [
-                'disk' => $disk,
-                'has_file' => $request->hasFile('avatar'),
-            ]);
 
             if ($request->file('avatar')) {
                 // Xóa ảnh cũ nếu có
                 if ($user->avatar) {
-                    try {
-                        \Log::info('[AVATAR] Deleting old avatar', ['path' => $user->avatar]);
-                        Storage::disk($disk)->delete($user->avatar);
-                    } catch (\Exception $e) {
-                        \Log::warning('[AVATAR] Failed to delete old avatar', [
-                            'error' => $e->getMessage()
-                        ]);
-                    }
+                    $this->imageService->delete($user->avatar_url);
                 }
 
-                // Generate unique filename: avatars/users/user-{id}-{hash}.jpg
-                $extension = $request->file('avatar')->getClientOriginalExtension();
-                $filename = 'user-' . $user->id . '-' . uniqid() . '.' . $extension;
+                // Upload ảnh mới
+                $avatarUrl = $this->imageService->upload($request->file('avatar'), 'avatars/users');
 
-                \Log::info('[AVATAR] Storing file', [
-                    'filename' => $filename,
-                    'disk' => $disk,
-                    'size' => $request->file('avatar')->getSize()
-                ]);
-
-                $path = $request->file('avatar')->storeAs('avatars/users', $filename, $disk);
-
-                \Log::info('[AVATAR] File stored', ['path' => $path]);
-
-                // Lưu đường dẫn vào DB
-                $user->update(['avatar' => $path]);
+                // Lưu đường dẫn vào DB (chỉ lưu relative path)
+                $user->update(['avatar' => $this->extractPath($avatarUrl)]);
             }
-
-            // Tạo public URL dựa vào disk
-            if ($disk === 'gcs') {
-                $bucket = config('filesystems.disks.gcs.bucket');
-                $avatarUrl = "https://storage.googleapis.com/{$bucket}/{$user->avatar}";
-            } else {
-                $avatarUrl = asset('storage/' . $user->avatar);
-            }
-
-            \Log::info('[AVATAR] Upload completed', ['url' => $avatarUrl]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Avatar updated successfully',
-                'avatar_url' => $avatarUrl
+                'avatar_url' => $user->avatar_url
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('[AVATAR] Validation error', [
-                'errors' => $e->errors()
-            ]);
             throw $e;
         } catch (\Exception $e) {
             \Log::error('[AVATAR] Upload failed', [
                 'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
 
@@ -161,39 +120,24 @@ class UserProfileController extends Controller
             ]);
 
             $user = $request->user();
-            $disk = config('filesystems.default');
 
             if ($request->file('cover')) {
                 // Xóa ảnh cũ nếu có
                 if ($user->cover) {
-                    try {
-                        Storage::disk($disk)->delete($user->cover);
-                    } catch (\Exception $e) {
-                        \Log::warning('[COVER] Failed to delete old cover', ['error' => $e->getMessage()]);
-                    }
+                    $this->imageService->delete($user->cover_url);
                 }
 
-                // Generate unique filename: covers/users/user-{id}-{hash}.jpg
-                $extension = $request->file('cover')->getClientOriginalExtension();
-                $filename = 'user-' . $user->id . '-' . uniqid() . '.' . $extension;
-                $path = $request->file('cover')->storeAs('covers/users', $filename, $disk);
+                // Upload ảnh mới
+                $coverUrl = $this->imageService->upload($request->file('cover'), 'covers/users');
 
-                // Lưu đường dẫn vào DB
-                $user->update(['cover' => $path]);
-            }
-
-            // Tạo public URL dựa vào disk
-            if ($disk === 'gcs') {
-                $bucket = config('filesystems.disks.gcs.bucket');
-                $coverUrl = "https://storage.googleapis.com/{$bucket}/{$user->cover}";
-            } else {
-                $coverUrl = asset('storage/' . $user->cover);
+                // Lưu đường dẫn vào DB (chỉ lưu relative path)
+                $user->update(['cover' => $this->extractPath($coverUrl)]);
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Cover updated successfully',
-                'cover_url' => $coverUrl
+                'cover_url' => $user->cover_url
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -204,5 +148,23 @@ class UserProfileController extends Controller
                 'message' => 'Failed to upload cover: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Extract relative path from full URL
+     */
+    private function extractPath(string $url): string
+    {
+        // GCS URL: https://storage.googleapis.com/bucket/avatars/users/file.jpg
+        if (str_contains($url, 'storage.googleapis.com')) {
+            $parts = parse_url($url);
+            $path = ltrim($parts['path'] ?? '', '/');
+            // Remove bucket name from path
+            $segments = explode('/', $path, 2);
+            return $segments[1] ?? $path;
+        }
+
+        // Local URL: /storage/avatars/users/file.jpg
+        return str_replace('/storage/', '', $url);
     }
 }
