@@ -101,7 +101,7 @@ class UserProfileController extends Controller
                 // Generate unique filename: avatars/users/user-{id}-{hash}.jpg
                 $extension = $request->file('avatar')->getClientOriginalExtension();
                 $filename = 'user-' . $user->id . '-' . uniqid() . '.' . $extension;
-                
+
                 \Log::info('[AVATAR] Storing file', [
                     'filename' => $filename,
                     'disk' => $disk,
@@ -109,9 +109,9 @@ class UserProfileController extends Controller
                 ]);
 
                 $path = $request->file('avatar')->storeAs('avatars/users', $filename, $disk);
-                
+
                 \Log::info('[AVATAR] File stored', ['path' => $path]);
-                
+
                 // Lưu đường dẫn vào DB
                 $user->update(['avatar' => $path]);
             }
@@ -148,6 +148,60 @@ class UserProfileController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload avatar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // 5. Đổi Cover
+    public function changeCover(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'cover' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240', // Max 10MB
+            ]);
+
+            $user = $request->user();
+            $disk = config('filesystems.default');
+
+            if ($request->file('cover')) {
+                // Xóa ảnh cũ nếu có
+                if ($user->cover) {
+                    try {
+                        Storage::disk($disk)->delete($user->cover);
+                    } catch (\Exception $e) {
+                        \Log::warning('[COVER] Failed to delete old cover', ['error' => $e->getMessage()]);
+                    }
+                }
+
+                // Generate unique filename: covers/users/user-{id}-{hash}.jpg
+                $extension = $request->file('cover')->getClientOriginalExtension();
+                $filename = 'user-' . $user->id . '-' . uniqid() . '.' . $extension;
+                $path = $request->file('cover')->storeAs('covers/users', $filename, $disk);
+
+                // Lưu đường dẫn vào DB
+                $user->update(['cover' => $path]);
+            }
+
+            // Tạo public URL dựa vào disk
+            if ($disk === 'gcs') {
+                $bucket = config('filesystems.disks.gcs.bucket');
+                $coverUrl = "https://storage.googleapis.com/{$bucket}/{$user->cover}";
+            } else {
+                $coverUrl = asset('storage/' . $user->cover);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cover updated successfully',
+                'cover_url' => $coverUrl
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload cover: ' . $e->getMessage()
             ], 500);
         }
     }

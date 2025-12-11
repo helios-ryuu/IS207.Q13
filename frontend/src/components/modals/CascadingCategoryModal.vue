@@ -277,7 +277,7 @@ const handleClose = () => {
 }
 
 .modal-header h3 {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 700;
   font-size: 20px;
   color: #0f172a;
@@ -346,7 +346,7 @@ const handleClose = () => {
   border: none;
   padding: 12px 16px;
   border-radius: 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 15px;
   font-weight: 600;
   color: #475569;
@@ -373,7 +373,7 @@ const handleClose = () => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 15px;
   color: #334155;
 }
@@ -419,7 +419,7 @@ const handleClose = () => {
   border: none;
   padding: 12px 32px;
   border-radius: 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;

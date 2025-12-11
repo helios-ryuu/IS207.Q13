@@ -101,8 +101,8 @@
 import { ref, onMounted, watch, nextTick, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuth } from '../utils/useAuth';
-import HeaderOther from '../components/Header-Other.vue';
-import Footer from '../components/Footer.vue';
+import HeaderOther from '../components/layout/SearchHeader.vue';
+import Footer from '../components/layout/AppFooter.vue';
 
 const router = useRouter();
 const route = useRoute();

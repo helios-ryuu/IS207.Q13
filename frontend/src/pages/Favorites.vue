@@ -4,8 +4,8 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../utils/useAuth'
 import { useToast } from '../utils/useToast'
 import api from '../utils/api'
-import Header from '../components/Header-HomePage.vue'
-import Footer from '../components/Footer.vue'
+import Header from '../components/layout/HomeHeader.vue'
+import Footer from '../components/layout/AppFooter.vue'
 
 const router = useRouter()
 const { user, isLoggedIn } = useAuth()
@@ -344,7 +344,7 @@ onMounted(() => {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: inherit;
 }
 
 .favorites-page {

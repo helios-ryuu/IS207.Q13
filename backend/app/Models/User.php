@@ -23,6 +23,7 @@ class User extends Authenticatable
         'address',
         'gender',
         'avatar',
+        'cover',
         'bio',
         'website',
         'facebook',
@@ -37,7 +38,7 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected $appends = ['avatar_url'];
+    protected $appends = ['avatar_url', 'cover_url'];
 
     protected function casts(): array
     {
@@ -57,13 +58,30 @@ class User extends Authenticatable
         }
 
         $disk = config('filesystems.default');
-        
+
         if ($disk === 'gcs') {
             $bucket = config('filesystems.disks.gcs.bucket');
             return "https://storage.googleapis.com/{$bucket}/{$this->avatar}";
         }
-        
+
         return asset('storage/' . $this->avatar);
+    }
+
+    // Accessor for cover URL
+    public function getCoverUrlAttribute(): ?string
+    {
+        if (!$this->cover) {
+            return null;
+        }
+
+        $disk = config('filesystems.default');
+
+        if ($disk === 'gcs') {
+            $bucket = config('filesystems.disks.gcs.bucket');
+            return "https://storage.googleapis.com/{$bucket}/{$this->cover}";
+        }
+
+        return asset('storage/' . $this->cover);
     }
 
     // Relationships

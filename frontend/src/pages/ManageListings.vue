@@ -68,9 +68,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '../utils/useAuth';
 import api from '../utils/api';
-import Header from '../components/Header-Other.vue';
-import Footer from '../components/Footer.vue';
-import ManageListingCard from '../components/Product/ManageListingCard.vue';
+import Header from '../components/layout/SearchHeader.vue';
+import Footer from '../components/layout/AppFooter.vue';
+import ManageListingCard from '../components/product/ManageListingCard.vue';
 
 const { user, isLoggedIn } = useAuth();
 

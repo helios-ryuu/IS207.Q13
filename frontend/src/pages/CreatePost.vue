@@ -2,9 +2,9 @@
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../utils/useAuth'
-import HeaderOther from '../components/Header-Other.vue'
-import Footer from '../components/Footer.vue'
-import CascadingCategoryModal from '../components/CascadingCategoryModal.vue'
+import HeaderOther from '../components/layout/SearchHeader.vue'
+import Footer from '../components/layout/AppFooter.vue'
+import CascadingCategoryModal from '../components/modals/CascadingCategoryModal.vue'
 
 const router = useRouter()
 const { user } = useAuth()
@@ -577,7 +577,7 @@ const handleSubmit = () => {
 }
 
 .section-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 700;
   font-size: 20px;
   color: black;
@@ -585,7 +585,7 @@ const handleSubmit = () => {
 }
 
 .upload-hint {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 14px;
   color: black;
   margin-bottom: 12px;
@@ -623,14 +623,14 @@ const handleSubmit = () => {
 }
 
 .upload-text {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 10px;
   color: rgba(97, 93, 93, 0.5);
   text-align: center;
 }
 
 .upload-text-bold {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 600;
   font-size: 10px;
   color: black;
@@ -714,7 +714,7 @@ const handleSubmit = () => {
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 12px;
   transition: all 0.2s;
 }
@@ -752,7 +752,7 @@ const handleSubmit = () => {
 }
 
 .category-label-small {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 600;
   font-size: 11px;
   color: #666;
@@ -762,7 +762,7 @@ const handleSubmit = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 600;
   font-size: 15px;
   color: black;
@@ -786,7 +786,7 @@ const handleSubmit = () => {
 }
 
 .details-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 700;
   font-size: 18px;
   color: black;
@@ -806,7 +806,7 @@ const handleSubmit = () => {
   border: 1px solid rgba(139, 137, 137, 0.5);
   border-radius: 5px;
   padding: 0 18px;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 15px;
   color: rgba(97, 93, 93, 0.7);
   outline: none;
@@ -826,7 +826,7 @@ const handleSubmit = () => {
   border: 1px solid rgba(139, 137, 137, 0.5);
   border-radius: 5px;
   padding: 12px 18px;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 15px;
   color: rgba(97, 93, 93, 0.7);
   resize: vertical;
@@ -852,7 +852,7 @@ const handleSubmit = () => {
   border: 1px solid rgba(139, 137, 137, 0.5);
   border-radius: 5px;
   padding: 18px;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 15px;
   color: rgba(97, 93, 93, 0.7);
   resize: vertical;
@@ -868,14 +868,14 @@ const handleSubmit = () => {
 
 .char-count {
   margin-top: 4px;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 11px;
   color: #999;
   align-self: flex-end;
 }
 
 .seller-label {
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 15px;
   color: rgba(97, 93, 93, 0.7);
 }
@@ -890,7 +890,7 @@ const handleSubmit = () => {
   height: 40px;
   border-radius: 5px;
   border: 1px solid #ddd;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-size: 15px;
   cursor: pointer;
   transition: all 0.3s;
@@ -934,7 +934,7 @@ const handleSubmit = () => {
   min-width: 120px;
   padding: 12px 24px;
   border-radius: 5px;
-  font-family: 'Poppins', sans-serif;
+  font-family: inherit;
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
