@@ -11,35 +11,44 @@ class CartSeeder extends Seeder
 {
     public function run(): void
     {
-        $buyer = User::where('email', 'buyer@example.com')->first();
-
-        if (!$buyer)
-            return;
-
-        // Lấy 2 variants ngẫu nhiên để thêm vào giỏ hàng
-        $variants = ProductVariant::with('product')
-            ->where('status', 'active')
+        $customers = User::where('role', 'customer')->get();
+        $variants = ProductVariant::where('status', 'active')
             ->where('quantity', '>', 0)
-            ->inRandomOrder()
-            ->take(2)
             ->get();
 
-        foreach ($variants as $variant) {
-            $exists = DB::table('cart_items')
-                ->where('user_id', $buyer->id)
-                ->where('variant_id', $variant->id)
-                ->exists();
+        if ($customers->isEmpty() || $variants->isEmpty())
+            return;
 
-            if ($exists)
-                continue;
+        $cartCount = 0;
+        $targetCount = 15;
 
-            DB::table('cart_items')->insert([
-                'user_id' => $buyer->id,
-                'variant_id' => $variant->id,
-                'quantity' => rand(1, 3),
-                'created_at' => now()->subHours(rand(1, 48)),
-                'updated_at' => now()->subHours(rand(1, 24)),
-            ]);
+        foreach ($customers as $customer) {
+            // Each customer has 1-4 items in cart
+            $numItems = rand(1, 4);
+            $selectedVariants = $variants->random(min($numItems, $variants->count()));
+
+            foreach ($selectedVariants as $variant) {
+                if ($cartCount >= $targetCount)
+                    break 2;
+
+                $exists = DB::table('cart_items')
+                    ->where('user_id', $customer->id)
+                    ->where('variant_id', $variant->id)
+                    ->exists();
+
+                if ($exists)
+                    continue;
+
+                DB::table('cart_items')->insert([
+                    'user_id' => $customer->id,
+                    'variant_id' => $variant->id,
+                    'quantity' => rand(1, 3),
+                    'created_at' => now()->subHours(rand(1, 168)),
+                    'updated_at' => now()->subHours(rand(1, 48)),
+                ]);
+
+                $cartCount++;
+            }
         }
     }
 }

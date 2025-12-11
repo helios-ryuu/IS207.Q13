@@ -5,6 +5,3 @@ Thumbs.db
 *.swp
 *.swo
 .github/instructions/
-
-docker-compose.build.yml
-*.docx

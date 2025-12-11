@@ -2,40 +2,50 @@
 
 namespace Database\Seeders;
 
-use App\Models\ProductPost;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class ProductPostSeeder extends Seeder
 {
     public function run(): void
     {
-        $seller = User::where('role', 'seller')->first();
-        
-        if (!$seller) {
-            $this->command->warn('No seller found. Skipping ProductPost seeding.');
-            return;
-        }
+        $products = Product::with('seller')->where('status', 'active')->get();
 
-        $products = Product::where('seller_id', $seller->id)->take(5)->get();
-
-        if ($products->isEmpty()) {
-            $this->command->warn('No products found. Skipping ProductPost seeding.');
+        if ($products->isEmpty())
             return;
-        }
+
+        $postCount = 0;
+        $targetCount = 20;
 
         foreach ($products as $product) {
-            ProductPost::create([
-                'title' => 'Bán ' . $product->name,
-                'description' => 'Sản phẩm ' . $product->name . ' chất lượng cao, giá tốt.',
-                'posted_date' => now(),
-                'status' => 'draft',
-                'product_id' => $product->id,
-                'seller_id' => $seller->id,
-            ]);
-        }
+            if ($postCount >= $targetCount)
+                break;
 
-        $this->command->info('Product posts seeded successfully!');
+            $exists = DB::table('product_posts')
+                ->where('product_id', $product->id)
+                ->exists();
+
+            if ($exists)
+                continue;
+
+            // Valid statuses: draft, published, hidden, rejected
+            $statuses = ['published', 'published', 'published', 'draft', 'hidden'];
+            $createdDays = rand(1, 30);
+
+            DB::table('product_posts')->insert([
+                'title' => 'Bán ' . $product->name,
+                'description' => 'Sản phẩm ' . $product->name . ' chất lượng cao, giá tốt. Liên hệ shop để được tư vấn chi tiết.',
+                'posted_date' => now()->subDays($createdDays),
+                'status' => $statuses[array_rand($statuses)],
+                'product_id' => $product->id,
+                'seller_id' => $product->seller_id,
+                'created_at' => now()->subDays($createdDays),
+                'updated_at' => now()->subDays(max(0, $createdDays - rand(0, 5))),
+            ]);
+
+            $postCount++;
+        }
     }
 }

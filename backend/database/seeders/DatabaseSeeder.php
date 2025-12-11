@@ -18,9 +18,11 @@ class DatabaseSeeder extends Seeder
                 // 2. User-dependent data
             WalletSeeder::class,
             ShippingAddressSeeder::class,
+            BankAccountSeeder::class,
 
                 // 3. Product data
             ProductSeeder::class,
+            ProductPostSeeder::class,
 
                 // 4. Business data (phụ thuộc product + user)
             FavoriteSeeder::class,
@@ -29,6 +31,10 @@ class DatabaseSeeder extends Seeder
             ReviewSeeder::class,
             MessageSeeder::class,
             NotificationSeeder::class,
+
+                // 5. Junction tables (phụ thuộc orders + posts)
+            AppliedPromotionSeeder::class,
+            AppliedServiceSeeder::class,
         ]);
     }
 }

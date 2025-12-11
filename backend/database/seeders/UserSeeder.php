@@ -11,51 +11,125 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Admin
-        if (!User::where('email', 'admin@example.com')->exists()) {
-            User::create([
+        $users = [
+            // ===== ADMINS =====
+            [
                 'full_name' => 'Admin User',
                 'username' => 'admin',
                 'email' => 'admin@example.com',
-                'password' => Hash::make('password'),
                 'role' => 'admin',
                 'status' => 'active',
-            ]);
-        }
+            ],
+            [
+                'full_name' => 'Quản trị viên Hệ thống',
+                'username' => 'sysadmin',
+                'email' => 'sysadmin@vietmarket.com',
+                'role' => 'admin',
+                'status' => 'active',
+            ],
 
-        // Seller
-        if (!User::where('email', 'seller@example.com')->exists()) {
-            $seller = User::create([
+            // ===== SELLERS =====
+            [
                 'full_name' => 'Shop VietMarket',
                 'username' => 'shop_vietmarket',
                 'email' => 'seller@example.com',
-                'password' => Hash::make('password'),
                 'role' => 'seller',
                 'status' => 'active',
-            ]);
+            ],
+            [
+                'full_name' => 'Điện Thoại 24h',
+                'username' => 'dienthoai24h',
+                'email' => 'dienthoai24h@gmail.com',
+                'role' => 'seller',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Thời Trang Xinh',
+                'username' => 'thoitrangxinh',
+                'email' => 'thoitrangxinh@gmail.com',
+                'role' => 'seller',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Nội Thất Đẹp',
+                'username' => 'noithatdep',
+                'email' => 'noithatdep@gmail.com',
+                'role' => 'seller',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Shop Xe Máy SG',
+                'username' => 'xemaysg',
+                'email' => 'xemaysg@gmail.com',
+                'role' => 'seller',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Pet Shop Cute',
+                'username' => 'petshopcute',
+                'email' => 'petshopcute@gmail.com',
+                'role' => 'seller',
+                'status' => 'active',
+            ],
 
-            // Create wallet using DB if Model issue
-            DB::table('wallets')->updateOrInsert(
-                ['user_id' => $seller->id],
-                ['balance' => 0, 'created_at' => now(), 'updated_at' => now()]
-            );
-        }
-
-        // Buyer
-        if (!User::where('email', 'buyer@example.com')->exists()) {
-            $buyer = User::create([
+            // ===== CUSTOMERS =====
+            [
                 'full_name' => 'Nguyen Van Mua',
                 'username' => 'buyer123',
                 'email' => 'buyer@example.com',
-                'password' => Hash::make('password'),
                 'role' => 'customer',
                 'status' => 'active',
-            ]);
+            ],
+            [
+                'full_name' => 'Trần Thị Hoa',
+                'username' => 'hoatran',
+                'email' => 'hoatran@gmail.com',
+                'role' => 'customer',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Lê Văn Minh',
+                'username' => 'minhle',
+                'email' => 'minhle@gmail.com',
+                'role' => 'customer',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Phạm Thu Hương',
+                'username' => 'huongpham',
+                'email' => 'huongpham@gmail.com',
+                'role' => 'customer',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Hoàng Đức Anh',
+                'username' => 'anhhoang',
+                'email' => 'anhhoang@gmail.com',
+                'role' => 'customer',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Vũ Thị Lan',
+                'username' => 'lanvu',
+                'email' => 'lanvu@gmail.com',
+                'role' => 'customer',
+                'status' => 'active',
+            ],
+            [
+                'full_name' => 'Ngô Quốc Bảo',
+                'username' => 'baongo',
+                'email' => 'baongo@gmail.com',
+                'role' => 'customer',
+                'status' => 'active',
+            ],
+        ];
 
-            DB::table('wallets')->updateOrInsert(
-                ['user_id' => $buyer->id],
-                ['balance' => 500000, 'created_at' => now(), 'updated_at' => now()]
-            );
+        foreach ($users as $userData) {
+            if (!User::where('email', $userData['email'])->exists()) {
+                User::create(array_merge($userData, [
+                    'password' => Hash::make('password'),
+                ]));
+            }
         }
     }
 }
