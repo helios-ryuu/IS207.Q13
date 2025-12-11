@@ -13,6 +13,7 @@ import ProductCatalog from '../pages/ProductCatalog.vue'
 import OrderManagement from '../pages/OrderManagement.vue'
 import ProductDetail from '../pages/ProductDetail.vue';
 import Chat from '../pages/Chat.vue';
+import SalesOrderManagement from '../pages/SalesOrderManagement.vue';
 import CreatePost from '../pages/CreatePost.vue';
 
 const routes = [
@@ -90,6 +91,14 @@ const routes = [
         path: '/post',
         name: 'CreatePost',
         component: CreatePost
+    },
+    { 
+        path: '/purchase-orders', 
+        component: OrderManagement 
+    },
+    {
+        path: '/sales-orders',
+        component: SalesOrderManagement
     }
 ]
 

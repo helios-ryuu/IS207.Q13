@@ -239,7 +239,7 @@
 import { useRoute } from 'vue-router';
 
 import { ref, computed, onMounted, watch } from 'vue';
-import ProductCard from '../components/product/ProductCard.vue';
+import ProductCard from '../components/product/ProductCardSimple.vue';
 import CategoryModal from '../components/modals/CategoryModal.vue';
 import AdvancedFilterModal from '../components/modals/AdvancedFilterModal.vue';
 import PriceFilterModal from '../components/modals/PriceFilterModal.vue';
