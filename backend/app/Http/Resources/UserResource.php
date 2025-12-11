@@ -19,6 +19,8 @@ class UserResource extends JsonResource
             'gender' => $this->gender,
             'avatar' => $this->avatar,
             'avatar_url' => $this->avatar_url, // Full URL from accessor
+            'cover' => $this->cover,
+            'cover_url' => $this->cover_url, // Full URL from accessor
             'bio' => $this->bio,
             'website' => $this->website,
             'facebook' => $this->facebook,

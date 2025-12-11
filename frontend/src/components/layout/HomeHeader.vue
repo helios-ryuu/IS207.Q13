@@ -25,17 +25,12 @@
       </div>
 
       <div class="center-section">
-        <div class="location-picker" @click="isLocationPickerOpen = true">
-          <font-awesome-icon icon="map-marker-alt" />
-          <span>{{ selectedLocation }}</span>
-          <font-awesome-icon icon="chevron-down" class="arrow" />
-        </div>
-        <div class="search-bar">
-          <input type="text" placeholder="Tìm sản phẩm...">
-          <button class="search-btn">
-            <font-awesome-icon icon="search" />
-          </button>
-        </div>
+        <button class="shop-now-btn" @click="goToProducts">
+          <font-awesome-icon icon="shopping-bag" /> Mua sắm ngay
+        </button>
+        <button class="support-btn">
+          <font-awesome-icon icon="headset" /> Liên hệ hỗ trợ
+        </button>
       </div>
       
       <div class="right-section">
@@ -87,11 +82,10 @@
             </div>
           </div>
         </div>
-        
-        <button class="post-btn" @click="router.push('/post')">
+        <button class="post-btn" @click="$router.push('/post')">
           Đăng tin
         </button>
-
+        
         <div class="user-actions">
           <template v-if="!isLoggedIn">
             <router-link to="/login" class="auth-btn login-btn">Đăng nhập</router-link>
@@ -103,9 +97,8 @@
               <img :src="user?.avatar_url || '/avatar.jpg'" alt="Avatar" class="avatar">
               <font-awesome-icon icon="chevron-down" class="arrow-small" />
               <div v-if="isUserMenuOpen" class="user-dropdown">
-                <router-link to="/profile/social">Trang cá nhân</router-link>
-                <router-link to="/profile">Thông tin cá nhân</router-link>
-                <router-link v-if="user && user.role === 'admin'" to="/admin" class="admin-link">Admin</router-link>
+                <router-link to="/profile">Trang cá nhân</router-link>
+                <router-link v-if="user && user.role === 'admin'" to="/admin">Admin</router-link>
                 <button @click="handleLogout">Đăng xuất</button>
               </div>
             </div>
@@ -113,14 +106,7 @@
         </div>
       </div>
     </div>
-    
   </header>
-
-  <LocationPickerModal 
-    v-if="isLocationPickerOpen"
-    @close="isLocationPickerOpen = false"
-    @applyLocation="handleLocationApply"
-  />
   <AuthRedirectModal
     v-if="isAuthModalOpen"
     @close="isAuthModalOpen = false"
@@ -130,8 +116,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router'; 
-import LocationPickerModal from './LocationPickerModal.vue';
-import { useAuth } from '../utils/useAuth';
+import { useAuth } from '../../utils/useAuth';
 // import LoginModal from './LoginModal.vue'; // <-- ĐÃ XÓA (Không dùng modal)
 
 const isCategoryMenuOpen = ref(false);
@@ -139,11 +124,8 @@ const headerRef = ref(null);
 const router = useRouter();
 
 // Lấy trạng thái từ useAuth
-const { isLoggedIn, user, logout } = useAuth();
+const { isLoggedIn, user, logout } = useAuth(); 
 const isUserMenuOpen = ref(false);
-
-const isLocationPickerOpen = ref(false);
-const selectedLocation = ref('Toàn quốc');
 
 // Notification state
 const isNotificationOpen = ref(false);
@@ -189,13 +171,6 @@ const notifications = ref([
 const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
 
 // const isLoginModalOpen = ref(false); // <-- ĐÃ XÓA
-
-const handleLocationApply = (locationName) => {
-  selectedLocation.value = locationName;
-  isLocationPickerOpen.value = false;
-};
-// ------------------------------
-
 // const handleLogin = () => { ... }; // <-- ĐÃ XÓA (Vì <router-link> sẽ xử lý)
 // const onLoginSuccess = () => { ... }; // <-- ĐÃ XÓA
 
@@ -231,7 +206,6 @@ const handleNotificationClick = (notif) => {
 };
 
 const viewAllNotifications = () => {
-  // TODO: Navigate to notifications page
   console.log('View all notifications');
   isNotificationOpen.value = false;
 };
@@ -253,6 +227,12 @@ const selectCategory = (categoryName) => {
   });
   isCategoryMenuOpen.value = false;
 };
+
+// Hàm cho nút "Mua sắm ngay"
+const goToProducts = () => {
+  router.push('/products');
+};
+
 const handleClickOutside = (event) => {
   if (isCategoryMenuOpen.value && headerRef.value && !headerRef.value.contains(event.target)) {
     isCategoryMenuOpen.value = false;
@@ -269,7 +249,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
 </script>
 
 <style scoped>
-/* (Toàn bộ CSS giữ nguyên) */
+/* (Toàn bộ CSS của Header-HomePage.vue giữ nguyên) */
 .app-header {
   background: white;
   border-bottom: 1px solid #e0e0e0;
@@ -305,41 +285,33 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
 .center-section {
   flex-grow: 1;
   display: flex;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  overflow: hidden;
+  justify-content: center;
+  gap: 1rem;
 }
-.location-picker {
+.shop-now-btn, .support-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0 1.25rem;
-  background-color: #f5f5f5;
-  border-right: 1px solid #ddd;
-  cursor: pointer;
-  white-space: nowrap;
+  transition: transform 0.2s;
 }
-.location-picker .arrow {
-  font-size: 0.8rem;
+.shop-now-btn:hover, .support-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
-.search-bar {
-  display: flex;
-  flex-grow: 1;
-}
-.search-bar input {
-  flex-grow: 1;
-  border: none;
-  outline: none;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-}
-.search-bar .search-btn {
+.shop-now-btn {
   background-color: #f5a623;
-  border: none;
-  padding: 0 1.5rem;
-  cursor: pointer;
-  font-size: 1.1rem;
   color: black;
+}
+.support-btn {
+  background-color: #f5f5ff;
+  color: #333;
+  border: 1px solid #ddd;
 }
 .right-section {
   display: flex;
@@ -399,8 +371,8 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
   cursor: pointer;
   font-weight: bold; 
   font-size: 0.9rem; 
-  text-decoration: none; /* <-- Bắt buộc cho router-link */
-  display: inline-block; /* <-- Bắt buộc cho router-link */
+  text-decoration: none;
+  display: inline-block;
 }
 .login-btn {
   background-color: #f5a623;
@@ -451,6 +423,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
   border-radius: 4px;
   text-decoration: none;
   color: #333;
+  font-size: 14px;
 }
 .user-dropdown a:hover,
 .user-dropdown button:hover {

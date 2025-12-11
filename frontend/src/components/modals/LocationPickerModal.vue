@@ -97,7 +97,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import LocationSubView from './LocationSubView.vue';
+import LocationSubView from '../LocationSubView.vue';
 
 const emit = defineEmits(['close', 'applyLocation']);
 

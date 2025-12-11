@@ -34,7 +34,13 @@ async function submit(e) {
       const { user, token } = response.data.data
       login(token, user)
       showSuccess('Đăng nhập thành công!')
-      router.push('/home')
+      
+      // Role-based redirect
+      if (user.role === 'admin') {
+        router.push('/admin')
+      } else {
+        router.push('/home')
+      }
     }
   } catch (err) {
     if (err.response?.data?.errors) {
