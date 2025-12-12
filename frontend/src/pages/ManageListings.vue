@@ -68,6 +68,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '../utils/useAuth';
 import api from '../utils/api';
+import { getImageUrl } from '../utils/imageUrl';
 import Header from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 import ManageListingCard from '../components/product/ManageListingCard.vue';
@@ -121,26 +122,6 @@ const fetchListings = async () => {
   } finally {
     isLoading.value = false;
   }
-};
-
-// Helper to resolve image URL
-const getImageUrl = (url) => {
-  if (!url) return 'https://via.placeholder.com/150/eee/000?text=No+Image';
-  
-  // If already full URL (not localhost without port), return as is
-  if (url.startsWith('http') && !url.includes('localhost/')) return url;
-  
-  // Fix absolute localhost URLs (missing port 8000)
-  if (url.startsWith('http://localhost/')) {
-    return url.replace('http://localhost/', 'http://localhost:8000/');
-  }
-  
-  // If relative URL starting with /storage, prepend backend URL
-  if (url.startsWith('/storage')) {
-    return 'http://localhost:8000' + url;
-  }
-  
-  return url;
 };
 
 // Computed property để lọc tin theo Tab đang chọn

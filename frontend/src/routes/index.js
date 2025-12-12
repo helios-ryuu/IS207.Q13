@@ -17,6 +17,7 @@ import SalesOrderManagement from '../pages/SalesOrderManagement.vue';
 import CreatePost from '../pages/CreatePost.vue';
 import SellerProfile from '../pages/SellerProfile.vue';
 import Cart from '../pages/Cart.vue';
+import Checkout from '../pages/Checkout.vue';
 
 const routes = [
     {
@@ -116,7 +117,14 @@ const routes = [
     {
         path: '/cart',
         name: 'Cart',
-        component: Cart
+        component: Cart,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/checkout',
+        name: 'Checkout',
+        component: Checkout,
+        meta: { requiresAuth: true }
     }
 ]
 

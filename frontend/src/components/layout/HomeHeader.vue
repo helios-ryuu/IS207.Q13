@@ -38,6 +38,10 @@
           <button class="icon-btn" title="Yêu thích" @click="$router.push('/favorites')">
             <font-awesome-icon icon="heart" />
           </button>
+          <button class="icon-btn" title="Giỏ hàng" @click="$router.push('/cart')">
+            <font-awesome-icon icon="shopping-cart" />
+            <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
+          </button>
           <button class="icon-btn" title="Trò chuyện" @click="handleChatClick">
             <font-awesome-icon icon="comment" />
           </button>
@@ -115,9 +119,11 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router'; 
 import { useAuth } from '../../utils/useAuth';
+import { useCart } from '../../stores/cart';
 // import LoginModal from './LoginModal.vue'; // <-- ĐÃ XÓA (Không dùng modal)
 
 const isCategoryMenuOpen = ref(false);
+const { cartCount } = useCart();
 const headerRef = ref(null);
 const router = useRouter();
 
@@ -460,7 +466,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
   position: relative;
 }
 
-.notification-badge {
+.notification-badge, .cart-badge {
   position: absolute;
   top: -5px;
   right: -5px;
