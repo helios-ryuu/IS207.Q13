@@ -18,7 +18,7 @@
       </button>
 
       <div class="product-image-wrapper">
-        <img :src="product.imageUrl || product.image || 'https://via.placeholder.com/200'" :alt="product.title" class="product-image">
+        <img :src="getImageUrl(product.imageUrl || product.image)" :alt="product.title" class="product-image">
       </div>
 
       <div class="product-info">
@@ -42,10 +42,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router' // 1. Thêm import useRouter
 import { useAuth } from '../../utils/useAuth'
 import api from '../../utils/api'
+import { getImageUrl } from '../../utils/imageUrl'
 
 const props = defineProps({
   product: {

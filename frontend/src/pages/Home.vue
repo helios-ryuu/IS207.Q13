@@ -63,6 +63,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../utils/api';
+import { getImageUrl } from '../utils/imageUrl';
 
 // --- COMPONENT IMPORTS ---
 import Header from '../components/layout/HomeHeader.vue';
@@ -93,7 +94,7 @@ const mapProduct = (item) => ({
   originalPrice: '',
   seller: item.seller?.full_name || item.seller?.name || 'Shop VietMarket',
   location: 'TP. HCM',
-  imageUrl: item.image || item.variants?.[0]?.images?.[0]?.image_url || 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image',
+  imageUrl: getImageUrl(item.thumbnail || item.variants?.[0]?.images?.[0]),
   username: item.seller?.username || 'seller'
 });
 
