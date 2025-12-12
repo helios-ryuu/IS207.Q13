@@ -68,7 +68,7 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
               Chat
             </button>
-            <button class="btn-add-cart">Thêm vào giỏ hàng</button>
+            <button class="btn-add-cart" @click="handleAddToCart">Thêm vào giỏ hàng</button>
             <button class="btn-buy-now">Đặt hàng</button>
           </div>
 
@@ -160,15 +160,18 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../utils/api';
+import { getImageUrl } from '../utils/imageUrl';
 import Header from "../components/layout/SearchHeader.vue";
 import Footer from "../components/layout/AppFooter.vue";
 import CommentSection from '../components/CommentSection.vue';
 import ProductCard from '../components/product/ProductCardSimple.vue';
+import { useCart } from '../stores/cart';
 
 const route = useRoute();
 const router = useRouter();
 const product = ref(null);
 const loading = ref(true);
+const { addToCart } = useCart();
 
 // State "Xem thêm"
 const sellerListings = ref([]);
@@ -224,31 +227,20 @@ const goToSellerProfile = () => {
   }
 };
 
+// === HÀM THÊM VÀO GIỎ HÀNG ===
+const handleAddToCart = async () => {
+  if (!product.value) return;
+  
+  const success = await addToCart(product.value);
+  if (success) {
+    alert('Đã thêm sản phẩm vào giỏ hàng!');
+  }
+};
+
 // Helper Format Price
 const formatPrice = (price) => {
   if (!price) return '0';
   return new Intl.NumberFormat('vi-VN').format(price);
-};
-
-// Map API Data
-// Helper to resolve image URL (same as ManageListings)
-const getImageUrl = (url) => {
-  if (!url) return 'https://via.placeholder.com/600x400/eeeeee/cccccc?text=No+Image';
-  
-  // If already full URL (not localhost without port), return as is
-  if (url.startsWith('http') && !url.includes('localhost/')) return url;
-  
-  // Fix absolute localhost URLs (missing port 8000)
-  if (url.startsWith('http://localhost/')) {
-    return url.replace('http://localhost/', 'http://localhost:8000/');
-  }
-  
-  // If relative URL starting with /storage, prepend backend URL
-  if (url.startsWith('/storage')) {
-    return 'http://localhost:8000' + url;
-  }
-  
-  return url;
 };
 
 // Map API product to component format
@@ -272,6 +264,7 @@ const mapProductFromApi = (data) => {
 
   return {
     id: data.id,
+    variant_id: variant.id, // Add variant_id for cart
     name: data.name,
     description: data.description || 'Mô tả sản phẩm',
     price: formatPrice(variant.price || data.price_range?.min),
@@ -332,7 +325,7 @@ const fetchProductDetail = async () => {
           title: item.title,
           price: formatPrice(item.price) + ' đ',
           location: item.location || 'TP. HCM',
-          imageUrl: item.image || 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image',
+          imageUrl: getImageUrl(item.image),
           seller: item.seller,
         }));
       }

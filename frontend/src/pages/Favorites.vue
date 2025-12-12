@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../utils/useAuth'
 import { useToast } from '../utils/useToast'
 import api from '../utils/api'
+import { getImageUrl } from '../utils/imageUrl'
 import Header from '../components/layout/HomeHeader.vue'
 import Footer from '../components/layout/AppFooter.vue'
 
@@ -37,7 +38,7 @@ const fetchFavorites = async () => {
         id: item.id,
         title: item.title,
         price: item.price,
-        image: item.image || 'https://via.placeholder.com/300/667eea/ffffff?text=No+Image',
+        image: getImageUrl(item.image),
         location: item.location,
         category: item.category,
         condition: item.condition,
@@ -284,7 +285,7 @@ onMounted(() => {
           </button>
           
           <div class="product-image" @click="viewProduct(item.id)">
-            <img :src="item.image" :alt="item.title" />
+            <img :src="getImageUrl(item.image)" :alt="item.title" />
           </div>
 
           <div class="product-info">
