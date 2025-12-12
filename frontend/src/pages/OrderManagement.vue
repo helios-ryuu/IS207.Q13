@@ -104,13 +104,20 @@
               Thành tiền: <span class="total-price">{{ order.totalPrice }}</span>
             </div>
             <div class="action-buttons">
-              <template v-if="order.statusId === 'completed'">
+              <template v-if="order.statusId === 'pending'">
+                <button class="btn btn-danger" @click="cancelOrder(order.id)" style="border:1px solid #dc3545; color:#dc3545; margin-right:8px;">Hủy Đơn</button>
+                <button class="btn btn-default">Liên hệ người bán</button>
+              </template>
+
+              <template v-else-if="order.statusId === 'completed'">
                 <button class="btn btn-primary">Đánh Giá</button>
                 <button class="btn btn-default">Mua Lại</button>
               </template>
+
               <template v-else-if="order.statusId === 'return'">
                 <button class="btn btn-default">Chi tiết hoàn tiền</button>
               </template>
+
               <template v-else>
                 <button class="btn btn-default">Liên hệ người bán</button>
               </template>
@@ -124,8 +131,12 @@
           </button>
         </div>
 
-        <div v-if="visibleOrders.length === 0" class="empty-result">
+        <div v-if="visibleOrders.length === 0 && !isLoading" class="empty-result">
           <p>Không tìm thấy đơn hàng nào phù hợp.</p>
+        </div>
+
+        <div v-if="isLoading" class="empty-result">
+          <p>Đang tải dữ liệu...</p>
         </div>
 
       </div>
@@ -136,50 +147,150 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
+import api from '../utils/api';
+import { getImageUrl } from '../utils/imageUrl';
 
 const router = useRouter();
 const goToHome = () => router.push('/');
 
 // --- DATA ---
+const orders = ref([]); 
+const isLoading = ref(false);
 const activeTab = ref('all');
 const isDropdownOpen = ref(false);
 const selectedCategories = ref([]); 
-const visibleCount = ref(5); // Số lượng đơn hiển thị ban đầu
+const visibleCount = ref(5);
 
 const tabs = [
   { id: 'all', name: 'Tất cả' },
   { id: 'pending', name: 'Chờ xác nhận' },
   { id: 'shipping', name: 'Vận chuyển' },
-  { id: 'delivering', name: 'Chờ giao hàng' },
   { id: 'completed', name: 'Hoàn thành' },
-  { id: 'cancelled', name: 'Đã hủy' },
-  { id: 'return', name: 'Trả hàng / Hoàn tiền' }
+  { id: 'cancelled', name: 'Đã hủy' }
 ];
 
 const categories = [
-  'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Đồ ăn, Thực phẩm và các loại khác',
-  'Tủ lạnh, Máy lạnh, Máy giặt', 'Đồ gia dụng, Nội thất, Cây cảnh',
-  'Thời trang, Đồ dùng cá nhân', 'Giải trí, Thể thao, Sở thích',
-  'Đồ dùng văn phòng, Công nông nghiệp'
+  'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Thời trang', 'Đồ gia dụng'
 ];
 
-// Dữ liệu giả lập (Thêm nhiều data để test nút Xem thêm)
-const orders = ref([
-  { id: 1, shopName: 'Cửa Hàng Giá Rẻ', productName: 'Máy quạt mini giá tốt', variant: 'Đã sử dụng', category: 'Đồ điện tử', statusId: 'completed', deliveryStatus: 'Giao hàng thành công', statusLabel: 'HOÀN THÀNH', price: '400.000 đ', totalPrice: '400.000 đ', image: '/avatar.jpg', sellerName: 'Phạm Khoa', sellerAvatar: '/avatar.jpg' },
-  { id: 2, shopName: 'Xe Máy Sài Gòn', productName: 'Honda Vision 2021', variant: 'Mới 90%', category: 'Xe cộ', statusId: 'completed', deliveryStatus: 'Giao hàng thành công', statusLabel: 'HOÀN THÀNH', price: '28.000.000 đ', totalPrice: '28.000.000 đ', image: '/avatar.jpg', sellerName: 'Nguyễn Văn A', sellerAvatar: '/avatar.jpg' },
-  { id: 3, shopName: 'Shop Quần Áo', productName: 'Áo thun nam', variant: 'Size L', category: 'Thời trang, Đồ dùng cá nhân', statusId: 'delivering', deliveryStatus: 'Shipper đang đến', statusLabel: 'CHỜ GIAO HÀNG', price: '150.000 đ', totalPrice: '150.000 đ', image: '/avatar.jpg', sellerName: 'Le Thi B', sellerAvatar: '/avatar.jpg' },
-  { id: 4, shopName: 'Tech Store', productName: 'Chuột không dây', variant: 'Màu đen', category: 'Đồ điện tử', statusId: 'return', deliveryStatus: 'Đang xử lý hoàn tiền', statusLabel: 'TRẢ HÀNG/HOÀN TIỀN', price: '90.000 đ', totalPrice: '90.000 đ', image: '/avatar.jpg', sellerName: 'Tech Admin', sellerAvatar: '/avatar.jpg' },
-  { id: 5, shopName: 'Pet Shop', productName: 'Thức ăn mèo', variant: '1kg', category: 'Thú cưng', statusId: 'pending', deliveryStatus: 'Chờ xác nhận', statusLabel: 'CHỜ XÁC NHẬN', price: '50.000 đ', totalPrice: '50.000 đ', image: '/avatar.jpg', sellerName: 'Pet Lover', sellerAvatar: '/avatar.jpg' },
-  { id: 6, shopName: 'Nội Thất Xinh', productName: 'Ghế Sofa', variant: 'Xám', category: 'Đồ gia dụng, Nội thất, Cây cảnh', statusId: 'shipping', deliveryStatus: 'Đang vận chuyển', statusLabel: 'VẬN CHUYỂN', price: '1.200.000 đ', totalPrice: '1.200.000 đ', image: '/avatar.jpg', sellerName: 'Decor Home', sellerAvatar: '/avatar.jpg' },
-]);
+// --- API CALLS ---
+// 1. Lấy danh sách đơn hàng
+const fetchOrders = async () => {
+  isLoading.value = true;
+  try {
+    const response = await api.get('/orders');
+    console.log("Dữ liệu API:", response.data);
 
-// --- LOGIC LỌC & PHÂN TRANG ---
+    // Xử lý "Búp bê Nga" (lấy mảng dữ liệu thực)
+    const ordersData = Array.isArray(response.data.data) 
+      ? response.data.data 
+      : (response.data.data?.data || []); 
 
-// 1. Lọc toàn bộ danh sách trước
+    // Map dữ liệu
+    orders.value = ordersData.map(order => {
+      // SỬA LỖI 1: Dùng 'items' thay vì 'order_details'
+      // Kiểm tra kỹ xem backend trả về key nào (dựa theo ảnh của bạn là 'items')
+      const firstItem = (order.items && order.items.length > 0) ? order.items[0] : {}; 
+      
+      // SỬA LỖI 2: Xử lý giá tiền
+      // Nếu backend trả về chuỗi "3,500,000 VND" thì dùng luôn, không format lại
+      let displayPrice = order.total_amount;
+      if (typeof displayPrice === 'number') {
+          displayPrice = formatPrice(displayPrice);
+      }
+
+      // SỬA LỖI 3: Xử lý tên sản phẩm bị null
+      // Nếu không có tên SP, dùng tên biến thể (variant) hoặc chữ "Sản phẩm"
+      const displayName = firstItem.product_name || firstItem.variant || 'Sản phẩm đơn hàng';
+
+      return {
+        id: order.id,
+        shopName: 'VietMarket Shop', 
+        productName: displayName,
+        variant: firstItem.variant || '',
+        category: 'Tổng hợp',
+        
+        statusId: mapBackendStatus(order.status),
+        statusLabel: getStatusLabel(order.status),
+        deliveryStatus: getDeliveryStatusText(order.status),
+        
+        price: displayPrice,      // Dùng giá đã xử lý ở trên
+        totalPrice: displayPrice, // Dùng giá đã xử lý ở trên
+        
+        // Lấy ảnh (ưu tiên ảnh variant -> ảnh mặc định)
+        image: getImageUrl(firstItem.image || 'default.jpg'),
+        sellerAvatar: '/avatar.jpg'
+      };
+    });
+  } catch (error) {
+    console.error("Lỗi tải đơn hàng:", error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const cancelOrder = async (orderId) => {
+  if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return;
+  
+  try {
+    await api.post(`/orders/${orderId}/cancel`);
+    alert('Đã hủy đơn hàng thành công');
+    await fetchOrders(); 
+  } catch (error) {
+    console.error("Lỗi hủy đơn:", error);
+    alert(error.response?.data?.message || 'Không thể hủy đơn hàng này');
+  }
+};
+
+// --- HELPER FUNCTIONS ---
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+};
+
+const mapBackendStatus = (status) => {
+  switch(status) {
+    case 'pending': return 'pending';
+    case 'confirmed': 
+    case 'processing':
+    case 'shipped': return 'shipping';
+    case 'delivered': return 'completed';
+    case 'cancelled': return 'cancelled';
+    case 'refunded': return 'return';
+    default: return 'all';
+  }
+};
+
+const getStatusLabel = (status) => {
+  const map = {
+    pending: 'CHỜ XÁC NHẬN',
+    confirmed: 'ĐÃ XÁC NHẬN',
+    processing: 'ĐANG XỬ LÝ',
+    shipped: 'ĐANG GIAO',
+    delivered: 'HOÀN THÀNH',
+    cancelled: 'ĐÃ HỦY',
+    refunded: 'ĐÃ HOÀN TIỀN'
+  };
+  return map[status] || status;
+};
+
+const getDeliveryStatusText = (status) => {
+  const map = {
+    pending: 'Người bán đang xác nhận',
+    confirmed: 'Đơn hàng đã được xác nhận',
+    processing: 'Người bán đang chuẩn bị hàng',
+    shipped: 'Shipper đang giao hàng đến bạn',
+    delivered: 'Giao hàng thành công',
+    cancelled: 'Đơn hàng đã bị hủy',
+    refunded: 'Đã hoàn tiền thành công'
+  };
+  return map[status] || '';
+};
+
+// --- FILTER & PAGINATION LOGIC ---
 const allFilteredOrders = computed(() => {
   return orders.value.filter(order => {
     const matchTab = activeTab.value === 'all' || order.statusId === activeTab.value;
@@ -188,48 +299,36 @@ const allFilteredOrders = computed(() => {
   });
 });
 
-// 2. Cắt danh sách dựa trên visibleCount
 const visibleOrders = computed(() => {
   return allFilteredOrders.value.slice(0, visibleCount.value);
 });
 
-// 3. Kiểm tra xem còn đơn hàng để xem thêm không
 const hasMoreOrders = computed(() => {
   return visibleCount.value < allFilteredOrders.value.length;
 });
 
-// --- METHODS ---
-
-const loadMore = () => {
-  visibleCount.value += 5; // Tải thêm 5 đơn mỗi lần bấm
-};
-
-const resetPagination = () => {
-  visibleCount.value = 5; // Reset về 5 khi lọc lại
-};
-
-const changeTab = (tabId) => {
-  activeTab.value = tabId;
-  resetPagination();
-};
-
+const loadMore = () => visibleCount.value += 5;
+const resetPagination = () => visibleCount.value = 5;
+const changeTab = (tabId) => { activeTab.value = tabId; resetPagination(); };
 const toggleCategory = (cat) => {
   const index = selectedCategories.value.indexOf(cat);
   if (index === -1) selectedCategories.value.push(cat);
   else selectedCategories.value.splice(index, 1);
-  resetPagination(); // Reset khi lọc
+  resetPagination();
 };
-
 const removeCategory = (cat) => {
   const index = selectedCategories.value.indexOf(cat);
   if (index !== -1) selectedCategories.value.splice(index, 1);
   resetPagination();
 };
-
 const clearAllCategories = () => {
   selectedCategories.value = [];
   resetPagination();
 };
+
+onMounted(() => {
+  fetchOrders();
+});
 </script>
 
 <style scoped>

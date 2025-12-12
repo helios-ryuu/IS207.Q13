@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Transaction;
 use App\Models\CartItem;
+use App\Models\ShippingAddress;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Illuminate\Support\Str;
@@ -23,7 +24,21 @@ class OrderService
                 throw new Exception("Giỏ hàng trống.");
             }
 
-            // B. Tính tiền thủ công (Vì bảng Order ko lưu)
+            // B. Tự động TẠO ĐỊA CHỈ GIAO HÀNG MỚI
+            // Vì user nhập form trực tiếp, ta lưu địa chỉ này lại
+            $address = ShippingAddress::create([
+                'user_id' => $userId,
+                'receiver_name' => $data['receiver_name'],
+                'phone_number' => $data['phone_number'],
+                'street_address' => $data['street_address'],
+                'province' => $data['province'],
+                'district' => $data['district'],
+                'ward' => $data['ward'],
+                'is_default' => false, // Mặc định không set default để tránh conflict
+                'status' => 'active'
+            ]);
+
+            // C. Tính tiền thủ công
             $subtotal = 0;
             foreach ($cartItems as $item) {
                 if (!$item->variant) continue;
@@ -36,13 +51,18 @@ class OrderService
                 $subtotal += $item->quantity * $item->variant->price;
             }
 
-            $shippingFee = 30000; // Phí ship mặc định
+            $shippingFee = 30000;
+            // Logic miễn phí vận chuyển nếu trên 500k (giống Frontend đang tính)
+            if ($subtotal > 500000) {
+                $shippingFee = 0;
+            }
+            
             $totalAmount = $subtotal + $shippingFee;
 
-            // C. Tạo Order (Khớp hoàn toàn với Model Order bạn đưa)
+            // D. Tạo Order (Dùng ID của địa chỉ vừa tạo ở trên)
             $order = Order::create([
                 'user_id' => $userId,
-                'address_id' => $data['address_id'],
+                'address_id' => $address->id, // <--- Dùng ID vừa tạo
                 'order_date' => now(),
                 'delivery_date' => now()->addDays(3),
                 'shipping_fee' => $shippingFee,
@@ -52,25 +72,23 @@ class OrderService
                 'tracking_code' => 'ORD-' . strtoupper(Str::random(10)),
             ]);
 
-            // D. Lưu chi tiết đơn hàng & Trừ kho
+            // E. Lưu chi tiết đơn hàng & Trừ kho
             foreach ($cartItems as $item) {
                 if (!$item->variant) continue;
 
                 OrderDetail::create([
                     'order_id' => $order->id,
-                    'variant_id' => $item->variant_id, // Lưu ý: DB bạn dùng variant_id
+                    'variant_id' => $item->variant_id,
                     'quantity' => $item->quantity,
-                    'unit_price' => $item->variant->price, // Lưu ý: DB bạn dùng unit_price
+                    'unit_price' => $item->variant->price,
                 ]);
-
-                // Trừ kho
                 $item->variant->decrement('quantity', $item->quantity);
             }
 
-            // E. TẠO TRANSACTION (Quan trọng: Lưu tổng tiền vào đây)
+            // F. TẠO TRANSACTION
             Transaction::create([
                 'order_id' => $order->id,
-                'amount' => $totalAmount, // <--- TIỀN NẰM Ở ĐÂY
+                'amount' => $totalAmount,
                 'payment_method' => $order->payment_method,
                 'status' => 'pending',
                 'transaction_code' => 'TRX-' . strtoupper(Str::random(10)),
@@ -78,7 +96,7 @@ class OrderService
                 'payment_gateway' => 'system'
             ]);
 
-            // F. Xóa giỏ hàng
+            // G. Xóa giỏ hàng
             CartItem::where('user_id', $userId)->delete();
 
             return $order;
@@ -126,5 +144,23 @@ class OrderService
         $order->status = $status;
         $order->save();
         return $order;
+    }
+
+    // 6. LẤY DANH SÁCH ĐƠN BÁN (Cho Seller)
+    public function getSellerOrders($sellerId)
+    {
+        // Logic: Lấy các đơn hàng MÀ trong chi tiết đơn hàng đó có sản phẩm của tôi
+        return Order::whereHas('orderDetails.variant.product', function($query) use ($sellerId) {
+            $query->where('seller_id', $sellerId);
+        })
+        ->with(['transactions', 'shippingAddress', 'user', 'orderDetails' => function($query) use ($sellerId) {
+            // Quan trọng: Chỉ load những chi tiết đơn hàng thuộc về người bán này
+            // (Tránh trường hợp khách mua nhiều shop, mình lại nhìn thấy hàng của shop khác)
+            $query->whereHas('variant.product', function($q) use ($sellerId) {
+                $q->where('seller_id', $sellerId);
+            })->with('variant.product');
+        }])
+        ->orderBy('created_at', 'desc')
+        ->get();
     }
 }

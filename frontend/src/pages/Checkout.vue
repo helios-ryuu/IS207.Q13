@@ -325,60 +325,47 @@ const handlePlaceOrder = async () => {
   isProcessing.value = true;
 
   try {
-    // Step 1: Create shipping address
-    const addressData = {
-      receiver_name: shippingInfo.value.fullName,
-      phone_number: shippingInfo.value.phone,
-      street_address: shippingInfo.value.address,
-      ward: shippingInfo.value.ward,
-      district: shippingInfo.value.district,
-      province: shippingInfo.value.province,
-      is_default: false
-    };
-
-    console.log('Creating shipping address:', addressData);
-    await api.post('/addresses', addressData);
-    
-    // Get the newly created address (it will be the most recent one)
-    const addressesResponse = await api.get('/addresses');
-    console.log('Addresses response:', addressesResponse.data);
-    const addresses = addressesResponse.data.data;
-    const addressId = addresses[0]?.id; // Get the first address (most recent)
-    
-    if (!addressId) {
-      throw new Error('Không thể lấy địa chỉ giao hàng');
-    }
-
-    // Step 2: Map payment method to backend format
+    // 1. Map payment method frontend sang backend enum
     const paymentMethodMap = {
       'cod': 'cash',
       'transfer': 'bank_transfer',
       'card': 'credit_card'
     };
 
-    // Step 3: Create order (backend will use cart from database)
-    const orderData = {
-      address_id: addressId,
+    // 2. Chuẩn bị dữ liệu gửi đi (Gộp cả địa chỉ và thông tin thanh toán)
+    const orderPayload = {
+      // Thông tin địa chỉ (để backend tạo ShippingAddress)
+      receiver_name: shippingInfo.value.fullName,
+      phone_number: shippingInfo.value.phone,
+      street_address: shippingInfo.value.address,
+      province: shippingInfo.value.province,
+      district: shippingInfo.value.district,
+      ward: shippingInfo.value.ward,
+      
+      // Thông tin đơn hàng
       payment_method: paymentMethodMap[paymentMethod.value] || 'cash',
-      notes: shippingInfo.value.note || null
+      notes: shippingInfo.value.note || ''
     };
 
-    const orderResponse = await api.post('/orders', orderData);
+    console.log('Sending order payload:', orderPayload);
+
+    // 3. Gọi 1 API duy nhất để tạo đơn
+    const response = await api.post('/orders', orderPayload);
     
-    console.log('Order created:', orderResponse.data);
+    console.log('Order created:', response.data);
 
-    // Cart is automatically cleared by backend after order creation
+    // 4. Xóa giỏ hàng local (Backend đã xóa trong DB rồi, nhưng cần update UI)
+    await clearCart(); 
 
-    // Show success message
     alert('Đặt hàng thành công! Đơn hàng của bạn đang chờ xác nhận.');
 
-    // Redirect to purchase orders page
-    router.push('/purchase-orders');
+    // 5. Chuyển hướng về trang quản lý đơn hàng
+    // (Lưu ý: Tên route của bạn có thể là /purchase-orders hoặc /orders)
+    router.push('/purchase-orders'); 
+
   } catch (error) {
     console.error('Error placing order:', error);
-    console.error('Error response:', error.response);
-    console.error('Error data:', error.response?.data);
-    const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!';
+    const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!';
     alert(`Lỗi: ${errorMessage}`);
   } finally {
     isProcessing.value = false;

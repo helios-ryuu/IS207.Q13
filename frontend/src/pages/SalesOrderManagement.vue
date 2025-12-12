@@ -155,7 +155,7 @@
             <div class="order-meta-group">
               <div class="meta-row">
                 <span class="meta-label">Ngày đặt:</span>
-                <span class="meta-value date-highlight">{{ formatDate(order.orderDate) }}</span>
+                <span class="meta-value date-highlight">{{ formatDateDisplay(order.orderDate) }}</span>
               </div>
               <div class="meta-row">
                 <span class="meta-label">Mã vận đơn:</span>
@@ -185,10 +185,27 @@
             </div>
             <div class="col-action">
               <button 
-                class="btn-action" 
-                :class="order.statusId === 'completed' ? 'btn-disabled' : 'btn-yellow'"
+                v-if="order.statusId === 'pending'"
+                class="btn-action btn-yellow"
+                @click="updateOrderStatus(order.id, 'shipped')"
               >
-                {{ order.statusId === 'completed' ? 'Đã giao' : 'Chuẩn bị hàng' }}
+                Xác nhận & Giao
+              </button>
+
+              <button 
+                v-else-if="order.statusId === 'shipping' || order.statusId === 'pickup'"
+                class="btn-action btn-yellow"
+                @click="updateOrderStatus(order.id, 'delivered')"
+              >
+                Đã giao hàng
+              </button>
+
+              <button 
+                v-else
+                class="btn-action btn-disabled"
+                disabled
+              >
+                {{ order.statusId === 'completed' ? 'Đã hoàn thành' : 'Chi tiết' }}
               </button>
             </div>
           </div>
@@ -200,8 +217,12 @@
           </button>
         </div>
 
-        <div v-if="visibleOrders.length === 0" class="empty-result">
+        <div v-if="visibleOrders.length === 0 && !isLoading" class="empty-result">
           <p>Không tìm thấy đơn hàng nào phù hợp.</p>
+        </div>
+
+        <div v-if="isLoading" class="empty-result">
+          <p>Đang tải dữ liệu...</p>
         </div>
 
       </div>
@@ -212,15 +233,19 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
+import api from '../utils/api'; 
+import { getImageUrl } from '../utils/imageUrl';
 
 const router = useRouter();
 const goToHome = () => router.push('/');
 
 // --- DATA ---
+const orders = ref([]); // Dữ liệu thật sẽ được nạp vào đây
+const isLoading = ref(false);
 const activeTab = ref('all');
 const isDropdownOpen = ref(false);
 const selectedCategories = ref([]); 
@@ -251,35 +276,133 @@ const tabs = [
 ];
 
 const categories = [
-  'Xe cộ',
-  'Đồ điện tử',
-  'Thú cưng',
-  'Đồ ăn, Thực phẩm và các loại khác',
-  'Tủ lạnh, Máy lạnh, Máy giặt',
-  'Đồ gia dụng, Nội thất, Cây cảnh',
-  'Thời trang, Đồ dùng cá nhân',
-  'Giải trí, Thể thao, Sở thích',
-  'Đồ dùng văn phòng, Công nông nghiệp'
+  'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Đồ ăn, Thực phẩm',
+  'Tủ lạnh, Máy lạnh', 'Đồ gia dụng',
+  'Thời trang', 'Giải trí', 'Công nông nghiệp'
 ];
 
-const orders = ref([
-  { id: 1, trackingCode: '2502239BEE14PX', buyerName: 'Con Bò', buyerAvatar: '/avatar.jpg', productName: 'Máy quạt mini giá tốt', variant: 'Đã sử dụng', quantity: 1, category: 'Đồ điện tử', totalPrice: '400.000 đ', statusId: 'pickup', statusText: 'Chờ lấy hàng', deadline: '10/10/2025', shippingProvider: 'SPX Express', image: '/avatar.jpg', orderDate: '2025-10-08' },
-  { id: 2, trackingCode: 'SPEVN12345678', buyerName: 'Nguyễn Văn A', buyerAvatar: '/avatar.jpg', productName: 'Áo thun nam', variant: 'Size L', quantity: 2, category: 'Thời trang, Đồ dùng cá nhân', totalPrice: '300.000 đ', statusId: 'pickup', statusText: 'Chờ lấy hàng', deadline: '12/10/2025', shippingProvider: 'GHTK', image: '/avatar.jpg', orderDate: '2025-10-09' },
-  { id: 3, trackingCode: 'GHN888999', buyerName: 'Le Thi C', buyerAvatar: '/avatar.jpg', productName: 'Thức ăn mèo', variant: 'Gói 1kg', quantity: 5, category: 'Thú cưng', totalPrice: '250.000 đ', statusId: 'shipping', statusText: 'Đang giao hàng', deadline: '-', shippingProvider: 'J&T Express', image: '/avatar.jpg', orderDate: '2025-10-05' },
-  { id: 4, trackingCode: 'VNPOST555', buyerName: 'Tran Van D', buyerAvatar: '/avatar.jpg', productName: 'Tai nghe Bluetooth', variant: 'Trắng', quantity: 1, category: 'Đồ điện tử', totalPrice: '1.200.000 đ', statusId: 'completed', statusText: 'Giao thành công', deadline: '-', shippingProvider: 'Viettel Post', image: '/avatar.jpg', orderDate: '2025-09-30' },
-  { id: 5, trackingCode: 'JNT112233', buyerName: 'Pham Van E', buyerAvatar: '/avatar.jpg', productName: 'Bàn phím cơ', variant: 'Red Switch', quantity: 1, category: 'Đồ điện tử', totalPrice: '850.000 đ', statusId: 'pending', statusText: 'Chờ xác nhận', deadline: '15/10/2025', shippingProvider: 'J&T Express', image: '/avatar.jpg', orderDate: '2025-10-12' },
-  { id: 6, trackingCode: 'GRAB998877', buyerName: 'Hoang Thi F', buyerAvatar: '/avatar.jpg', productName: 'Nồi cơm điện', variant: '1.8L', quantity: 1, category: 'Đồ gia dụng, Nội thất, Cây cảnh', totalPrice: '1.500.000 đ', statusId: 'cancelled', statusText: 'Đã hủy', deadline: '-', shippingProvider: 'GrabExpress', image: '/avatar.jpg', orderDate: '2025-09-25' },
-  { id: 7, trackingCode: 'BEST665544', buyerName: 'Vo Van G', buyerAvatar: '/avatar.jpg', productName: 'Giày Sneaker', variant: 'Size 42', quantity: 1, category: 'Thời trang, Đồ dùng cá nhân', totalPrice: '600.000 đ', statusId: 'return', statusText: 'Trả hàng/Hoàn tiền', deadline: '-', shippingProvider: 'Best Express', image: '/avatar.jpg', orderDate: '2025-10-01' },
-  { id: 8, trackingCode: 'AHAMOVE333', buyerName: 'Dang Thi H', buyerAvatar: '/avatar.jpg', productName: 'Chậu cây cảnh', variant: 'Sứ trắng', quantity: 3, category: 'Đồ gia dụng, Nội thất, Cây cảnh', totalPrice: '150.000 đ', statusId: 'shipping', statusText: 'Đang giao hàng', deadline: '-', shippingProvider: 'Ahamove', image: '/avatar.jpg', orderDate: '2025-10-11' },
-]);
+// --- API: FETCH SELLER ORDERS ---
+const fetchSellerOrders = async () => {
+  isLoading.value = true;
+  try {
+    // Gọi API lấy danh sách đơn mà user hiện tại là người bán
+    // (Cần đảm bảo backend đã implement Route và Controller như hướng dẫn)
+    const response = await api.get('/seller/orders');
+    console.log("Seller Orders Data:", response.data);
 
-// --- HELPER & LOGIC ---
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
+    // Xử lý structure response của Laravel Resource
+    const ordersData = Array.isArray(response.data.data) 
+      ? response.data.data 
+      : (response.data.data?.data || []);
+
+    orders.value = ordersData.map(order => {
+      // Vì là đơn bán, ta cần logic lọc items: Chỉ hiện sản phẩm của mình bán
+      // (Backend đã lọc rồi, nhưng ở đây lấy item đầu tiên để hiển thị)
+      const myItem = (order.items && order.items.length > 0) ? order.items[0] : {};
+      
+      // Tính tổng tiền (Frontend có thể tính lại hoặc dùng total_amount của order)
+      let displayPrice = order.total_amount;
+      if (typeof displayPrice === 'number') {
+          displayPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(displayPrice);
+      }
+
+      // Xác định tên sản phẩm hiển thị
+      const displayName = myItem.product_name || myItem.variant || 'Sản phẩm đơn hàng';
+
+      return {
+        id: order.id,
+        trackingCode: order.tracking_code || `ORD-${order.id}`,
+        
+        // Thông tin người mua
+        buyerName: order.user ? order.user.full_name : 'Khách hàng',
+        buyerAvatar: '/avatar.jpg', // Nếu user có avatar thì thay bằng getImageUrl(order.user.avatar)
+        
+        // Thông tin sản phẩm
+        productName: displayName,
+        variant: myItem.variant || '',
+        quantity: myItem.quantity || 1,
+        category: 'Tổng hợp', // TODO: Lấy category từ product nếu backend trả về
+        
+        totalPrice: displayPrice,
+        
+        // Trạng thái & Hiển thị
+        statusId: mapBackendStatus(order.status),
+        statusText: getStatusLabel(order.status),
+        deadline: order.delivery_date ? formatDateDisplay(order.delivery_date) : '-',
+        shippingProvider: 'Giao Hàng Nhanh', // Hardcode
+        
+        image: getImageUrl(myItem.image || 'default.jpg'),
+        orderDate: order.order_date // Giữ format ISO để sort, hiển thị sẽ format lại sau
+      };
+    });
+
+  } catch (error) {
+    console.error("Lỗi tải đơn bán:", error);
+    // Nếu lỗi 404 (chưa có API), có thể để mảng rỗng hoặc thông báo
+  } finally {
+    isLoading.value = false;
+  }
 };
 
+// --- API: UPDATE STATUS ---
+const updateOrderStatus = async (orderId, newStatus) => {
+  if (isUpdating.value) return;
+  isUpdating.value = true;
+
+  try {
+    await api.put(`/orders/${orderId}/status`, {
+      status: newStatus
+    });
+
+    alert('Cập nhật trạng thái thành công!');
+    await fetchSellerOrders(); // Tải lại danh sách để cập nhật giao diện
+
+  } catch (error) {
+    console.error('Update status error:', error);
+    alert(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
+  } finally {
+    isUpdating.value = false;
+  }
+};
+const isUpdating = ref(false);
+
+// --- HELPER FUNCTIONS ---
+
+const mapBackendStatus = (status) => {
+  switch(status) {
+    case 'pending': return 'pending';
+    case 'confirmed': return 'pickup'; 
+    case 'processing': return 'pickup';
+    case 'shipped': return 'shipping';
+    case 'delivered': return 'completed';
+    case 'cancelled': return 'cancelled';
+    case 'refunded': return 'return';
+    default: return 'all';
+  }
+};
+
+const getStatusLabel = (status) => {
+  const map = {
+    pending: 'Chờ xác nhận',
+    confirmed: 'Chờ lấy hàng',
+    processing: 'Đang đóng gói',
+    shipped: 'Đang giao hàng',
+    delivered: 'Giao thành công',
+    cancelled: 'Đã hủy',
+    refunded: 'Đã hoàn tiền'
+  };
+  return map[status] || status;
+};
+
+// Format date hiển thị (dd/mm/yyyy)
+const formatDateDisplay = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth()+1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+};
+
+// Convert dd/mm/yyyy -> yyyy-mm-dd để so sánh
 const convertToISO = (dateStr) => {
   if (!dateStr || dateStr.length !== 10) return null;
   const parts = dateStr.split('/');
@@ -295,19 +418,28 @@ const getMaxDays = (month, year) => {
   return 31;
 };
 
+// --- LOGIC FILTER & SORT ---
+
 const allFilteredOrders = computed(() => {
   let result = orders.value.filter(order => {
     const matchTab = activeTab.value === 'all' || order.statusId === activeTab.value;
     const matchCategory = selectedCategories.value.length === 0 || selectedCategories.value.includes(order.category);
-    const matchSearch = !searchQuery.value || order.trackingCode.toLowerCase().includes(searchQuery.value.toLowerCase());
     
+    // Tìm kiếm tương đối theo mã đơn
+    const matchSearch = !searchQuery.value || 
+      (order.trackingCode && order.trackingCode.toLowerCase().includes(searchQuery.value.toLowerCase()));
+    
+    // Lọc theo ngày
     let matchDate = true;
     if (appliedStartDate.value && appliedEndDate.value) {
-      matchDate = order.orderDate >= appliedStartDate.value && order.orderDate <= appliedEndDate.value;
+      // order.orderDate từ API có thể là 'YYYY-MM-DD HH:mm:ss', cắt lấy ngày
+      const orderDateISO = order.orderDate ? order.orderDate.substring(0, 10) : '';
+      matchDate = orderDateISO >= appliedStartDate.value && orderDateISO <= appliedEndDate.value;
     }
     return matchTab && matchCategory && matchSearch && matchDate;
   });
 
+  // Sort
   return result.sort((a, b) => {
     const dateA = new Date(a.orderDate);
     const dateB = new Date(b.orderDate);
@@ -318,7 +450,8 @@ const allFilteredOrders = computed(() => {
 const visibleOrders = computed(() => allFilteredOrders.value.slice(0, visibleCount.value));
 const hasMoreOrders = computed(() => visibleCount.value < allFilteredOrders.value.length);
 
-// --- METHODS ---
+// --- HANDLERS ---
+
 const openStartDate = () => startDateRef.value?.showPicker();
 const handleStartDateSelected = (e) => {
   const val = e.target.value;
@@ -419,6 +552,11 @@ const toggleCategory = (cat) => {
 };
 const removeCategory = (cat) => toggleCategory(cat);
 const clearAllCategories = () => { selectedCategories.value = []; resetPagination(); };
+
+// --- LIFECYCLE ---
+onMounted(() => {
+  fetchSellerOrders();
+});
 </script>
 
 <style scoped>
