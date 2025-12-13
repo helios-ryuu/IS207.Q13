@@ -1,0 +1,39 @@
+[33mea390f3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/api-products[m[33m)[m update: minor changes
+[33m000daad[m feat: add seller features (create, edit, manage listings) and profile UI
+[33m322b30f[m feat: integrate product listing, search filter and detail APIs
+[33m350a170[m feat: implement product management APIs, seeders and fix CORS config
+[33mede9b33[m[33m ([m[1;32mmain[m[33m)[m Merge pull request #23 from helios-ryuu/feature/SellerProfile
+[33m769c87b[m[33m ([m[1;31morigin/feature/SellerProfile[m[33m)[m Merge branch 'main' into feature/SellerProfile
+[33ma9f3b5d[m Cập nhật SellerProfile
+[33m1c4bbaa[m Khoi tao trang SellerProfile
+[33mfc8a771[m Merge branch 'feature/product-image'
+[33ma7c1699[m fix storage
+[33m23948f7[m[33m ([m[1;31morigin/feature/product-image[m[33m)[m feat: fix product image upload and display issues
+[33me810c68[m Merge pull request #21 from helios-ryuu/feature/QuanLyDonMua_QuanLyDonBan
+[33mca5b789[m[33m ([m[1;31morigin/feature/QuanLyDonMua_QuanLyDonBan[m[33m)[m Thêm chức năng quản lý đơn mua và đơn bán
+[33m7e3a022[m Merge pull request #20 from helios-ryuu/feature/ui-ux-refactor-cover-support
+[33m25705ba[m[33m ([m[1;31morigin/feature/ui-ux-refactor-cover-support[m[33m)[m feat: Cải thiện UI/UX, chuẩn hóa quy ước đặt tên và thêm hỗ trợ ảnh cover
+[33me9cf3b0[m Merge pull request #18 from helios-ryuu/feature/seeders-cmdsql
+[33mdc18f99[m[33m ([m[1;31morigin/feature/seeders-cmdsql[m[33m)[m feat: Update database seeders, Cloud SQL schema generation script, and a table status command
+[33mcd8e73d[m Merge pull request #17 from helios-ryuu/feature/manage-posts
+[33m1e74ef2[m[33m ([m[1;31morigin/feature/manage-posts[m[33m)[m feat: Introduce initial database migrations, API controller, and frontend pages for core application features.
+[33mfca226a[m Merge pull request #16 from helios-ryuu/feature/favorites-seeders
+[33m3d4b8fb[m[33m ([m[1;31morigin/feature/favorites-seeders[m[33m)[m feat: Add database seeders for core application data and introduce new product card components with a favorites page.
+[33m3757fcf[m Merge pull request #15 from helios-ryuu/feature/api-favorites
+[33mdae1098[m[33m ([m[1;31morigin/feature/api-favorites[m[33m)[m feat: implement user favorite products feature with model, migration, controller, and API routes.
+[33mdb72fb5[m Merge pull request #14 from helios-ryuu/feature/home-product-api-integration
+[33mc691023[m[33m ([m[1;31morigin/feature/home-product-api-integration[m[33m)[m feat: Implement core product display pages and initial database seeders for users, categories, and products.
+[33m0ce77d7[m[33m ([m[1;31morigin/feature/avatar-upload-gcs[m[33m)[m feat: integrate Google Cloud Storage for avatar uploads
+[33m002893a[m Merge pull request #6 from helios-ryuu/hotfix/update-readme
+[33m2c2f2cb[m[33m ([m[1;31morigin/hotfix/update-readme[m[33m)[m feat: Update README
+[33mbf30e5e[m Merge pull request #5 from helios-ryuu/feature/api-admin
+[33ma7db88c[m[33m ([m[1;31morigin/feature/api-admin[m[33m)[m feat: Implement admin dashboard API and frontend integration
+[33mba15d21[m Merge pull request #4 from helios-ryuu/hotfix/update-cors
+[33m59b57d4[m[33m ([m[1;31morigin/hotfix/update-cors[m[33m)[m fix: update CORS for Vercel domain with Cloudflare DNS
+[33ma3fc47f[m Merge pull request #3 from helios-ryuu/hotfix/update-cors
+[33m471f438[m fix: update CORS for Vercel domain with Cloudflare DNS
+[33mfe34453[m Merge pull request #2 from helios-ryuu/hotfix/update-cors
+[33mc32eeb1[m fix: update CORS for Vercel domain
+[33m56cbf83[m Merge pull request #1 from helios-ryuu/hotfix/add-client-side-routing-vercel
+[33m5ecfa0f[m[33m ([m[1;31morigin/hotfix/add-client-side-routing-vercel[m[33m)[m fix: add vercel.json for client-side routing support
+[33mb990165[m feat: rewrite history of IS207.Q13 repository
