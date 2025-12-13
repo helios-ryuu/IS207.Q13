@@ -13,72 +13,45 @@
       <div class="filter-section">
         <div class="filter-row">
           <span class="label">Lọc theo:</span>
-          
           <div class="dropdown-wrapper">
             <button class="btn-dropdown" @click="isDropdownOpen = !isDropdownOpen">
               <font-awesome-icon icon="filter" /> Danh mục
               <font-awesome-icon icon="chevron-down" />
             </button>
-
             <div class="dropdown-menu" v-if="isDropdownOpen">
-              <div 
-                v-for="cat in categories" 
-                :key="cat" 
-                class="dropdown-item"
-                :class="{ 'active-item': selectedCategories.includes(cat) }"
-                @click="toggleCategory(cat)"
-              >
+              <div v-for="cat in categories" :key="cat" class="dropdown-item" :class="{ 'active-item': selectedCategories.includes(cat) }" @click="toggleCategory(cat)">
                 <span>{{ cat }}</span>
                 <font-awesome-icon v-if="selectedCategories.includes(cat)" icon="check" class="check-icon" />
               </div>
             </div>
           </div>
-
           <div class="tags-container">
             <div v-for="cat in selectedCategories" :key="cat" class="selected-tag">
-              {{ cat }}
-              <span class="remove-tag" @click="removeCategory(cat)">
-                <font-awesome-icon icon="times" />
-              </span>
+              {{ cat }} <span class="remove-tag" @click="removeCategory(cat)"><font-awesome-icon icon="times" /></span>
             </div>
-            <button 
-              v-if="selectedCategories.length > 0" 
-              class="clear-all-btn"
-              @click="clearAllCategories"
-            >
-              Xóa hết
-            </button>
+            <button v-if="selectedCategories.length > 0" class="clear-all-btn" @click="clearAllCategories">Xóa hết</button>
           </div>
-
         </div>
       </div>
 
       <div class="status-tabs">
-        <button 
-          v-for="tab in tabs" 
-          :key="tab.id" 
-          class="tab-item" 
-          :class="{ active: activeTab === tab.id }"
-          @click="changeTab(tab.id)"
-        >
+        <button v-for="tab in tabs" :key="tab.id" class="tab-item" :class="{ active: activeTab === tab.id }" @click="changeTab(tab.id)">
           {{ tab.name }}
         </button>
       </div>
 
       <div class="order-list">
-        
         <div v-for="order in visibleOrders" :key="order.id" class="order-card">
-          
           <div class="card-header">
             <div class="shop-info">
               <span class="shop-name">{{ order.shopName }}</span>
-              <button class="btn-chat"><font-awesome-icon icon="comments" /> Chat</button>
+              <button class="btn-chat" @click="contactSeller(order)">
+                <font-awesome-icon icon="comments" /> Chat
+              </button>
               <button class="btn-view-shop"><font-awesome-icon icon="store" /> Xem Shop</button>
             </div>
             <div class="order-status">
-              <span class="delivery-status">
-                <font-awesome-icon icon="truck" /> {{ order.deliveryStatus }}
-              </span>
+              <span class="delivery-status"><font-awesome-icon icon="truck" /> {{ order.deliveryStatus }}</span>
               <span class="status-label">{{ order.statusLabel }}</span>
             </div>
           </div>
@@ -105,29 +78,82 @@
             </div>
             <div class="action-buttons">
               <template v-if="order.statusId === 'completed'">
-                <button class="btn btn-primary">Đánh Giá</button>
+                
+                <button 
+                  v-if="!checkIfRated(order.id)" 
+                  class="btn btn-primary" 
+                  @click="openRatingModal(order)"
+                >
+                  Đánh Giá
+                </button>
+                
+                <button 
+                  v-else 
+                  class="btn btn-disabled" 
+                  disabled
+                >
+                  Đã đánh giá
+                </button>
+
                 <button class="btn btn-default">Mua Lại</button>
               </template>
+              
               <template v-else-if="order.statusId === 'return'">
                 <button class="btn btn-default">Chi tiết hoàn tiền</button>
               </template>
               <template v-else>
-                <button class="btn btn-default">Liên hệ người bán</button>
+                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ người bán</button>
               </template>
             </div>
           </div>
         </div>
 
         <div v-if="hasMoreOrders" class="load-more-container">
-          <button class="btn-load-more" @click="loadMore">
-            Xem thêm đơn hàng <font-awesome-icon icon="chevron-down" />
-          </button>
+          <button class="btn-load-more" @click="loadMore">Xem thêm đơn hàng <font-awesome-icon icon="chevron-down" /></button>
+        </div>
+        <div v-if="visibleOrders.length === 0" class="empty-result"><p>Không tìm thấy đơn hàng nào phù hợp.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="showRatingModal" class="modal-overlay" @click.self="closeRatingModal">
+    <div class="modal-content fade-in">
+      <div class="modal-header">
+        <h3>Đánh giá sản phẩm</h3>
+        <button class="close-btn" @click="closeRatingModal">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="product-preview" v-if="ratingData.order">
+          <img :src="ratingData.order.image" alt="Product">
+          <div class="preview-info">
+            <p class="name">{{ ratingData.order.productName }}</p>
+            <p class="variant">Phân loại: {{ ratingData.order.variant }}</p>
+          </div>
         </div>
 
-        <div v-if="visibleOrders.length === 0" class="empty-result">
-          <p>Không tìm thấy đơn hàng nào phù hợp.</p>
+        <div class="rating-stars-section">
+          <p class="label">Chất lượng sản phẩm:</p>
+          <div class="stars-wrapper">
+            <span v-for="star in 5" :key="star" class="star-btn" @click="ratingData.score = star">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" :fill="star <= ratingData.score ? '#ffc107' : '#e4e5e9'" width="32px" height="32px">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+              </svg>
+            </span>
+          </div>
+          <span class="rating-text">{{ getRatingText(ratingData.score) }}</span>
         </div>
 
+        <div class="rating-comment">
+          <textarea v-model="ratingData.comment" placeholder="Hãy chia sẻ cảm nhận của bạn về sản phẩm này nhé..." rows="4"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-default" @click="closeRatingModal">Trở lại</button>
+        <button class="btn btn-primary" @click="submitRating">Hoàn thành</button>
       </div>
     </div>
   </div>
@@ -136,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
@@ -148,7 +174,10 @@ const goToHome = () => router.push('/');
 const activeTab = ref('all');
 const isDropdownOpen = ref(false);
 const selectedCategories = ref([]); 
-const visibleCount = ref(5); // Số lượng đơn hiển thị ban đầu
+const visibleCount = ref(5); 
+
+// [MỚI] Danh sách các ID đơn hàng đã đánh giá
+const ratedOrderIds = ref([]);
 
 const tabs = [
   { id: 'all', name: 'Tất cả' },
@@ -167,19 +196,100 @@ const categories = [
   'Đồ dùng văn phòng, Công nông nghiệp'
 ];
 
-// Dữ liệu giả lập (Thêm nhiều data để test nút Xem thêm)
+// [MỚI] Thêm sellerId vào dữ liệu để Chat hoạt động
 const orders = ref([
-  { id: 1, shopName: 'Cửa Hàng Giá Rẻ', productName: 'Máy quạt mini giá tốt', variant: 'Đã sử dụng', category: 'Đồ điện tử', statusId: 'completed', deliveryStatus: 'Giao hàng thành công', statusLabel: 'HOÀN THÀNH', price: '400.000 đ', totalPrice: '400.000 đ', image: '/avatar.jpg', sellerName: 'Phạm Khoa', sellerAvatar: '/avatar.jpg' },
-  { id: 2, shopName: 'Xe Máy Sài Gòn', productName: 'Honda Vision 2021', variant: 'Mới 90%', category: 'Xe cộ', statusId: 'completed', deliveryStatus: 'Giao hàng thành công', statusLabel: 'HOÀN THÀNH', price: '28.000.000 đ', totalPrice: '28.000.000 đ', image: '/avatar.jpg', sellerName: 'Nguyễn Văn A', sellerAvatar: '/avatar.jpg' },
-  { id: 3, shopName: 'Shop Quần Áo', productName: 'Áo thun nam', variant: 'Size L', category: 'Thời trang, Đồ dùng cá nhân', statusId: 'delivering', deliveryStatus: 'Shipper đang đến', statusLabel: 'CHỜ GIAO HÀNG', price: '150.000 đ', totalPrice: '150.000 đ', image: '/avatar.jpg', sellerName: 'Le Thi B', sellerAvatar: '/avatar.jpg' },
-  { id: 4, shopName: 'Tech Store', productName: 'Chuột không dây', variant: 'Màu đen', category: 'Đồ điện tử', statusId: 'return', deliveryStatus: 'Đang xử lý hoàn tiền', statusLabel: 'TRẢ HÀNG/HOÀN TIỀN', price: '90.000 đ', totalPrice: '90.000 đ', image: '/avatar.jpg', sellerName: 'Tech Admin', sellerAvatar: '/avatar.jpg' },
-  { id: 5, shopName: 'Pet Shop', productName: 'Thức ăn mèo', variant: '1kg', category: 'Thú cưng', statusId: 'pending', deliveryStatus: 'Chờ xác nhận', statusLabel: 'CHỜ XÁC NHẬN', price: '50.000 đ', totalPrice: '50.000 đ', image: '/avatar.jpg', sellerName: 'Pet Lover', sellerAvatar: '/avatar.jpg' },
-  { id: 6, shopName: 'Nội Thất Xinh', productName: 'Ghế Sofa', variant: 'Xám', category: 'Đồ gia dụng, Nội thất, Cây cảnh', statusId: 'shipping', deliveryStatus: 'Đang vận chuyển', statusLabel: 'VẬN CHUYỂN', price: '1.200.000 đ', totalPrice: '1.200.000 đ', image: '/avatar.jpg', sellerName: 'Decor Home', sellerAvatar: '/avatar.jpg' },
+  { id: 1, shopName: 'Cửa Hàng Giá Rẻ', sellerId: 101, productName: 'Máy quạt mini giá tốt', variant: 'Đã sử dụng', category: 'Đồ điện tử', statusId: 'completed', deliveryStatus: 'Giao hàng thành công', statusLabel: 'HOÀN THÀNH', price: '400.000 đ', totalPrice: '400.000 đ', image: '/avatar.jpg', sellerName: 'Phạm Khoa', sellerAvatar: '/avatar.jpg' },
+  { id: 2, shopName: 'Xe Máy Sài Gòn', sellerId: 102, productName: 'Honda Vision 2021', variant: 'Mới 90%', category: 'Xe cộ', statusId: 'completed', deliveryStatus: 'Giao hàng thành công', statusLabel: 'HOÀN THÀNH', price: '28.000.000 đ', totalPrice: '28.000.000 đ', image: '/avatar.jpg', sellerName: 'Nguyễn Văn A', sellerAvatar: '/avatar.jpg' },
+  { id: 3, shopName: 'Shop Quần Áo', sellerId: 103, productName: 'Áo thun nam', variant: 'Size L', category: 'Thời trang, Đồ dùng cá nhân', statusId: 'delivering', deliveryStatus: 'Shipper đang đến', statusLabel: 'CHỜ GIAO HÀNG', price: '150.000 đ', totalPrice: '150.000 đ', image: '/avatar.jpg', sellerName: 'Le Thi B', sellerAvatar: '/avatar.jpg' },
+  { id: 4, shopName: 'Tech Store', sellerId: 104, productName: 'Chuột không dây', variant: 'Màu đen', category: 'Đồ điện tử', statusId: 'return', deliveryStatus: 'Đang xử lý hoàn tiền', statusLabel: 'TRẢ HÀNG/HOÀN TIỀN', price: '90.000 đ', totalPrice: '90.000 đ', image: '/avatar.jpg', sellerName: 'Tech Admin', sellerAvatar: '/avatar.jpg' },
+  { id: 5, shopName: 'Pet Shop', sellerId: 105, productName: 'Thức ăn mèo', variant: '1kg', category: 'Thú cưng', statusId: 'pending', deliveryStatus: 'Chờ xác nhận', statusLabel: 'CHỜ XÁC NHẬN', price: '50.000 đ', totalPrice: '50.000 đ', image: '/avatar.jpg', sellerName: 'Pet Lover', sellerAvatar: '/avatar.jpg' },
+  { id: 6, shopName: 'Nội Thất Xinh', sellerId: 106, productName: 'Ghế Sofa', variant: 'Xám', category: 'Đồ gia dụng, Nội thất, Cây cảnh', statusId: 'shipping', deliveryStatus: 'Đang vận chuyển', statusLabel: 'VẬN CHUYỂN', price: '1.200.000 đ', totalPrice: '1.200.000 đ', image: '/avatar.jpg', sellerName: 'Decor Home', sellerAvatar: '/avatar.jpg' },
 ]);
 
-// --- LOGIC LỌC & PHÂN TRANG ---
+// --- [MỚI] LOGIC LOAD TRẠNG THÁI ĐÁNH GIÁ ---
+onMounted(() => {
+  const storedRatedIds = localStorage.getItem('rated_order_ids');
+  if (storedRatedIds) {
+    ratedOrderIds.value = JSON.parse(storedRatedIds);
+  }
+});
 
-// 1. Lọc toàn bộ danh sách trước
+const checkIfRated = (orderId) => {
+  return ratedOrderIds.value.includes(orderId);
+};
+
+// --- [MỚI] LOGIC CHAT VỚI NGƯỜI BÁN ---
+const contactSeller = (order) => {
+  router.push({
+    path: '/chat',
+    query: {
+      sellerId: order.sellerId,
+      sellerName: order.shopName,
+      sellerAvatar: order.sellerAvatar,
+      productName: order.productName // Context sản phẩm
+    }
+  });
+};
+
+// --- LOGIC MODAL ĐÁNH GIÁ ---
+const showRatingModal = ref(false);
+const ratingData = reactive({
+  order: null,
+  score: 5,
+  comment: ''
+});
+
+const openRatingModal = (order) => {
+  ratingData.order = order;
+  ratingData.score = 5;
+  ratingData.comment = '';
+  showRatingModal.value = true;
+};
+
+const closeRatingModal = () => {
+  showRatingModal.value = false;
+};
+
+// --- [MỚI] LOGIC LƯU ĐÁNH GIÁ VÀ CHUYỂN TRANG ---
+const submitRating = () => {
+  if (!ratingData.order) return;
+
+  // 1. Tạo review
+  const newReview = {
+    id: Date.now(),
+    userName: 'Bạn',
+    userAvatar: '/avatar.jpg',
+    rating: ratingData.score,
+    comment: ratingData.comment || 'Khách hàng không viết bình luận.',
+    date: new Date().toLocaleDateString('vi-VN'),
+    productName: ratingData.order.productName,
+    variant: ratingData.order.variant
+  };
+
+  // 2. Lưu vào reviews của sản phẩm
+  const productId = ratingData.order.id; // Demo dùng ID đơn hàng làm ID sản phẩm
+  const storageKey = `product_reviews_${productId}`;
+  const existingReviews = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  existingReviews.unshift(newReview);
+  localStorage.setItem(storageKey, JSON.stringify(existingReviews));
+
+  // 3. Đánh dấu đơn hàng là "Đã đánh giá"
+  ratedOrderIds.value.push(ratingData.order.id);
+  localStorage.setItem('rated_order_ids', JSON.stringify(ratedOrderIds.value));
+
+  alert('Đánh giá thành công! Đang chuyển đến trang sản phẩm...');
+  closeRatingModal();
+  
+  // 4. Chuyển sang trang chi tiết
+  router.push(`/product/${productId}`);
+};
+
+const getRatingText = (score) => {
+  const texts = ['Tệ', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Tuyệt vời'];
+  return texts[score - 1] || '';
+};
+
+// --- LOGIC LỌC & PHÂN TRANG (GIỮ NGUYÊN) ---
 const allFilteredOrders = computed(() => {
   return orders.value.filter(order => {
     const matchTab = activeTab.value === 'all' || order.statusId === activeTab.value;
@@ -188,48 +298,30 @@ const allFilteredOrders = computed(() => {
   });
 });
 
-// 2. Cắt danh sách dựa trên visibleCount
 const visibleOrders = computed(() => {
   return allFilteredOrders.value.slice(0, visibleCount.value);
 });
 
-// 3. Kiểm tra xem còn đơn hàng để xem thêm không
 const hasMoreOrders = computed(() => {
   return visibleCount.value < allFilteredOrders.value.length;
 });
 
 // --- METHODS ---
-
-const loadMore = () => {
-  visibleCount.value += 5; // Tải thêm 5 đơn mỗi lần bấm
-};
-
-const resetPagination = () => {
-  visibleCount.value = 5; // Reset về 5 khi lọc lại
-};
-
-const changeTab = (tabId) => {
-  activeTab.value = tabId;
-  resetPagination();
-};
-
+const loadMore = () => visibleCount.value += 5;
+const resetPagination = () => visibleCount.value = 5;
+const changeTab = (tabId) => { activeTab.value = tabId; resetPagination(); };
 const toggleCategory = (cat) => {
   const index = selectedCategories.value.indexOf(cat);
   if (index === -1) selectedCategories.value.push(cat);
   else selectedCategories.value.splice(index, 1);
-  resetPagination(); // Reset khi lọc
+  resetPagination(); 
 };
-
 const removeCategory = (cat) => {
   const index = selectedCategories.value.indexOf(cat);
   if (index !== -1) selectedCategories.value.splice(index, 1);
   resetPagination();
 };
-
-const clearAllCategories = () => {
-  selectedCategories.value = [];
-  resetPagination();
-};
+const clearAllCategories = () => { selectedCategories.value = []; resetPagination(); };
 </script>
 
 <style scoped>
@@ -390,6 +482,12 @@ const clearAllCategories = () => {
 .btn-default { background: #fff; border: 1px solid #ddd; color: #555; }
 .btn-default:hover { background: #fff; border-color: #999; color: #333; }
 
+/* [MỚI] Nút đã đánh giá (Disabled) */
+.btn-disabled {
+  background: #f0f0f0; color: #999; border: 1px solid #ddd;
+  cursor: not-allowed; box-shadow: none;
+}
+
 /* LOAD MORE BUTTON */
 .load-more-container { text-align: center; margin-top: 1.5rem; padding-bottom: 1rem; }
 .btn-load-more {
@@ -403,4 +501,57 @@ const clearAllCategories = () => {
   padding: 4rem; text-align: center; color: #777; 
   background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
+
+/* === MODAL CSS === */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5); z-index: 9999;
+  display: flex; justify-content: center; align-items: center;
+}
+.modal-content {
+  background: #fff; width: 600px; max-width: 90%;
+  border-radius: 12px; overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.modal-header {
+  padding: 1.2rem 1.5rem; border-bottom: 1px solid #eee;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h3 { margin: 0; color: #333; font-size: 1.2rem; }
+.close-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #888; display: flex; }
+
+.modal-body { padding: 1.5rem; }
+.product-preview {
+  display: flex; gap: 1rem; margin-bottom: 1.5rem;
+  padding-bottom: 1rem; border-bottom: 1px dashed #eee;
+}
+.product-preview img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #eee; }
+.preview-info .name { font-weight: 600; color: #333; margin: 0 0 0.3rem 0; }
+.preview-info .variant { font-size: 0.9rem; color: #777; margin: 0; }
+
+.rating-stars-section { margin-bottom: 1.5rem; text-align: center; }
+.rating-stars-section .label { font-weight: 500; color: #555; margin-bottom: 0.8rem; }
+.stars-wrapper { 
+  display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem; 
+}
+.star-btn { cursor: pointer; transition: transform 0.2s; }
+.star-btn:hover { transform: scale(1.1); }
+
+.rating-text { 
+  display: block; margin-top: 0.5rem; color: #ffc107; font-weight: 700; font-size: 1.1rem; 
+}
+
+.rating-comment textarea {
+  width: 100%; padding: 1rem; border: 1px solid #ddd;
+  border-radius: 8px; resize: vertical; outline: none;
+  font-family: inherit; font-size: 0.95rem;
+}
+.rating-comment textarea:focus { border-color: #0055aa; }
+
+.modal-footer {
+  padding: 1rem 1.5rem; border-top: 1px solid #eee;
+  display: flex; justify-content: flex-end; gap: 1rem; background: #f9f9f9;
+}
+.fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 </style>
