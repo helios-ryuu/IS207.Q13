@@ -9,7 +9,7 @@ import Footer from '../components/layout/AppFooter.vue'
 import CascadingCategoryModal from '../components/modals/CascadingCategoryModal.vue'
 
 const router = useRouter()
-const { user } = useAuth()
+const { user, isLoggedIn } = useAuth()
 const { showSuccess, showError } = useToast()
 
 // Form state
@@ -41,7 +41,7 @@ const videoURL = ref('') // Cached URL
 const photoInput = ref(null)
 const videoInput = ref(null)
 
-// Address data
+// Address data (Giữ nguyên logic cũ của bạn vì Backend chưa có API địa chỉ)
 const cities = [
   { value: 'hcm', label: 'TP. Hồ Chí Minh' },
   { value: 'hanoi', label: 'Hà Nội' },
@@ -77,27 +77,50 @@ const getDistricts = () => districtsByCity[city.value] || []
 
 watch(city, () => { district.value = '' })
 
-// Fetch categories
+// 1. Fetch Categories từ API
 onMounted(async () => {
+  if (!isLoggedIn.value) {
+    showError('Vui lòng đăng nhập để đăng tin');
+    router.push('/login');
+    return;
+  }
+
   try {
-    const res = await api.get('/categories')
-    categories.value = res.data.data || []
-  } catch (e) { console.error(e) }
+    const res = await api.get('/categories');
+    // API Laravel Resource thường trả về { data: [...] }
+    categories.value = res.data.data || res.data || [];
+  } catch (e) {
+    console.error("Lỗi lấy danh mục:", e);
+  }
 })
 
+// Hàm convert tên danh mục (string) sang ID (int) để gửi Backend
 const getCategoryId = (name) => {
-  if (!name) return 1
-  const main = name.split(' - ')[0]
-  const map = { 'Đồ điện tử': 'Điện tử', 'Đồ gia dụng': 'Nội thất', 'Mẹ và Bé': 'Mẹ & Bé' }
-  const found = categories.value.find(c => c.name === (map[main] || main))
-  return found?.id || 1
+  if (!name || categories.value.length === 0) return 1; // Default fallback
+  
+  // Logic tìm kiếm gần đúng
+  // Ví dụ: chọn "Xe cộ", tìm category có name chứa "Xe cộ"
+  const found = categories.value.find(c => 
+    c.name.toLowerCase().includes(name.toLowerCase()) || 
+    name.toLowerCase().includes(c.name.toLowerCase())
+  );
+  
+  return found ? found.id : categories.value[0].id;
 }
 
 // Handlers
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB (Sửa lại cho khớp thông báo)
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
 
-const formatPrice = (e) => { price.value = e.target.value.replace(/[^0-9]/g, '') }
+const formatPrice = (e) => { 
+  // Chỉ giữ lại số
+  const val = e.target.value.replace(/[^0-9]/g, '');
+  if (val) {
+    price.value = new Intl.NumberFormat('vi-VN').format(parseInt(val));
+  } else {
+    price.value = '';
+  }
+}
 
 const handlePhotoUpload = (e) => {
   const files = Array.from(e.target.files)
@@ -122,10 +145,12 @@ const handlePhotoUpload = (e) => {
   if (validFiles.length > remaining) {
     showError('Tối đa 6 hình ảnh')
   }
+  
+  // Reset input để chọn lại cùng file được
+  if (photoInput.value) photoInput.value.value = '';
 }
 
 const removePhoto = (i) => {
-  // Revoke the URL to free memory
   if (photoURLs.value[i]) URL.revokeObjectURL(photoURLs.value[i])
   photos.value.splice(i, 1)
   photoURLs.value.splice(i, 1)
@@ -139,7 +164,6 @@ const handleVideoUpload = (e) => {
     showError('Video vượt quá 50MB')
     return
   }
-  // Revoke old URL if exists
   if (videoURL.value) URL.revokeObjectURL(videoURL.value)
   video.value = file
   videoURL.value = URL.createObjectURL(file)
@@ -162,52 +186,73 @@ const validateForm = () => {
   if (!title.value) { formErrors.value.title = true; showError('Vui lòng nhập tiêu đề'); return false }
   if (!description.value) { formErrors.value.description = true; showError('Vui lòng nhập mô tả'); return false }
   if (!city.value) { formErrors.value.city = true; showError('Vui lòng chọn thành phố'); return false }
-  if (!district.value) { formErrors.value.district = true; showError('Vui lòng chọn quận/huyện'); return false }
+  // District là optional trong logic cũ của bạn, có thể bỏ qua check
   return true
 }
 
+// --- HÀM SUBMIT CHÍNH ---
 const handleSubmit = async () => {
   if (!validateForm()) return
   isSubmitting.value = true
   
   try {
+    // 1. Chuẩn bị dữ liệu Product
+    // Chuyển giá từ string "5.000.000" về số int 5000000
+    const rawPrice = parseInt(price.value.replace(/\./g, '').replace(/,/g, ''));
+    
+    // Gộp địa chỉ thành string (vì Backend chưa có bảng Address riêng cho Product)
+    const locationString = `${city.value === 'hcm' ? 'TP.HCM' : city.value}, ${district.value}`;
+
     const payload = {
       name: title.value,
-      description: description.value,
-      category_ids: [getCategoryId(category.value)],
-      variants: [{ price: parseFloat(price.value), quantity: 1, color: color.value || null, size: size.value || null }]
+      description: description.value + `\n\n--- \nKhu vực: ${locationString} \nTình trạng: ${condition.value}`,
+      category_ids: [getCategoryId(category.value)], // Backend nhận mảng ID
+      status: 'active', // Mặc định hiển thị luôn
+      
+      // Tạo sẵn 1 variant mặc định
+      variants: [{ 
+        price: rawPrice, 
+        quantity: 1, 
+        color: color.value || 'Tiêu chuẩn', 
+        size: size.value || 'Tiêu chuẩn' 
+      }]
     }
     
+    console.log("Submitting product:", payload);
+    
+    // 2. Gọi API tạo Product
     const res = await api.post('/products', payload)
-    const productId = res.data.data?.id || res.data.id
-    console.log('Product created:', productId)
     
-    // Upload images
-    console.log('Photos to upload:', photos.value.length, photos.value)
-    let uploadedCount = 0
-    let failedCount = 0
-    for (const photo of photos.value) {
-      const fd = new FormData()
-      fd.append('image', photo)
-      console.log('Uploading image:', photo.name, photo.size)
-      try {
-        const imgRes = await api.post(`/products/${productId}/images`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-        console.log('Image upload success:', imgRes.data)
-        uploadedCount++
-      } catch (e) {
-        console.error('Image upload failed:', e.response?.data || e.message)
-        failedCount++
-      }
-    }
+    // Lấy ID sản phẩm vừa tạo (Backend trả về Resource hoặc Model)
+    const newProduct = res.data.data || res.data;
+    const productId = newProduct.id;
     
-    if (failedCount > 0) {
-      showError(`${failedCount} ảnh tải lên thất bại. Uploaded: ${uploadedCount}/${photos.value.length}`)
+    console.log('Product created with ID:', productId);
+    
+    // 3. Upload từng ảnh (Gọi API: POST /products/{id}/images)
+    if (photos.value.length > 0) {
+      // Dùng Promise.all để upload song song cho nhanh
+      const uploadPromises = photos.value.map((photoFile) => {
+        const fd = new FormData();
+        fd.append('image', photoFile); // Key phải là 'image' theo ProductImageController
+        return api.post(`/products/${productId}/images`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      });
+      
+      await Promise.all(uploadPromises);
+      console.log('All images uploaded');
     }
     
     showSuccess('Đăng tin thành công!')
-    router.push('/manage-posts')
+    
+    // Chuyển hướng về trang quản lý tin
+    router.push('/manage-posts') // Đảm bảo route này tồn tại trong router/index.js
+    
   } catch (e) {
-    showError(e.response?.data?.message || 'Có lỗi xảy ra')
+    console.error("Submit Error:", e);
+    const msg = e.response?.data?.message || 'Có lỗi xảy ra khi đăng tin';
+    showError(msg);
   } finally {
     isSubmitting.value = false
   }

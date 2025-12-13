@@ -51,4 +51,10 @@ class Product extends Model
     {
         return $this->hasMany(Review::class);
     }
+
+    public function favoritedBy()
+    {
+    // Quan hệ nhiều-nhiều với User qua bảng favorites
+    return $this->belongsToMany(User::class, 'favorites', 'product_id', 'user_id');
+    }
 }

@@ -15,6 +15,7 @@ import ProductDetail from '../pages/ProductDetail.vue';
 import Chat from '../pages/Chat.vue';
 import SalesOrderManagement from '../pages/SalesOrderManagement.vue';
 import CreatePost from '../pages/CreatePost.vue';
+import EditPost from '../pages/EditPost.vue';
 import SellerProfile from '../pages/SellerProfile.vue';
 import SupportPage from '../pages/SupportPage.vue';
 import Cart from '../pages/Cart.vue';
@@ -102,6 +103,12 @@ const routes = [
         name: 'CreatePost',
         component: CreatePost
     },
+
+    { // <--- THÊM DÒNG NÀY
+        path: '/edit-post/:id',
+        name: 'EditPost', 
+        component: EditPost }, 
+
     { 
         path: '/purchase-orders', 
         component: OrderManagement 

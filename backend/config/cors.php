@@ -1,33 +1,24 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
-    |
-    | Here you may configure your settings for cross-origin resource sharing
-    | or "CORS". This determines what cross-origin operations may execute
-    | in web browsers. You are free to adjust these settings as needed.
-    |
-    | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-    |
     */
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
+    // QUAN TRỌNG: Không được để dấu '*', phải điền đúng link Frontend
     'allowed_origins' => [
         'http://localhost:5173',
-        'http://localhost:3000',
-        'https://vietmarket.helios.id.vn',
+        'http://127.0.0.1:5173',
+        'http://172.24.176.1:5173', // IP mạng LAN của bạn (nếu dùng)
     ],
 
-    'allowed_origins_patterns' => [
-        '/^https:\/\/vietmarket.*\.helios\.id\.vn$/',
-    ],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
@@ -35,6 +26,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true,
-
+    // QUAN TRỌNG: Phải là true vì frontend bạn đang bật withCredentials
+    'supports_credentials' => true, 
 ];

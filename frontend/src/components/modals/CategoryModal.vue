@@ -51,12 +51,16 @@
 </template>
 
 <script setup>
-// Định nghĩa các event mà component này sẽ phát ra
-const emit = defineEmits(['close', 'selectCategory']);
+// Định nghĩa event tên là 'select-category' (dùng kebab-case cho chuẩn Vue)
+const emit = defineEmits(['close', 'select-category']);
 
-// Hàm xử lý khi người dùng chọn một mục
 const select = (categoryName) => {
-  emit('selectCategory', categoryName);
+  // 1. Kiểm tra xem click có ăn không
+  console.log('1️⃣ [Modal] Đã click vào:', categoryName);
+  
+  // 2. Kiểm tra xem lệnh emit có được gọi không
+  console.log('2️⃣ [Modal] Đang gửi tín hiệu lên cha...');
+  emit('select-category', categoryName);
 };
 </script>
 
