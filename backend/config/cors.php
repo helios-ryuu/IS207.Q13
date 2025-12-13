@@ -14,10 +14,10 @@ return [
     // QUAN TRỌNG: Không được để dấu '*', phải điền đúng link Frontend
     'allowed_origins' => [
         'http://localhost:5173',
+        'http://localhost:3000',
+        'https://vietmarket.helios.id.vn',
         'http://127.0.0.1:5173',
         'http://172.24.176.1:5173', // IP mạng LAN của bạn (nếu dùng)
-        'http://localhost:3000',
-        'http://vietmarket.helios.od.vn',
     ],
 
     'allowed_origins_patterns' => [],
