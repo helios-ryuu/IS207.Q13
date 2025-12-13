@@ -23,7 +23,7 @@ const loadCart = async () => {
       id: item.product_id,
       variant_id: item.variant_id,
       name: item.product_name,
-      price: item.price.toString(),
+      price: typeof item.price === 'string' ? parseFloat(item.price.replace(/[^0-9]/g, '')) : item.price,
       image: getImageUrl(item.image),
       quantity: item.quantity,
       color: item.color,
@@ -60,10 +60,8 @@ export const useCart = () => {
   // Tính tổng tiền
   const cartTotal = computed(() => {
     return cartItems.value.reduce((total, item) => {
-      const price = typeof item.price === 'string' 
-        ? parseFloat(item.price.replace(/[^0-9]/g, '')) || 0 
-        : item.price || 0;
-      return total + (price * item.quantity);
+      // Vì price đã là số rồi nên cứ thế nhân thôi
+      return total + (Number(item.price) * item.quantity); 
     }, 0);
   });
 

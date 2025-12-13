@@ -20,7 +20,9 @@ return [
         'http://172.24.176.1:5173', // IP mạng LAN của bạn (nếu dùng)
     ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '/^https:\/\/vietmarket.*\.helios\.id\.vn$/',
+    ],
 
     'allowed_headers' => ['*'],
 

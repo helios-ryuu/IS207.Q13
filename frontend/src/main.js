@@ -8,6 +8,8 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 import '@vueform/slider/themes/default.css'// Thanh trượt chọn giá lọc
 
+
+
 // 1. CHỈ IMPORT CÁC ICON FREE MÀ BẠN CẦN
 import { 
     faHome, faTags, faEnvelope, faMapMarkerAlt, faFilter, faTrash,
@@ -22,7 +24,7 @@ import {
     faBirthdayCake, faCandyCane, faCocktail, faEllipsisH, faCheck,
     faBars, faSearch, faHeart, faComment, faBell, faComments, faStore, faCalendarAlt, faSort,
     faLocationCrosshairs, faBuilding, faChevronRight, faArrowLeft, faHeadset,
-    faEdit, faEye, faEyeSlash, faCommentDots
+    faEdit, faEye, faEyeSlash, faCommentDots, faShoppingCart
 } from '@fortawesome/free-solid-svg-icons'
 
 
@@ -44,7 +46,7 @@ library.add(
     faBirthdayCake, faCandyCane, faCocktail, faEllipsisH,
     faBars, faSearch, faHeart, faComment, faBell, faLocationCrosshairs, 
     faBuilding, faChevronRight, faArrowLeft, faHeadset,
-    faEdit, faEye, faEyeSlash, faCheck, faCommentDots 
+    faEdit, faEye, faEyeSlash, faCheck, faCommentDots,faShoppingCart 
 )
 
 // (brand icons were temporarily added here; removed to revert logo changes)
