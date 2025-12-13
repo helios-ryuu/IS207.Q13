@@ -160,4 +160,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/posts/{id}', [ProductPostController::class, 'show']);
     Route::put('/posts/{id}/approve', [ProductPostController::class, 'approve']);
     Route::put('/posts/{id}/reject', [ProductPostController::class, 'reject']);
+
+    // API cho người bán xem đơn hàng
+    Route::get('/seller/orders', [OrderController::class, 'getSellerOrders']);
 });

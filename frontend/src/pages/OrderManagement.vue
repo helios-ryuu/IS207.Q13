@@ -41,7 +41,7 @@
       </div>
 
       <div v-if="isLoading" class="loading-state">
-        <p>Đang khởi tạo dữ liệu mẫu...</p>
+        <p>Đang tải dữ liệu đơn hàng...</p>
       </div>
 
       <div v-else class="order-list">
@@ -70,9 +70,8 @@
               <p class="product-variant">Phân loại: {{ order.variant }}</p>
               <p class="product-category-label">Danh mục: {{ order.category }}</p>
               <div class="order-meta">
-                <span class="meta-item">Mã Đơn hàng: <strong>{{ order.trackingCode }}</strong></span>
-                <span class="meta-item">Ngày Đặt: <strong>{{ order.orderDateDisplay }}</strong></span>
-                <span class="meta-item update-time">Cập nhật: <strong>{{ order.lastUpdateDisplay }}</strong></span>
+                <span class="meta-item">Mã Đơn: <strong>{{ order.trackingCode || `ORD-${order.id}` }}</strong></span>
+                <span class="meta-item">Giá: <strong>{{ order.price }}</strong></span>
               </div>
               <div class="seller-wrapper">
                 <img :src="order.sellerAvatar" class="seller-avatar" @error="handleAvatarError">
@@ -80,7 +79,7 @@
               </div>
             </div>
             <div class="product-price">
-              <span class="current-price">{{ order.price }}</span>
+              <span class="current-price">{{ order.totalPrice }}</span>
             </div>
           </div>
 
@@ -88,20 +87,22 @@
             <div class="total-section">
               Thành tiền: <span class="total-price">{{ order.totalPrice }}</span>
             </div>
+            
             <div class="action-buttons">
               
               <template v-if="order.statusId === 'pending'">
-                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ người bán</button>
-                <button class="btn btn-outline-danger" @click="cancelOrder(order)">Hủy Đơn</button>
+                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ</button>
+                <button class="btn btn-outline-danger" @click="cancelOrder(order.id)">Hủy Đơn</button>
               </template>
 
               <template v-else-if="order.statusId === 'shipping'">
-                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ người bán</button>
+                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ</button>
+                <button class="btn btn-disabled" disabled>Đang vận chuyển</button>
               </template>
 
               <template v-else-if="order.statusId === 'delivering'">
-                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ người bán</button>
-                <button class="btn btn-primary" @click="confirmReceived(order)">Đã Nhận Hàng</button>
+                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ</button>
+                <button class="btn btn-primary" @click="confirmReceived(order.id)">Đã Nhận Hàng</button>
               </template>
 
               <template v-else-if="order.statusId === 'completed'">
@@ -109,8 +110,7 @@
                 <button v-else class="btn btn-disabled" disabled>Đã đánh giá</button>
                 
                 <button class="btn btn-default" @click="buyAgain(order)">Mua Lại</button>
-                <button class="btn btn-outline-danger" @click="openReturnModal(order)">Trả Hàng / Hoàn Tiền</button>
-              </template>
+                </template>
               
               <template v-else-if="order.statusId === 'cancelled'">
                  <span class="status-note">Đơn đã hủy</span>
@@ -118,7 +118,7 @@
               </template>
 
               <template v-else-if="order.statusId === 'return'">
-                <button class="btn btn-default" @click="viewReturnDetails(order)">Xem chi tiết lý do</button>
+                <button class="btn btn-default">Đang xử lý trả hàng</button>
               </template>
 
               <template v-else>
@@ -133,7 +133,7 @@
           <button class="btn-load-more" @click="loadMore">Xem thêm đơn hàng <font-awesome-icon icon="chevron-down" /></button>
         </div>
         
-        <div v-if="visibleOrders.length === 0" class="empty-result">
+        <div v-if="visibleOrders.length === 0 && !isLoading" class="empty-result">
           <p>Không tìm thấy đơn hàng nào phù hợp.</p>
         </div>
       </div>
@@ -162,30 +162,6 @@
     </div>
   </div>
 
-  <div v-if="showReturnModal" class="modal-overlay" @click.self="closeReturnModal">
-    <div class="modal-content fade-in">
-      <div class="modal-header"><h3>Yêu cầu Trả hàng</h3><button class="close-btn" @click="closeReturnModal">✕</button></div>
-      <div class="modal-body">
-        <div class="form-group"><label>Lý do:</label><textarea v-model="returnData.reason" rows="3"></textarea></div>
-        <div class="form-group"><label>Ảnh minh chứng:</label><input type="file" multiple @change="handleFileChange"></div>
-        <div class="form-group"><label>Ngày lấy hàng:</label><input type="date" v-model="returnData.pickupDate"></div>
-      </div>
-      <div class="modal-footer"><button class="btn btn-default" @click="closeReturnModal">Hủy</button><button class="btn btn-primary" @click="submitReturn">Gửi yêu cầu</button></div>
-    </div>
-  </div>
-
-  <div v-if="showReturnDetailsModal" class="modal-overlay" @click.self="closeReturnDetailsModal">
-    <div class="modal-content fade-in">
-      <div class="modal-header"><h3>Chi tiết Trả hàng</h3><button class="close-btn" @click="closeReturnDetailsModal">✕</button></div>
-      <div class="modal-body info-view">
-        <p><strong>Lý do:</strong> {{ currentReturnDetails.reason }}</p>
-        <p><strong>Ngày hẹn:</strong> {{ currentReturnDetails.pickupDate }}</p>
-        <div class="alert-box">Yêu cầu đang được xử lý.</div>
-      </div>
-      <div class="modal-footer"><button class="btn btn-primary" @click="closeReturnDetailsModal">Đóng</button></div>
-    </div>
-  </div>
-
   <Footer />
 </template>
 
@@ -194,8 +170,8 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
-// Không cần import api vì đang dùng Demo Data
-// import api from '../utils/api'; 
+import api from '../utils/api'; // Sử dụng API thật
+import { getImageUrl } from '../utils/imageUrl';
 
 const router = useRouter();
 const goToHome = () => router.push('/');
@@ -204,269 +180,193 @@ const goToHome = () => router.push('/');
 const activeTab = ref('all');
 const isDropdownOpen = ref(false);
 const selectedCategories = ref([]); 
-const visibleCount = ref(10); 
+const visibleCount = ref(5); 
 const ratedOrderIds = ref([]);
 const isLoading = ref(false);
-const orders = ref([]); 
+const orders = ref([]); // Mảng chứa dữ liệu thật
 
-// --- RETURN MODAL STATE ---
+// --- RETURN MODAL STATE (Giữ UI từ Main) ---
 const showReturnModal = ref(false);
 const showReturnDetailsModal = ref(false);
 const returnData = reactive({ orderId: null, reason: '', images: [], pickupDate: '' });
 const currentReturnDetails = reactive({ reason: '', pickupDate: '' });
 
-// Các tab trạng thái (GIỮ NGUYÊN)
+// MODAL ĐÁNH GIÁ
+const showRatingModal = ref(false);
+const ratingData = reactive({ order: null, score: 5, comment: '' });
+
 const tabs = [
   { id: 'all', name: 'Tất cả' },
   { id: 'pending', name: 'Chờ xác nhận' },
-  { id: 'shipping', name: 'Vận chuyển' }, 
+  { id: 'shipping', name: 'Vận chuyển' }, // Gộp confirm/processing vào đây
   { id: 'delivering', name: 'Chờ giao hàng' }, 
   { id: 'completed', name: 'Hoàn thành' },
   { id: 'cancelled', name: 'Đã hủy' },
   { id: 'return', name: 'Trả hàng / Hoàn tiền' }
 ];
 
-// Danh mục (GIỮ NGUYÊN)
 const categories = [
-  'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Đồ ăn, Thực phẩm và các loại khác',
-  'Tủ lạnh, Máy lạnh, Máy giặt', 'Đồ gia dụng, Nội thất, Cây cảnh',
-  'Thời trang, Đồ dùng cá nhân', 'Giải trí, Thể thao, Sở thích',
-  'Đồ dùng văn phòng, Công nông nghiệp'
+  'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Thời trang', 'Đồ gia dụng'
 ];
 
-// --- HÀM MÔ PHỎNG CẬP NHẬT TRẠNG THÁI (DATABASE UPDATE DEMO) ---
-const updateOrderStatus = (order, newStatus) => {
-    // 1. In log ra Console (Mô phỏng gọi API PUT/PATCH /orders/{id}/status)
-    console.log(`[DB DEMO] Cập nhật đơn hàng #${order.id} (${order.trackingCode}) từ '${order.statusId}' sang '${newStatus}'`);
+// --- API CALLS (LOGIC THẬT TỪ NHÁNH HEAD) ---
 
-    // 2. Cập nhật lại đối tượng Order trong Frontend
-    order.statusId = newStatus;
-    
-    // 3. [QUAN TRỌNG] Cập nhật thời gian cuối cùng
-    order.lastUpdate = Date.now();
-    order.lastUpdateDisplay = formatDateTime(order.lastUpdate);
-    
-    // 4. Cập nhật lại Label và Text hiển thị
-    const statusMap = {
-        'pending': { label: 'CHỜ XÁC NHẬN', note: 'Đang chờ người bán xác nhận' },
-        'shipping': { label: 'VẬN CHUYỂN', note: 'Đơn hàng đang được vận chuyển kho' },
-        'delivering': { label: 'CHỜ GIAO HÀNG', note: 'Shipper đang giao hàng đến bạn' },
-        'completed': { label: 'HOÀN THÀNH', note: 'Giao hàng thành công' },
-        'cancelled': { label: 'ĐÃ HỦY', note: 'Đơn hàng đã bị hủy' },
-        'return': { label: 'TRẢ HÀNG / HOÀN TIỀN', note: 'Đang xử lý yêu cầu trả hàng' }
-    };
-    if (statusMap[newStatus]) {
-        order.statusLabel = statusMap[newStatus].label;
-        order.deliveryStatus = statusMap[newStatus].note;
-    }
-};
-
-
-// --- [QUAN TRỌNG] HÀM SINH DỮ LIỆU DEMO (5 ĐƠN MỖI TRẠNG THÁI) ---
-const generateDemoData = () => {
-  const demoList = [];
-  const statusList = [
-    { id: 'pending', label: 'CHỜ XÁC NHẬN', note: 'Đang chờ người bán xác nhận' },
-    { id: 'shipping', label: 'VẬN CHUYỂN', note: 'Đơn hàng đang được vận chuyển' },
-    { id: 'delivering', label: 'CHỜ GIAO HÀNG', note: 'Shipper đang giao hàng đến bạn' },
-    { id: 'completed', label: 'HOÀN THÀNH', note: 'Giao hàng thành công' },
-    { id: 'cancelled', label: 'ĐÃ HỦY', note: 'Đơn hàng đã bị hủy' },
-    { id: 'return', label: 'TRẢ HÀNG / HOÀN TIỀN', note: 'Đang xử lý trả hàng' }
-  ];
-
-  // Sản phẩm mẫu (Dùng ID 1-5 để test chuyển trang)
-  const products = [
-    { id: 1, name: 'Đắc Nhân Tâm - Dale Carnegie', price: 85000, img: 'https://salt.tikicdn.com/cache/w1200/ts/product/2e/26/89/3b9c73950f555b76e10086d4e5f4124e.jpg', cat: 'Sách' },
-    { id: 2, name: 'Điện thoại iPhone 15 Pro Max', price: 34990000, img: 'https://cdn.tgddvn/Products/Images/42/305658/iphone-15-pro-max-blue-titan-1-750x500.jpg', cat: 'Đồ điện tử' },
-    { id: 3, name: 'Áo Thun Nam Cotton', price: 150000, img: 'https://product.hstatic.net/1000306633/product/ao_thun_nam_basic_a79f5_753c83058928422797e8893967527636_master.jpg', cat: 'Thời trang' },
-    { id: 4, name: 'Tai nghe Bluetooth AirPods', price: 2500000, img: 'https://cdn.tgdd.vn/Products/Images/54/236016/bluetooth-airpods-2-apple-mv7n2-imei-ava-600x600.jpg', cat: 'Đồ điện tử' },
-    { id: 5, name: 'Nồi chiên không dầu', price: 1200000, img: 'https://cdn.tgdd.vn/Products/Images/1944/249870/noi-chien-khong-dau-ava-af40lht-4-lit-1-600x600.jpg', cat: 'Đồ gia dụng' }
-  ];
-
-  let idCounter = 100;
-  let prodIndex = 0;
-  let now = new Date();
-  
-  // Vòng lặp tạo 5 đơn cho mỗi trạng thái
-  statusList.forEach(status => {
-    for (let i = 1; i <= 5; i++) {
-      const randomProd = products[prodIndex % products.length];
-      idCounter++;
-      prodIndex++;
-      
-      // Giảm dần ngày đặt để đơn có vẻ là đơn cũ
-      let orderDate = new Date(now.getTime());
-      orderDate.setDate(orderDate.getDate() - (idCounter % 10)); 
-      
-      // [QUAN TRỌNG] Gán lastUpdate = orderDate khi khởi tạo (trạng thái pending)
-      let lastUpdate = orderDate.getTime();
-      
-      // Nếu không phải pending, giả định nó đã được cập nhật gần đây hơn
-      if (status.id !== 'pending') {
-          lastUpdate = now.getTime() - (idCounter * 10000); // Gần thời điểm hiện tại hơn
-      }
-      
-      demoList.push({
-        id: idCounter, 
-        statusId: status.id, 
-        statusLabel: status.label,
-        deliveryStatus: status.note,
-        
-        shopName: `Shop Bán Lẻ ${randomProd.cat}`,
-        sellerId: 7, 
-        sellerName: 'VietMarket',
-        sellerAvatar: 'https://via.placeholder.com/50?text=Shop',
-        
-        productId: randomProd.id, 
-        productName: randomProd.name,
-        variant: 'Tiêu chuẩn',
-        category: randomProd.cat,
-        image: randomProd.img,
-        
-        trackingCode: `ORD-${idCounter}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
-        orderDate: orderDate.getTime(), 
-        orderDateDisplay: formatDate(orderDate), 
-        
-        lastUpdate: lastUpdate, // Dữ liệu sắp xếp
-        lastUpdateDisplay: formatDateTime(lastUpdate), // Hiển thị chi tiết
-        
-        price: formatCurrency(randomProd.price),
-        totalPrice: formatCurrency(randomProd.price + 30000)
-      });
-    }
-  });
-  
-  return demoList;
-};
-
-// --- HÀM LOAD DỮ LIỆU ---
+// 1. Lấy danh sách đơn hàng
 const fetchOrders = async () => {
   isLoading.value = true;
-  setTimeout(() => {
-    orders.value = generateDemoData();
+  try {
+    const response = await api.get('/orders');
+    console.log("Dữ liệu API:", response.data);
+
+    // Xử lý "Búp bê Nga" (lấy mảng dữ liệu thực)
+    const ordersData = Array.isArray(response.data.data) 
+      ? response.data.data 
+      : (response.data.data?.data || []); 
+
+    // Map dữ liệu từ Backend sang cấu trúc UI của Frontend
+    orders.value = ordersData.map(order => {
+      // Backend trả về key 'items' (dựa trên ảnh bạn cung cấp trước đó)
+      const firstItem = (order.items && order.items.length > 0) ? order.items[0] : {}; 
+      
+      // Xử lý giá tiền
+      let displayPrice = order.total_amount;
+      if (typeof displayPrice === 'number') {
+          displayPrice = formatPrice(displayPrice);
+      }
+
+      // Tên sản phẩm
+      const displayName = firstItem.product_name || firstItem.variant || 'Sản phẩm đơn hàng';
+
+      return {
+        id: order.id,
+        trackingCode: order.tracking_code,
+        shopName: 'VietMarket Shop', 
+        productName: displayName,
+        variant: firstItem.variant || '',
+        category: 'Tổng hợp',
+        
+        statusId: mapBackendStatus(order.status),
+        statusLabel: getStatusLabel(order.status),
+        deliveryStatus: getDeliveryStatusText(order.status),
+        
+        price: displayPrice,      
+        totalPrice: displayPrice, 
+        
+        image: getImageUrl(firstItem.image || 'default.jpg'),
+        sellerAvatar: '/avatar.jpg',
+        sellerName: 'Shop'
+      };
+    });
+  } catch (error) {
+    console.error("Lỗi tải đơn hàng:", error);
+  } finally {
     isLoading.value = false;
-  }, 500);
-};
-
-// --- CÁC HÀM XỬ LÝ HÀNH ĐỘNG (ACTION) ---
-const cancelOrder = (order) => {
-  if (confirm('Bạn có chắc chắn muốn hủy đơn hàng này không?')) {
-    updateOrderStatus(order, 'cancelled');
-    alert('Đã hủy đơn hàng thành công!');
   }
 };
 
-const confirmReceived = (order) => {
-  if (confirm('Bạn xác nhận đã nhận được hàng?')) {
-    updateOrderStatus(order, 'completed');
+// 2. Hủy đơn hàng (API Thật)
+const cancelOrder = async (orderId) => {
+  if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return;
+  
+  try {
+    await api.post(`/orders/${orderId}/cancel`);
+    alert('Đã hủy đơn hàng thành công');
+    await fetchOrders(); // Load lại danh sách
+  } catch (error) {
+    console.error("Lỗi hủy đơn:", error);
+    alert(error.response?.data?.message || 'Không thể hủy đơn hàng này');
+  }
+};
+
+// 3. Xác nhận đã nhận hàng (API Thật - Cần backend hỗ trợ PUT status)
+const confirmReceived = async (orderId) => {
+  if (!confirm('Bạn xác nhận đã nhận được hàng và hài lòng với sản phẩm?')) return;
+  try {
+    // Gọi API update status thành completed (Nếu backend cho phép User update)
+    // Nếu backend chưa có, bạn cần báo backend mở quyền này cho user
+    await api.put(`/orders/${orderId}/status`, { status: 'completed' });
     alert('Cảm ơn bạn đã mua hàng!');
+    await fetchOrders();
+  } catch (error) {
+    console.error("Lỗi xác nhận:", error);
+    alert('Có lỗi xảy ra, vui lòng thử lại sau.');
   }
 };
-
-const openReturnModal = (order) => { returnData.orderId = order.id; returnData.reason = ''; returnData.pickupDate = ''; showReturnModal.value = true; };
-const closeReturnModal = () => showReturnModal.value = false;
-const handleFileChange = (e) => { returnData.images = Array.from(e.target.files); };
-
-const submitReturn = () => {
-  if (!returnData.reason || !returnData.pickupDate) { alert('Vui lòng điền đủ thông tin'); return; }
-  const found = orders.value.find(o => o.id === returnData.orderId);
-  if (found) {
-    updateOrderStatus(found, 'return');
-    localStorage.setItem(`return_${found.id}`, JSON.stringify({ reason: returnData.reason, date: returnData.pickupDate }));
-  }
-  alert('Gửi yêu cầu thành công!'); closeReturnModal();
-};
-
-const viewReturnDetails = (order) => {
-  const data = JSON.parse(localStorage.getItem(`return_${order.id}`) || '{}');
-  currentReturnDetails.reason = data.reason || 'Sản phẩm lỗi';
-  currentReturnDetails.pickupDate = data.date || 'Chưa rõ';
-  showReturnDetailsModal.value = true;
-};
-const closeReturnDetailsModal = () => showReturnDetailsModal.value = false;
-
-
-// --- CÁC HÀM ĐIỀU HƯỚNG ---
-const visitShop = (order) => router.push(`/seller/${order.sellerId}`);
-const buyAgain = (order) => router.push(`/product/${order.productId}`);
-const contactSeller = (order) => router.push({ path: '/chat', query: { sellerId: order.sellerId, productName: order.productName } });
 
 // --- HELPER FUNCTIONS ---
-function formatCurrency(val) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val); }
-function formatDate(date) { 
-  return new Date(date).toLocaleDateString('vi-VN'); 
-}
-function formatDateTime(timestamp) {
-    const date = new Date(timestamp);
-    const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    const day = date.toLocaleDateString('vi-VN');
-    return `${time} ${day}`;
-}
-const getFullImageUrl = (path) => {
-  if (!path) return 'https://via.placeholder.com/150';
-  if (path.startsWith('http')) return path;
-  return `http://localhost:8000/storage/${path}`;
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 };
+
+const mapBackendStatus = (status) => {
+  switch(status) {
+    case 'pending': return 'pending';
+    case 'confirmed': 
+    case 'processing': return 'shipping'; // Gộp vào vận chuyển
+    case 'shipped': return 'delivering'; // Shipped -> Chờ giao hàng
+    case 'delivered': return 'completed';
+    case 'cancelled': return 'cancelled';
+    case 'refunded': return 'return';
+    default: return 'all';
+  }
+};
+
+const getStatusLabel = (status) => {
+  const map = {
+    pending: 'CHỜ XÁC NHẬN',
+    confirmed: 'ĐÃ XÁC NHẬN',
+    processing: 'ĐANG XỬ LÝ',
+    shipped: 'ĐANG GIAO',
+    delivered: 'HOÀN THÀNH',
+    cancelled: 'ĐÃ HỦY',
+    refunded: 'ĐÃ HOÀN TIỀN'
+  };
+  return map[status] || status;
+};
+
+const getDeliveryStatusText = (status) => {
+  const map = {
+    pending: 'Đang chờ người bán xác nhận',
+    confirmed: 'Đơn hàng đang được đóng gói',
+    processing: 'Đơn hàng đang được vận chuyển kho',
+    shipped: 'Shipper đang giao hàng đến bạn',
+    delivered: 'Giao hàng thành công',
+    cancelled: 'Đơn hàng đã bị hủy',
+    refunded: 'Đã hoàn tiền thành công'
+  };
+  return map[status] || '';
+};
+
+// --- CÁC HÀM ĐIỀU HƯỚNG ---
+const visitShop = (order) => alert("Tính năng đang phát triển");
+const buyAgain = (order) => alert("Tính năng đang phát triển");
+const contactSeller = (order) => alert("Tính năng Chat đang phát triển");
+
+// --- MODAL & ACTION LOGIC (UI từ Main) ---
 const handleImageError = (e) => { e.target.src = "https://via.placeholder.com/150?text=No+Image"; };
 const handleAvatarError = (e) => { e.target.src = "https://via.placeholder.com/50?text=User"; };
 
-// --- LOGIC VÒNG ĐỜI ---
-onMounted(() => {
-  fetchOrders();
-  const storedRatedIds = localStorage.getItem('rated_order_ids');
-  if (storedRatedIds) ratedOrderIds.value = JSON.parse(storedRatedIds);
-});
+// Logic Đánh giá (Frontend Mockup - chưa gọi API thật vì chưa có endpoint rating)
 const checkIfRated = (orderId) => ratedOrderIds.value.includes(orderId);
-
-// --- MODAL ĐÁNH GIÁ ---
-const showRatingModal = ref(false);
-const ratingData = reactive({ order: null, score: 5, comment: '' });
 const openRatingModal = (order) => { ratingData.order = order; ratingData.score = 5; ratingData.comment = ''; showRatingModal.value = true; };
 const closeRatingModal = () => showRatingModal.value = false;
+const getRatingText = (score) => ['Tệ', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Tuyệt vời'][score - 1] || '';
 
 const submitRating = async () => {
   if (!ratingData.order) return;
-  
-  // 1. Ghi nhận đơn hàng đã được đánh giá
+  // TODO: Gọi API POST /reviews khi backend sẵn sàng
+  alert('Gửi đánh giá thành công! (Demo)');
   ratedOrderIds.value.push(ratingData.order.id);
-  localStorage.setItem('rated_order_ids', JSON.stringify(ratedOrderIds.value));
-  
-  // 2. Lưu chi tiết đánh giá vào Local Storage
-  const productId = ratingData.order.productId; 
-  const storageKey = `product_reviews_${productId}`;
-  
-  const newReview = {
-      id: Date.now(),
-      userName: 'Bạn (Demo)', 
-      userAvatar: '/avatar.jpg',
-      rating: ratingData.score,
-      comment: ratingData.comment || 'Tuyệt vời!',
-      date: new Date().toLocaleDateString('vi-VN'),
-      productName: ratingData.order.productName,
-      variant: ratingData.order.variant
-  };
-  
-  const existingReviews = JSON.parse(localStorage.getItem(storageKey) || '[]');
-  existingReviews.unshift(newReview);
-  localStorage.setItem(storageKey, JSON.stringify(existingReviews));
-
-  alert('Đánh giá thành công! Đang chuyển đến trang chi tiết sản phẩm...'); 
   closeRatingModal();
-  
-  // 3. Chuyển hướng về trang sản phẩm
-  router.push(`/product/${productId}`);
 };
-
-const getRatingText = (score) => ['Tệ', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Tuyệt vời'][score - 1] || '';
 
 // --- FILTER ---
 const allFilteredOrders = computed(() => {
   return orders.value.filter(order => {
-    // Lọc theo tab và danh mục
     const matchTab = activeTab.value === 'all' || order.statusId === activeTab.value;
     const matchCategory = selectedCategories.value.length === 0 || selectedCategories.value.includes(order.category);
     return matchTab && matchCategory;
-  }).sort((a, b) => b.lastUpdate - a.lastUpdate); // [QUAN TRỌNG] Sắp xếp theo lastUpdate (Mới nhất lên đầu)
+  });
 });
 
 const visibleOrders = computed(() => allFilteredOrders.value.slice(0, visibleCount.value));
@@ -480,6 +380,12 @@ const toggleCategory = (cat) => {
 const removeCategory = (cat) => toggleCategory(cat);
 const clearAllCategories = () => { selectedCategories.value = []; };
 
+onMounted(() => {
+  fetchOrders();
+  // Load rated IDs from local storage if needed
+  const storedRatedIds = localStorage.getItem('rated_order_ids');
+  if (storedRatedIds) ratedOrderIds.value = JSON.parse(storedRatedIds);
+});
 </script>
 
 <style scoped>
