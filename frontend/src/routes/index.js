@@ -17,6 +17,9 @@ import SalesOrderManagement from '../pages/SalesOrderManagement.vue';
 import CreatePost from '../pages/CreatePost.vue';
 import EditPost from '../pages/EditPost.vue';
 import SellerProfile from '../pages/SellerProfile.vue';
+import SupportPage from '../pages/SupportPage.vue';
+import Cart from '../pages/Cart.vue';
+import Checkout from '../pages/Checkout.vue';
 
 const routes = [
     {
@@ -118,6 +121,22 @@ const routes = [
         path: '/seller/:id',
         name: 'SellerProfile',
         component: SellerProfile
+    },
+    { 
+        path: '/support',
+        component: SupportPage 
+    },
+    {
+        path: '/cart',
+        name: 'Cart',
+        component: Cart,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/checkout',
+        name: 'Checkout',
+        component: Checkout,
+        meta: { requiresAuth: true }
     }
 ]
 

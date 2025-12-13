@@ -42,9 +42,21 @@
 
         <!-- Right: Info -->
         <section class="product-info">
-          <h1>{{ product.name }}</h1>
-          <p class="description">{{ product.description }}</p>
+          <h1>{{ product?.name }}</h1>
           
+          <div class="rating-summary-mini" v-if="reviews.length > 0">
+            <span class="score">{{ averageRating }}</span>
+            <div class="stars">
+              <span v-for="n in 5" :key="n" class="star">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="n <= Math.round(averageRating) ? '#ffc107' : '#ddd'" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+              </span>
+            </div>
+            <span class="count">({{ reviews.length }} đánh giá)</span>
+            <span class="separator">|</span>
+            <span class="sold">Đã bán 1.2k</span>
+          </div>
+
+          <p class="description">{{ product?.description }}</p>
           <div class="price-section">
             <span class="price">{{ product.price }}</span>
             <span class="tag" v-for="cat in product.categories" :key="cat.id">{{ cat.name }}</span>
@@ -130,7 +142,47 @@
         </div>
         
         <div class="bottom-right-column">
-          <!-- Có thể thêm component Comment tại đây -->
+          <section class="bottom-card review-section">
+            <h2>Đánh giá sản phẩm</h2>
+            
+            <div class="rating-overview">
+              <div class="rating-score-box">
+                <span class="big-score">{{ averageRating }}</span>
+                <span class="total-stars">/ 5</span>
+              </div>
+              <div class="stars-large">
+                <span v-for="n in 5" :key="n" class="star">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" :fill="n <= Math.round(averageRating) ? '#ffc107' : '#ddd'" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                </span>
+              </div>
+              <div class="total-count">{{ reviews.length }} nhận xét</div>
+            </div>
+
+            <div class="review-list">
+              <div v-if="reviews.length === 0" class="empty-review">
+                Chưa có đánh giá nào cho sản phẩm này.
+              </div>
+
+              <div v-for="review in reviews" :key="review.id" class="review-item">
+                <img :src="review.userAvatar" class="user-avatar" />
+                <div class="review-content">
+                  <div class="review-header">
+                    <strong class="user-name">{{ review.userName }}</strong>
+                    <span class="review-date">{{ review.date }}</span>
+                  </div>
+                  
+                  <div class="user-rating-stars">
+                    <span v-for="n in 5" :key="n" class="star-small">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="n <= review.rating ? '#ffc107' : '#ddd'" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                    </span>
+                  </div>
+                  
+                  <div class="variant-info" v-if="review.variant">Phân loại: {{ review.variant }}</div>
+                  <p class="comment-text">{{ review.comment }}</p>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -155,15 +207,31 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../utils/api';
+import { getImageUrl } from '../utils/imageUrl';
 import Header from "../components/layout/SearchHeader.vue";
 import Footer from "../components/layout/AppFooter.vue";
 import ProductCard from '../components/product/ProductCardSimple.vue';
+import { useCart } from '../stores/cart';
 
 const route = useRoute();
 const router = useRouter();
 
 const product = ref(null);
 const loading = ref(true);
+const { addToCart } = useCart();
+
+// [MỚI] STATE REVIEW & RATING (Thêm vào đây)
+const reviews = ref([]);
+
+const averageRating = computed(() => {
+  if (reviews.value.length === 0) return 0;
+  const total = reviews.value.reduce((sum, r) => sum + r.rating, 0);
+  const avg = total / reviews.value.length;
+  return avg % 1 === 0 ? avg : avg.toFixed(1);
+});
+
+// Các state cũ (Giữ nguyên)
+const sellerListings = ref([]);
 const similarListings = ref([]);
 const currentImageIndex = ref(0);
 
@@ -180,6 +248,27 @@ const nextImage = () => {
 };
 const prevImage = () => {
   if (product.value) currentImageIndex.value = (currentImageIndex.value - 1 + product.value.images.length) % product.value.images.length;
+// [SỬA] Hàm Chat để chuyển đúng dữ liệu cho trang Chat
+const handleChat = () => {
+  if (!product.value) return;
+  router.push({
+    path: '/chat',
+    query: {
+      sellerId: product.value.seller.id,
+      sellerName: product.value.seller.name,
+      sellerAvatar: product.value.seller.avatar,
+      productName: product.value.name
+    }
+  });
+};
+
+const goToSellerProfile = () => {
+  if (product.value && product.value.seller) {
+    router.push({
+      name: 'SellerProfile', // Tên route phải khớp với router
+      params: { id: product.value.seller.id }
+    });
+  }
 };
 const selectImage = (i) => currentImageIndex.value = i;
 
@@ -273,6 +362,21 @@ const mapProductCard = (item) => ({
 // --- 4. FETCH API ---
 const fetchProductDetail = async () => {
   loading.value = true;
+  visibleSellerCount.value = 4;
+  visibleSimilarCount.value = 8;
+
+  const productId = route.params.id;
+
+  // [MỚI] 1. LẤY ĐÁNH GIÁ TỪ LOCALSTORAGE
+  const storageKey = `product_reviews_${productId}`;
+  const storedReviews = localStorage.getItem(storageKey);
+  if (storedReviews) {
+    reviews.value = JSON.parse(storedReviews);
+  } else {
+    reviews.value = [];
+  }
+
+  // [MỚI] 2. GỌI API & XỬ LÝ FALLBACK
   try {
     const id = route.params.id;
     // Gọi API chi tiết
@@ -281,9 +385,33 @@ const fetchProductDetail = async () => {
 
     // Gọi API tương tự (nếu có)
     try {
-      const resSim = await api.get(`/products/${id}/similar`);
-      if (resSim.data.data) {
-        similarListings.value = resSim.data.data.map(mapProductCard);
+      const similarResponse = await api.get(`/products/${productId}/similar`);
+      if (similarResponse.data.success) {
+        similarListings.value = similarResponse.data.data.map(item => ({
+          id: item.id,
+          title: item.title,
+          price: formatPrice(item.price) + ' đ',
+          location: item.location || 'TP. HCM',
+          imageUrl: getImageUrl(item.image),
+          seller: item.seller,
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching similar products:', err);
+      similarListings.value = [];
+    }
+
+    if (data.seller?.id) {
+      try {
+        const sellerResponse = await api.get(`/products/seller/${data.seller.id}`);
+        const sellerData = sellerResponse.data.data || sellerResponse.data;
+        const sellerProducts = Array.isArray(sellerData) ? sellerData : sellerData.data || [];
+        sellerListings.value = sellerProducts
+            .filter(p => p.id !== parseInt(productId))
+            .map(mapProductCard);
+      } catch (err) {
+        console.error('Error fetching seller products:', err);
+        sellerListings.value = [];
       }
     } catch (e) { console.log('Không tải được SP tương tự'); }
 
@@ -390,4 +518,48 @@ onMounted(() => {
 .pointer { cursor: pointer; }
 .not-found { text-align: center; padding: 50px; }
 .not-found button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+.spec-label { color: #555; } .spec-value { font-weight: 500; }
+
+.related-listings-card { background-color: #ffffff; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); overflow: hidden; margin-top: 30px; }
+.related-listings-card h2 { font-size: 1.5rem; font-weight: bold; margin-top: 0; margin-bottom: 20px; }
+
+/* "Tin khác" */
+.horizontal-product-list { display: flex; overflow-x: auto; gap: 15px; padding-bottom: 15px; margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
+.horizontal-product-list :deep(.product-card) { width: 220px; flex-shrink: 0; }
+.horizontal-product-list :deep(a) { flex-shrink: 0; }
+
+/* "Tin tương tự" */
+.grid-product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+.grid-product-list :deep(.product-card) { width: auto; flex-shrink: 1; }
+
+.see-more-btn { display: block; width: 100%; padding: 12px; margin-top: 20px; border: 1px solid #007bff; color: #007bff; background: #fff; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.see-more-btn:hover { background-color: #f0f8ff; }
+
+/* --- [MỚI] STYLES CHO PHẦN RATING MỚI (ADDITIONAL CSS) --- */
+.rating-summary-mini { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; font-size: 0.95rem; color: #555; }
+.rating-summary-mini .score { color: #ffc107; font-weight: 700; border-bottom: 1px solid #ffc107; font-size: 1.1rem; }
+.rating-summary-mini .separator { color: #ddd; }
+
+.review-section { padding: 24px; }
+.rating-overview { background: #fffbf8; border: 1px solid #f9ede5; padding: 20px; display: flex; align-items: center; gap: 30px; margin-bottom: 25px; border-radius: 6px; }
+.rating-score-box { text-align: center; color: #ffc107; }
+.big-score { font-size: 2.5rem; font-weight: 700; }
+.total-stars { font-size: 1.1rem; color: #ffc107; }
+.total-count { color: #555; margin-top: 5px; font-size: 0.9rem; }
+
+.rating-filters { display: flex; gap: 10px; flex-wrap: wrap; }
+.rating-filters button { background: #fff; border: 1px solid #ddd; padding: 6px 15px; cursor: pointer; border-radius: 2px; }
+.rating-filters button.active { border-color: #0055aa; color: #0055aa; font-weight: 600; }
+
+.review-list { display: flex; flex-direction: column; gap: 20px; }
+.review-item { display: flex; gap: 15px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+.user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+.review-content { flex: 1; }
+.review-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.user-name { font-size: 0.95rem; color: #333; font-weight: 600; }
+.review-date { font-size: 0.8rem; color: #999; }
+.user-rating-stars { margin-bottom: 5px; display: flex; gap: 2px; }
+.variant-info { font-size: 0.85rem; color: #888; margin-bottom: 8px; }
+.comment-text { font-size: 0.95rem; line-height: 1.5; color: #444; }
+.empty-review { text-align: center; color: #999; font-style: italic; padding: 20px; }
 </style>

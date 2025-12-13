@@ -63,6 +63,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../utils/api';
+import { getImageUrl } from '../utils/imageUrl';
 
 // --- COMPONENT IMPORTS ---
 import Header from '../components/layout/HomeHeader.vue';

@@ -54,6 +54,10 @@
           <button class="icon-btn" title="Yêu thích" @click="$router.push('/favorites')">
             <font-awesome-icon icon="heart" />
           </button>
+          <button class="icon-btn" title="Giỏ hàng" @click="$router.push('/cart')">
+            <font-awesome-icon icon="shopping-cart" />
+            <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
+          </button>
           <button class="icon-btn" title="Trò chuyện" @click="handleChatClick">
             <font-awesome-icon icon="comment" />
           </button>
@@ -143,6 +147,7 @@ import { useRouter, useRoute } from 'vue-router'; // Thêm useRoute
 import LocationPickerModal from '../modals/LocationPickerModal.vue';
 import { useAuth } from '../../utils/useAuth';
 
+
 const router = useRouter();
 const route = useRoute(); // Lấy thông tin URL hiện tại
 
@@ -172,6 +177,7 @@ const handleSearch = () => {
 const isCategoryMenuOpen = ref(false);
 const headerRef = ref(null);
 const { isLoggedIn, user, logout } = useAuth();
+const { cartCount } = useCart();
 const isUserMenuOpen = ref(false);
 const isLocationPickerOpen = ref(false);
 const selectedLocation = ref('Toàn quốc');

@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../utils/useAuth'
 import { useToast } from '../utils/useToast'
 import api from '../utils/api'
+import { getImageUrl } from '../utils/imageUrl'
 import Header from '../components/layout/HomeHeader.vue'
 import Footer from '../components/layout/AppFooter.vue'
 
@@ -103,7 +104,7 @@ onMounted(async () => {
         <template v-else>
           <!-- Profile Card -->
           <section class="profile-card">
-            <div class="cover" :style="profile?.cover_url ? { backgroundImage: `url(${profile.cover_url})` } : {}"></div>
+            <div class="cover" :style="profile?.cover_url ? { backgroundImage: `url(${getImageUrl(profile.cover_url)})` } : {}"></div>
             <div class="profile-info">
               <div class="avatar-wrapper">
                 <img v-if="profile?.avatar_url" :src="profile.avatar_url" alt="Avatar" class="avatar" />
@@ -146,7 +147,7 @@ onMounted(async () => {
               <div v-if="posts.length === 0" class="empty">Chưa có bài đăng nào</div>
               <div v-for="p in posts" :key="p.id" class="post-card" @click="router.push(`/product/${p.product_id}`)">
                 <div class="post-head">
-                  <img v-if="p.image" :src="p.image" alt="" class="post-thumb" />
+                  <img v-if="p.image" :src="getImageUrl(p.image)" alt="" class="post-thumb" />
                   <div v-else class="post-thumb-placeholder"></div>
                   <div>
                     <div class="name">{{ p.title }}</div>

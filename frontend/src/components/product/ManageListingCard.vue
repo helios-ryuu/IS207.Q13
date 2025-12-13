@@ -56,6 +56,8 @@
 </template>
 
 <script setup>
+import { getImageUrl } from '../../utils/imageUrl'
+
 defineProps({
   product: {
     type: Object,
