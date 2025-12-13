@@ -28,7 +28,7 @@
         <button class="shop-now-btn" @click="goToProducts">
           <font-awesome-icon icon="shopping-bag" /> Mua sắm ngay
         </button>
-        <button class="support-btn">
+        <button class="support-btn" @click="goToSupport">
           <font-awesome-icon icon="headset" /> Liên hệ hỗ trợ
         </button>
       </div>
@@ -37,6 +37,10 @@
         <div class="action-icons">
           <button class="icon-btn" title="Yêu thích" @click="$router.push('/favorites')">
             <font-awesome-icon icon="heart" />
+          </button>
+          <button class="icon-btn" title="Giỏ hàng" @click="$router.push('/cart')">
+            <font-awesome-icon icon="shopping-cart" />
+            <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
           </button>
           <button class="icon-btn" title="Trò chuyện" @click="handleChatClick">
             <font-awesome-icon icon="comment" />
@@ -115,9 +119,11 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router'; 
 import { useAuth } from '../../utils/useAuth';
+import { useCart } from '../../stores/cart';
 // import LoginModal from './LoginModal.vue'; // <-- ĐÃ XÓA (Không dùng modal)
 
 const isCategoryMenuOpen = ref(false);
+const { cartCount } = useCart();
 const headerRef = ref(null);
 const router = useRouter();
 
@@ -229,6 +235,11 @@ const selectCategory = (categoryName) => {
 // Hàm cho nút "Mua sắm ngay"
 const goToProducts = () => {
   router.push('/products');
+};
+
+// --- Chuyển hướng đến trang Hỗ trợ ---
+const goToSupport = () => {
+  router.push('/support'); // Chuyển đến đường dẫn '/support'
 };
 
 const handleClickOutside = (event) => {
@@ -460,7 +471,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
   position: relative;
 }
 
-.notification-badge {
+.notification-badge, .cart-badge {
   position: absolute;
   top: -5px;
   right: -5px;
