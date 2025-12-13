@@ -45,6 +45,7 @@ class ProductImageController extends Controller
             $url = $this->imageService->upload($request->file('image'), 'products');
 
             $image = ProductImage::create([
+                'product_id' => $productId, // <--- THÊM DÒNG NÀY (Lấy từ tham số hàm)
                 'variant_id' => $variantId,
                 'image_url' => $url
             ]);

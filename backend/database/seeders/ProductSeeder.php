@@ -2,133 +2,116 @@
 
 namespace Database\Seeders;
 
+use Illuminate\Database\Seeder;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Category;
-use App\Models\User;
-use Illuminate\Database\Seeder;
+use App\Models\Category; // Đảm bảo import Model Category
+use App\Models\User;     // Đảm bảo import Model User
 use Illuminate\Support\Facades\DB;
 
 class ProductSeeder extends Seeder
 {
     public function run(): void
     {
-        $sellers = User::where('role', 'seller')->get();
-        $categories = Category::all();
+        // 1. Dọn dẹp dữ liệu cũ
+        // Chỉ cần tắt kiểm tra khóa ngoại để tránh lỗi khi insert
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        
+        // XÓA HOẶC COMMENT CÁC DÒNG NÀY ĐỂ TRÁNH LỖI "TABLE NOT FOUND":
+        // DB::table('products')->truncate();
+        // DB::table('product_variants')->truncate();
+        // DB::table('product_images')->truncate();
+        // DB::table('category_product')->truncate(); // <--- Dòng gây lỗi chính là đây
 
-        if ($sellers->isEmpty() || $categories->isEmpty())
-            return;
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        $productTemplates = [
-            // Điện tử
-            ['name' => 'iPhone 15 Pro Max 256GB', 'cat' => 'Điện tử', 'price' => 25000000, 'desc' => 'Máy mới 99%, pin 100%, còn bảo hành Apple Care.'],
-            ['name' => 'Samsung Galaxy S24 Ultra', 'cat' => 'Điện tử', 'price' => 28000000, 'desc' => 'Fullbox, chưa active, bảo hành 12 tháng.'],
-            ['name' => 'MacBook Pro M3 14 inch', 'cat' => 'Điện tử', 'price' => 45000000, 'desc' => 'Ram 16GB, SSD 512GB, mới 100%.'],
-            ['name' => 'iPad Pro 12.9 M2', 'cat' => 'Điện tử', 'price' => 25000000, 'desc' => 'Wifi + Cellular, 256GB, đen.'],
-            ['name' => 'AirPods Pro 2', 'cat' => 'Điện tử', 'price' => 4500000, 'desc' => 'Mới 100%, seal nguyên hộp.'],
-            ['name' => 'Apple Watch Series 9', 'cat' => 'Điện tử', 'price' => 9500000, 'desc' => '45mm, GPS + Cellular, đen.'],
-
-            // Thời trang
-            ['name' => 'Áo thun Uniqlo Premium', 'cat' => 'Thời trang', 'price' => 350000, 'desc' => 'Chất liệu cotton cao cấp, nhiều màu sắc.'],
-            ['name' => 'Quần jeans Levis 501', 'cat' => 'Thời trang', 'price' => 1200000, 'desc' => 'Original fit, xanh đậm, size 28-36.'],
-            ['name' => 'Giày Nike Air Max 97', 'cat' => 'Thời trang', 'price' => 3500000, 'desc' => 'Authentic, đủ size, freeship.'],
-            ['name' => 'Túi xách LV Neverfull', 'cat' => 'Thời trang', 'price' => 35000000, 'desc' => 'Like new 99%, fullbox, có hóa đơn.'],
-            ['name' => 'Áo khoác da Zara', 'cat' => 'Thời trang', 'price' => 2500000, 'desc' => 'Da thật, size M/L, đen klasik.'],
-
-            // Xe cộ
-            ['name' => 'Honda SH 125i 2023', 'cat' => 'Xe cộ', 'price' => 75000000, 'desc' => 'Đã đi 5000km, biển đẹp, full giấy tờ.'],
-            ['name' => 'Vespa Sprint 125', 'cat' => 'Xe cộ', 'price' => 65000000, 'desc' => 'Màu xanh, đời 2022, bảo dưỡng định kỳ.'],
-            ['name' => 'Yamaha Exciter 155 VVA', 'cat' => 'Xe cộ', 'price' => 48000000, 'desc' => 'Mới 100%, đủ màu, trả góp 0%.'],
-            ['name' => 'Honda Wave Alpha', 'cat' => 'Xe cộ', 'price' => 18000000, 'desc' => 'Xe gia đình, ít sử dụng, tiết kiệm xăng.'],
-
-            // Nội thất
-            ['name' => 'Bàn làm việc gỗ óc chó', 'cat' => 'Nội thất', 'price' => 8500000, 'desc' => 'Kích thước 120x60cm, chân sắt sơn tĩnh điện.'],
-            ['name' => 'Ghế công thái học Ergohuman', 'cat' => 'Nội thất', 'price' => 12000000, 'desc' => 'Hàng chính hãng, bảo hành 5 năm.'],
-            ['name' => 'Sofa góc L da bò', 'cat' => 'Nội thất', 'price' => 25000000, 'desc' => '3.2m x 1.8m, màu nâu, kèm ghế đơn.'],
-            ['name' => 'Giường ngủ 1m8 nhập khẩu', 'cat' => 'Nội thất', 'price' => 18000000, 'desc' => 'Gỗ sồi tự nhiên, kèm đệm Tatana.'],
-
-            // Thú cưng
-            ['name' => 'Chó Poodle Tiny 2 tháng', 'cat' => 'Thú cưng', 'price' => 8000000, 'desc' => 'Đã tiêm 2 mũi, có sổ tiêm phòng.'],
-            ['name' => 'Mèo Anh lông ngắn', 'cat' => 'Thú cưng', 'price' => 5000000, 'desc' => 'Màu xám, đực, 3 tháng tuổi.'],
-            ['name' => 'Bể cá cảnh 1m2', 'cat' => 'Thú cưng', 'price' => 3500000, 'desc' => 'Kính cường lực, full phụ kiện, có sẵn cá.'],
-            ['name' => 'Lồng chim hoàng yến', 'cat' => 'Thú cưng', 'price' => 1500000, 'desc' => 'Lồng tre cao cấp, kèm 2 chim.'],
-
-            // Làm đẹp
-            ['name' => 'Son MAC Retro Matte', 'cat' => 'Làm đẹp', 'price' => 550000, 'desc' => 'Hàng chính hãng, nhiều màu hot.'],
-            ['name' => 'Kem dưỡng La Mer', 'cat' => 'Làm đẹp', 'price' => 8500000, 'desc' => 'Creme de la Mer 60ml, nguyên seal.'],
-            ['name' => 'Nước hoa Chanel No.5', 'cat' => 'Làm đẹp', 'price' => 3500000, 'desc' => 'Eau de Parfum 100ml, hàng Pháp.'],
-
-            // Sách & Văn phòng
-            ['name' => 'Đắc Nhân Tâm - Dale Carnegie', 'cat' => 'Sách & Văn phòng phẩm', 'price' => 85000, 'desc' => 'Bản dịch mới nhất, bìa cứng.'],
-            ['name' => 'Bút Parker Jotter', 'cat' => 'Sách & Văn phòng phẩm', 'price' => 450000, 'desc' => 'Bút bi cao cấp, thép không gỉ.'],
-            ['name' => 'Máy in Canon LBP6030', 'cat' => 'Sách & Văn phòng phẩm', 'price' => 2800000, 'desc' => 'Laser trắng đen, mới 100%.'],
-
-            // Đồ chơi
-            ['name' => 'LEGO Star Wars 75192', 'cat' => 'Đồ chơi', 'price' => 15000000, 'desc' => 'Millennium Falcon UCS, nguyên seal.'],
-            ['name' => 'Xe điều khiển Traxxas', 'cat' => 'Đồ chơi', 'price' => 8500000, 'desc' => 'Tỷ lệ 1/10, brushless motor.'],
-
-            // Thể thao
-            ['name' => 'Vợt tennis Wilson Pro', 'cat' => 'Thể thao', 'price' => 4500000, 'desc' => 'Sợi carbon, 300g, grip size 2.'],
-            ['name' => 'Máy chạy bộ Elip Sport', 'cat' => 'Thể thao', 'price' => 12000000, 'desc' => '2.5HP, đai chạy 50cm, gấp gọn.'],
-            ['name' => 'Xe đạp Giant Escape', 'cat' => 'Thể thao', 'price' => 8500000, 'desc' => 'Size M, khung nhôm 6061.'],
-
-            // Công nghệ
-            ['name' => 'Camera Sony A7IV', 'cat' => 'Công nghệ', 'price' => 55000000, 'desc' => 'Body only, like new, shutter 5k.'],
-            ['name' => 'Drone DJI Mini 3 Pro', 'cat' => 'Công nghệ', 'price' => 22000000, 'desc' => 'Fly More Combo, nguyên seal.'],
-            ['name' => 'Loa Marshall Stanmore II', 'cat' => 'Công nghệ', 'price' => 8500000, 'desc' => 'Bluetooth, màu đen classic.'],
-
-            // Mẹ & Bé
-            ['name' => 'Xe đẩy Combi F2', 'cat' => 'Mẹ & Bé', 'price' => 4500000, 'desc' => 'Như mới, siêu nhẹ 3.6kg.'],
-            ['name' => 'Nôi điện Autoru', 'cat' => 'Mẹ & Bé', 'price' => 2500000, 'desc' => 'Tự động đung đưa, phát nhạc.'],
-            ['name' => 'Ghế ăn dặm Joie', 'cat' => 'Mẹ & Bé', 'price' => 3500000, 'desc' => 'Mimzy LX, 6 tháng - 3 tuổi.'],
+        // 2. Định nghĩa dữ liệu mẫu "Xịn" (Tiếng Việt)
+        // Cấu trúc: 'Tên Danh Mục' => ['Sản phẩm 1', 'Sản phẩm 2'...]
+        // Lưu ý: Tên danh mục phải khớp với CategorySeeder
+        $realData = [
+            'Đồ điện tử' => [
+                ['name' => 'iPhone 14 Pro Max 256GB VNA', 'price' => 24500000, 'img_keyword' => 'iphone'],
+                ['name' => 'Laptop MacBook Air M2 2022', 'price' => 26990000, 'img_keyword' => 'macbook'],
+                ['name' => 'Tai nghe AirPods Pro 2', 'price' => 5200000, 'img_keyword' => 'headphone'],
+                ['name' => 'Samsung Galaxy S23 Ultra', 'price' => 21000000, 'img_keyword' => 'samsung phone'],
+                ['name' => 'Máy ảnh Sony Alpha A6400', 'price' => 18500000, 'img_keyword' => 'camera'],
+                ['name' => 'Loa Bluetooth JBL Flip 6', 'price' => 2900000, 'img_keyword' => 'speaker'],
+            ],
+            'Xe cộ' => [
+                ['name' => 'Xe máy Honda Vision 2023', 'price' => 32000000, 'img_keyword' => 'scooter'],
+                ['name' => 'Yamaha Exciter 155 VVA', 'price' => 47000000, 'img_keyword' => 'motorcycle'],
+                ['name' => 'Xe đạp địa hình Giant', 'price' => 8500000, 'img_keyword' => 'bicycle'],
+                ['name' => 'VinFast VF e34 (Lướt)', 'price' => 550000000, 'img_keyword' => 'car'],
+                ['name' => 'Honda SH 150i ABS', 'price' => 98000000, 'img_keyword' => 'scooter'],
+            ],
+            'Thời trang, Đồ dùng cá nhân' => [
+                ['name' => 'Áo thun nam Cotton Compact', 'price' => 150000, 'img_keyword' => 't-shirt'],
+                ['name' => 'Đầm hoa nhí Vintage', 'price' => 350000, 'img_keyword' => 'dress'],
+                ['name' => 'Giày Nike Air Force 1', 'price' => 2800000, 'img_keyword' => 'sneakers'],
+                ['name' => 'Túi xách nữ da thật', 'price' => 1200000, 'img_keyword' => 'handbag'],
+                ['name' => 'Đồng hồ Casio G-Shock', 'price' => 3500000, 'img_keyword' => 'watch'],
+            ],
+            'Đồ gia dụng, Nội thất, Cây cảnh' => [
+                ['name' => 'Sofa da bò nhập khẩu', 'price' => 15000000, 'img_keyword' => 'sofa'],
+                ['name' => 'Bàn ăn gỗ sồi 6 ghế', 'price' => 8500000, 'img_keyword' => 'table'],
+                ['name' => 'Cây Bàng Singapore (Cao 1m5)', 'price' => 450000, 'img_keyword' => 'plant'],
+                ['name' => 'Đèn ngủ để bàn decor', 'price' => 250000, 'img_keyword' => 'lamp'],
+                ['name' => 'Robot hút bụi Xiaomi', 'price' => 5600000, 'img_keyword' => 'robot vacuum'],
+            ],
+            'Thú cưng' => [
+                ['name' => 'Chó Corgi thuần chủng', 'price' => 8000000, 'img_keyword' => 'corgi dog'],
+                ['name' => 'Mèo Anh lông ngắn (xám)', 'price' => 4500000, 'img_keyword' => 'cat'],
+                ['name' => 'Chuồng nuôi thú cưng inox', 'price' => 800000, 'img_keyword' => 'pet cage'],
+                ['name' => 'Thức ăn cho mèo Royal Canin', 'price' => 150000, 'img_keyword' => 'cat food'],
+            ]
         ];
 
-        $colors = ['Đen', 'Trắng', 'Xám', 'Xanh', 'Đỏ', 'Vàng', 'Tím', 'Hồng', 'Nâu', 'Bạc'];
-        $sizes = ['S', 'M', 'L', 'XL', 'Standard', 'Free Size', '256GB', '512GB', '1TB'];
+        // 3. Tiến hành tạo dữ liệu
+        foreach ($realData as $categoryName => $products) {
+            // Tìm category trong DB (nếu không thấy thì bỏ qua hoặc tạo mới)
+            $category = Category::where('name', 'like', "%$categoryName%")->first();
+            
+            if (!$category) {
+                // Nếu chưa có category thì tạo tạm để không lỗi
+                $category = Category::create(['name' => $categoryName, 'slug' => \Illuminate\Support\Str::slug($categoryName)]);
+            }
 
-        foreach ($productTemplates as $index => $template) {
-            $cat = $categories->where('name', $template['cat'])->first();
-            if (!$cat)
-                continue;
+            foreach ($products as $item) {
+                // Random người bán
+                $seller = User::inRandomOrder()->first() ?? User::factory()->create();
 
-            $seller = $sellers[$index % count($sellers)];
-
-            if (Product::where('name', $template['name'])->exists())
-                continue;
-
-            $product = Product::create([
-                'seller_id' => $seller->id,
-                'name' => $template['name'],
-                'description' => $template['desc'],
-                'status' => 'active',
-            ]);
-
-            // Pivot category
-            DB::table('product_categories')->insert([
-                'product_id' => $product->id,
-                'category_id' => $cat->id,
-                'created_at' => now(),
-            ]);
-
-            // Create 1-2 variants per product
-            $numVariants = rand(1, 2);
-            for ($v = 0; $v < $numVariants; $v++) {
-                $variant = ProductVariant::create([
-                    'product_id' => $product->id,
-                    'color' => $colors[array_rand($colors)],
-                    'size' => $sizes[array_rand($sizes)],
-                    'price' => $template['price'] * (1 + $v * 0.1), // +10% for second variant
-                    'quantity' => rand(5, 50),
+                // Tạo Product
+                $product = Product::create([
+                    'name' => $item['name'],
+                    'description' => "Cần bán " . $item['name'] . " còn mới 98%. Hàng chính hãng, chưa qua sửa chữa. Mọi chức năng hoạt động hoàn hảo.\n\n- Bao test 7 ngày.\n- Giao dịch trực tiếp tại nhà.\n- Có fix nhẹ cho anh em thiện chí.",
+                    'seller_id' => $seller->id,
                     'status' => 'active',
                 ]);
 
-                // Add image
-                DB::table('product_images')->insert([
-                    'variant_id' => $variant->id,
-                    'image_url' => "https://via.placeholder.com/600x400/eeeeee/cccccc?text=" . urlencode(substr($template['name'], 0, 20)),
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                // Gắn Category
+                $product->categories()->attach($category->id);
+
+                // Tạo Variant (Giá & Số lượng)
+                $variant = ProductVariant::create([
+                    'product_id' => $product->id,
+                    'price' => $item['price'],
+                    'quantity' => rand(1, 10),
+                    'color' => fake()->randomElement(['Đen', 'Trắng', 'Xanh', 'Đỏ', 'Bạc']),
+                    'size' => fake()->randomElement(['S', 'M', 'L', 'XL', 'FreeSize']),
                 ]);
+
+                // Tạo Ảnh (Sử dụng loremflickr để lấy ảnh thật theo từ khóa)
+                // LoremFlickr ổn định hơn Unsplash Source hiện tại
+                for ($i = 0; $i < 3; $i++) {
+                    DB::table('product_images')->insert([
+                        'product_id' => $product->id,
+                        'variant_id' => $variant->id,
+                        // Thêm tham số lock hoặc random để các ảnh không bị giống hệt nhau
+                        'image_url' => "https://loremflickr.com/640/480/" . urlencode($item['img_keyword']) . "?lock=" . ($product->id * 10 + $i),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
         }
     }

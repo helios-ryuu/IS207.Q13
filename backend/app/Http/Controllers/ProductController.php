@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request; // <--- QUAN TRỌNG: THÊM DÒNG NÀY VÀO
+
 use App\Models\Product;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
@@ -24,10 +26,77 @@ class ProductController extends Controller
     }
 
     // 1. GET /api/products
-    public function index(\Illuminate\Http\Request $request)
+    public function index(Request $request)
     {
-        $products = $this->searchService->search($request);
-        return new ProductCollection($products);
+        $query = Product::with(['seller', 'variants.images', 'categories']);
+
+        // 1. Lọc theo Danh mục (Category)
+        if ($request->filled('category')) {
+            $categoryName = $request->category;
+            $query->whereHas('categories', function ($q) use ($categoryName) {
+                $q->where('name', 'like', '%' . $categoryName . '%');
+            });
+        }
+
+        // 2. Lọc theo Danh mục con (Subcategory) - QUAN TRỌNG
+        if ($request->filled('subcategory')) {
+            $subName = $request->subcategory;
+            $query->whereHas('categories', function ($q) use ($subName) {
+                $q->where('name', 'like', '%' . $subName . '%');
+            });
+        }
+
+        // 3. Lọc theo Từ khóa (Keyword)
+        if ($request->filled('keyword')) {
+            $keyword = $request->keyword;
+            $query->where(function ($q) use ($keyword) {
+                $q->where('name', 'like', '%' . $keyword . '%')
+                ->orWhere('description', 'like', '%' . $keyword . '%');
+            });
+        }
+
+        // 4. Lọc theo Khu vực (Location) - QUAN TRỌNG
+        // (Tìm chuỗi địa chỉ trong mô tả sản phẩm)
+        if ($request->filled('location') && $request->location != 'Toàn quốc' && $request->location != 'Gần tôi') {
+            $location = $request->location;
+            $query->where('description', 'like', '%' . $location . '%');
+        }
+
+        // 5. Lọc theo Giá
+        if ($request->filled('price_min')) {
+            $query->whereHas('variants', function ($q) use ($request) {
+                $q->where('price', '>=', $request->price_min);
+            });
+        }
+        if ($request->filled('price_max')) {
+            $query->whereHas('variants', function ($q) use ($request) {
+                $q->where('price', '<=', $request->price_max);
+            });
+        }
+
+        // 6. Sắp xếp
+        if ($request->has('sort')) {
+            if ($request->sort == 'oldest') $query->oldest();
+            elseif ($request->sort == 'price_asc') {
+                // Sắp xếp đơn giản theo variant đầu tiên (hoặc join bảng nếu cần chính xác)
+                $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
+                    ->orderBy('product_variants.price', 'asc')
+                    ->select('products.*')
+                    ->distinct();
+            } 
+            elseif ($request->sort == 'price_desc') {
+                $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
+                    ->orderBy('product_variants.price', 'desc')
+                    ->select('products.*')
+                    ->distinct();
+            } 
+            else $query->latest();
+        } else {
+            $query->latest();
+        }
+
+        $products = $query->paginate($request->get('per_page', 20));
+        return ProductResource::collection($products);
     }
 
     // 2. GET /api/products/{id}
@@ -79,16 +148,38 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
 
         if (auth()->id() !== $product->seller_id) {
-            return response()->json(['message' => 'Forbidden'], 403);
+            return response()->json(['message' => 'Bạn không có quyền sửa tin này'], 403);
         }
 
-        $product->update($request->validated());
+        // 3. Validate dữ liệu
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string',
+            'price' => 'nullable|numeric', // Giá có thể gửi lên hoặc không
+            'status' => 'nullable|in:active,hidden,sold',
+        ]);
+
+        // 4. Cập nhật bảng Product (Tên, Mô tả, Trạng thái)
+        $product->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'status' => $validated['status'] ?? $product->status,
+        ]);
+
+        // 5. Cập nhật bảng Variant (Giá) - QUAN TRỌNG
+        // Lấy variant đầu tiên để cập nhật giá (giả định tin thường chỉ có 1 variant)
+        if ($request->has('price')) {
+            $variant = $product->variants()->first();
+            if ($variant) {
+                $variant->update(['price' => $request->price]);
+            }
+        }
 
         if ($request->has('category_ids')) {
             $product->categories()->sync($request->category_ids);
         }
 
-        return new ProductResource($product);
+        return new ProductResource($product->load('variants'));
     }
 
     // 5. DELETE /api/products/{id} (Soft Delete)

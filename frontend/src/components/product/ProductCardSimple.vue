@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue' // Thêm watch
 import { useRouter } from 'vue-router' // 1. Thêm import useRouter
 import { useAuth } from '../../utils/useAuth'
 import api from '../../utils/api'
@@ -59,8 +59,13 @@ const emit = defineEmits(['favorite-changed'])
 const router = useRouter() // 2. Khởi tạo router
 const { isLoggedIn } = useAuth()
 
-const isFavorited = ref(false)
+const isFavorited = ref(!!props.product.is_favorited) 
 const isToggling = ref(false)
+
+// Theo dõi nếu prop thay đổi (ví dụ khi load more)
+watch(() => props.product.is_favorited, (newVal) => {
+  isFavorited.value = !!newVal;
+});
 
 // === BỔ SUNG: Hàm chuyển trang Seller ===
 const goToSeller = () => {
@@ -69,6 +74,7 @@ const goToSeller = () => {
   router.push(`/seller/${sellerId}`);
 }
 
+/*
 // Các logic cũ giữ nguyên
 const checkFavoriteStatus = async () => {
   if (!isLoggedIn.value || !props.product?.id) return
@@ -82,6 +88,7 @@ const checkFavoriteStatus = async () => {
     console.debug('Could not check favorite status:', err.message)
   }
 }
+  */
 
 const toggleFavorite = async () => {
   if (!isLoggedIn.value) {
@@ -112,7 +119,8 @@ const toggleFavorite = async () => {
 }
 
 onMounted(() => {
-  checkFavoriteStatus()
+  // Không gọi API check ở đây nữa!
+  //checkFavoriteStatus()
 })
 </script>
 

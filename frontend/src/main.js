@@ -21,7 +21,8 @@ import {
     faPrint, faScrewdriverWrench, faDrumstickBite, faBacon, faEgg, faMugHot, 
     faBirthdayCake, faCandyCane, faCocktail, faEllipsisH, faCheck,
     faBars, faSearch, faHeart, faComment, faBell, faComments, faStore, faCalendarAlt, faSort,
-    faLocationCrosshairs, faBuilding, faChevronRight, faArrowLeft, faHeadset, faShoppingCart
+    faLocationCrosshairs, faBuilding, faChevronRight, faArrowLeft, faHeadset,
+    faEdit, faEye, faEyeSlash, faCommentDots
 } from '@fortawesome/free-solid-svg-icons'
 
 
@@ -41,7 +42,9 @@ library.add(
     faGuitar, faBook, faFutbol, faImage, faGamepad, faCompactDisc,
     faPrint, faScrewdriverWrench,faDrumstickBite, faBacon, faEgg, faMugHot, 
     faBirthdayCake, faCandyCane, faCocktail, faEllipsisH,
-    faBars, faSearch, faHeart, faComment, faBell, faLocationCrosshairs, faBuilding, faChevronRight, faArrowLeft, faHeadset, faShoppingCart
+    faBars, faSearch, faHeart, faComment, faBell, faLocationCrosshairs, 
+    faBuilding, faChevronRight, faArrowLeft, faHeadset,
+    faEdit, faEye, faEyeSlash, faCheck, faCommentDots 
 )
 
 // (brand icons were temporarily added here; removed to revert logo changes)

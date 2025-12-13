@@ -10,6 +10,7 @@ class ProductImage extends Model
     use HasFactory;
 
     protected $fillable = [
+        'product_id', // <--- BẮT BUỘC PHẢI CÓ
         'image_url',
         'variant_id',
     ];
@@ -26,5 +27,10 @@ class ProductImage extends Model
     public function variant()
     {
         return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
     }
 }
