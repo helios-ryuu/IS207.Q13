@@ -188,7 +188,7 @@
             </button>
           </div>
           <div class="sort-controls">
-            <select class="sort-select">
+            <select class="sort-select" @change="handleSortChange">
               <option value="newest">Tin mới nhất</option>
               <option value="oldest">Tin cũ nhất</option>
               <option value="price_desc">Giá giảm dần</option>
@@ -201,6 +201,19 @@
           </div>
         </div>
 
+        <!-- 1. TRẠNG THÁI LOADING -->
+        <div v-if="loading" class="state-container">
+          <div class="spinner"></div>
+          <p>Đang tải sản phẩm...</p>
+        </div>
+
+        <!-- 2. TRẠNG THÁI KHÔNG CÓ DỮ LIỆU -->
+        <div v-else-if="products.length === 0" class="state-container">
+          <span style="font-size: 60px;">📦</span>
+          <p>Không tìm thấy sản phẩm nào phù hợp.</p>
+          <button class="btn-reset" @click="clearAllFilters">Xóa bộ lọc</button>
+        </div>
+
         <div class="product-grid" :class="{ 'list-view': viewMode === 'list' }">
           <ProductCard v-for="product in products" :key="product.id" :product="product" />
         </div>
@@ -209,10 +222,11 @@
   </div>
 
   <CategoryModal 
-    v-if="isCategoryModalOpen" 
-    @close="isCategoryModalOpen = false"
-    @select-category="handleCategorySelect"
+  v-if="isCategoryModalOpen" 
+  @close="isCategoryModalOpen = false"
+  @select-category="handleCategorySelect"
   />
+<!-- Lưu ý: Phải dùng @select-category (khớp với defineEmits ở bước 1) -->
 
   <AdvancedFilterModal
     v-if="isFilterModalOpen"
@@ -236,9 +250,9 @@
 </template>
 
 <script setup>
-import { useRoute } from 'vue-router';
-
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import api from '../utils/api';
 import ProductCard from '../components/product/ProductCardSimple.vue';
 import CategoryModal from '../components/modals/CategoryModal.vue';
 import AdvancedFilterModal from '../components/modals/AdvancedFilterModal.vue';
@@ -246,53 +260,81 @@ import PriceFilterModal from '../components/modals/PriceFilterModal.vue';
 import ConditionModal from '../components/modals/ConditionModal.vue';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 
-const route = useRoute(); // Lấy thông tin URL hiện tại
+const route = useRoute();
+const router = useRouter();
 
-// --- Trạng thái cho 4 Modal ---
+// --- STATE ---
+const products = ref([]);
+const categories = ref([]);
+const loading = ref(false);
+
+// Filter State
 const selectedCategory = ref('');
-const isCategoryModalOpen = ref(false);
-
-const advancedFilters = ref({ video: false, seller: '' });
-const isFilterModalOpen = ref(false);
-
-const selectedPriceValue = ref([0, 100000000]);
-const isPriceModalOpen = ref(false);
-
-const selectedCondition = ref('');
-const isConditionModalOpen = ref(false);
-// ------------------------------
-
-// --- Logic cho Lọc Khu Vực ---
-const regions = ref([
-  'TP Hồ Chí Minh',
-  'Hà Nội',
-  'Đà Nẵng',
-  'Cần Thơ',
-  'Bình Dương'
-]);
+const selectedSubCategory = ref('');
 const selectedRegion = ref('');
-// ------------------------------
+const selectedPriceValue = ref([0, 100000000]);
+const selectedCondition = ref('');
+const viewMode = ref('grid');
+const sortOption = ref('newest');
+const keyword = ref('');
 
-// --- Logic cho Tabs (Tất cả, Cá nhân,...) ---
+// Modals State
+const isCategoryModalOpen = ref(false);
+const isFilterModalOpen = ref(false);
+const isPriceModalOpen = ref(false);
+const isConditionModalOpen = ref(false);
+const advancedFilters = ref({ video: false, seller: '' });
+
+// Constants
 const tabs = ref(['Tất cả', 'Cá nhân', 'Bán chuyên']);
 const selectedTab = ref('Tất cả');
-// ------------------------------------
-
-// --- SỬA ĐỔI: Thêm logic cho Danh mục con ---
-const selectedSubCategory = ref(''); // Mặc định không chọn gì
-// ------------------------------------
-
-// --- Logic cho Chế độ xem (Grid/List) ---
-const viewMode = ref('grid'); 
-
-const toggleViewMode = () => {
-  viewMode.value = viewMode.value === 'grid' ? 'list' : 'grid';
-};
-// ------------------------------------
+const regions = ref(['TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Cần Thơ', 'Bình Dương', 'Hải Phòng', 'Đồng Nai']);
 
 const formatter = new Intl.NumberFormat('vi-VN');
 
-// --- Computed Properties cho các nút bấm ---
+// Helper URL ảnh
+const getImageUrl = (url) => {
+  if (!url) return 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image';
+  if (url.startsWith('http')) return url;
+  return `http://localhost:8000${url}`;
+};
+
+// --- HÀM MAP DỮ LIỆU (QUAN TRỌNG) ---
+const mapProduct = (item) => {
+  // 1. Xử lý ảnh
+  let rawUrl = '';
+  if (item.images && item.images.length > 0) rawUrl = item.images[0].url;
+  else if (item.thumbnail) rawUrl = item.thumbnail;
+  else if (item.variants?.[0]?.images?.[0]) {
+     const img = item.variants[0].images[0];
+     rawUrl = typeof img === 'string' ? img : img.url;
+  }
+  
+  // 2. Xử lý giá
+  const priceVal = item.price_range?.min || item.variants?.[0]?.price || 0;
+  
+  // 3. Xử lý địa chỉ (Lấy từ Description)
+  let locationDisplay = 'Toàn quốc';
+  if (item.description) {
+    // Tìm dòng có chữ "Khu vực:"
+    const match = item.description.match(/Khu vực:\s*(.*?)(\n|$)/);
+    if (match && match[1]) {
+      locationDisplay = match[1].trim();
+    }
+  }
+
+  return {
+    id: item.id,
+    title: item.name,
+    price: formatter.format(priceVal) + ' đ',
+    seller: item.seller?.name || 'Shop',
+    location: locationDisplay, // Hiển thị địa chỉ thật
+    imageUrl: getImageUrl(rawUrl),
+    is_favorited: item.is_favorited, 
+  };
+};
+
+// --- COMPUTED ---
 const selectedPriceDisplay = computed(() => {
   const [min, max] = selectedPriceValue.value;
   if (min === 0 && max === 100000000) return 'Giá';
@@ -307,90 +349,119 @@ const selectedConditionDisplay = computed(() => {
   return 'Tình trạng';
 });
 
-// --- Hàm xử lý (Event Handlers) ---
-const handleCategorySelect = (categoryName) => {
-  selectedCategory.value = categoryName;
-  selectedSubCategory.value = ''; // Reset danh mục con khi đổi danh mục cha
+// --- CORE FUNCTIONS ---
+const updateUrl = (newParams) => {
+  const query = { ...route.query, ...newParams };
+  Object.keys(query).forEach(key => {
+    if (query[key] === undefined || query[key] === null || query[key] === '') {
+      delete query[key];
+    }
+  });
+  console.log("🔄 Updating URL:", query);
+  router.push({ query });
+};
+
+const fetchProducts = async () => {
+  loading.value = true;
+  try {
+    const params = {
+      page: 1,
+      per_page: 20,
+      keyword: keyword.value,
+      category: selectedCategory.value,
+      subcategory: selectedSubCategory.value, // Backend cần nhận cái này
+      location: selectedRegion.value,         // Backend cần nhận cái này
+      price_min: selectedPriceValue.value[0] > 0 ? selectedPriceValue.value[0] : undefined,
+      price_max: selectedPriceValue.value[1] < 100000000 ? selectedPriceValue.value[1] : undefined,
+      sort: sortOption.value,
+      condition: selectedCondition.value
+    };
+
+    console.log("📡 Calling API with:", params);
+    const res = await api.get('/products', { params });
+    
+    const apiData = res.data.data || [];
+    products.value = apiData.map(mapProduct);
+
+  } catch (e) {
+    console.error("Fetch error:", e);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// --- EVENT HANDLERS ---
+const handleCategorySelect = (catName) => {
   isCategoryModalOpen.value = false;
+  updateUrl({ category: catName, subcategory: undefined });
 };
 
-const handleApplyFilters = (filters) => {
-  advancedFilters.value = filters;
-  isFilterModalOpen.value = false;
-  console.log('Đã áp dụng lọc:', filters);
-};
-
-const handlePriceApply = (newRange) => {
-  selectedPriceValue.value = newRange;
-  isPriceModalOpen.value = false;
-  console.log('Đã áp dụng Giá:', newRange);
-};
-
-const handleConditionApply = (newCondition) => {
-  selectedCondition.value = newCondition;
-  isConditionModalOpen.value = false;
-  console.log('Đã áp dụng Tình trạng:', newCondition);
+const selectSubCategory = (sub) => {
+  const newVal = selectedSubCategory.value === sub ? undefined : sub;
+  updateUrl({ subcategory: newVal });
 };
 
 const selectRegion = (region) => {
-  if (selectedRegion.value === region) {
-    selectedRegion.value = '';
-  } else {
-    selectedRegion.value = region;
-  }
-  console.log('Đã chọn khu vực:', selectedRegion.value);
+  const newVal = selectedRegion.value === region ? undefined : region;
+  updateUrl({ location: newVal });
+};
+
+const handlePriceApply = (range) => {
+  isPriceModalOpen.value = false;
+  const isDefault = range[0] === 0 && range[1] === 100000000;
+  updateUrl({ 
+    price_min: isDefault ? undefined : range[0],
+    price_max: isDefault ? undefined : range[1]
+  });
+};
+
+const handleConditionApply = (val) => {
+  isConditionModalOpen.value = false;
+  updateUrl({ condition: val });
+};
+
+const handleSortChange = (e) => {
+  updateUrl({ sort: e.target.value });
+};
+
+const clearAllFilters = () => {
+  router.push({ query: {} });
+};
+
+const toggleViewMode = () => {
+  viewMode.value = viewMode.value === 'grid' ? 'list' : 'grid';
 };
 
 const selectTab = (tab) => {
   selectedTab.value = tab;
-  console.log('Đã chọn tab:', tab);
 };
 
-// --- SỬA ĐỔI: Thêm hàm xử lý cho Danh mục con ---
-const selectSubCategory = (subCategory) => {
-  if (selectedSubCategory.value === subCategory) {
-    selectedSubCategory.value = ''; // Bấm lần nữa để bỏ chọn
-  } else {
-    selectedSubCategory.value = subCategory;
-  }
-  console.log('Đã chọn danh mục con:', selectedSubCategory.value);
-  // TODO: Gọi API lọc sản phẩm theo danh mục con
-};
+// --- WATCHER ---
+watch(() => route.query, (newQuery) => {
+  console.log("⚡ URL Changed detected:", newQuery);
+  selectedCategory.value = newQuery.category || '';
+  selectedSubCategory.value = newQuery.subcategory || '';
+  selectedRegion.value = newQuery.location || '';
+  keyword.value = newQuery.q || '';
+  sortOption.value = newQuery.sort || 'newest';
+  selectedCondition.value = newQuery.condition || '';
+  
+  const pMin = parseInt(newQuery.price_min) || 0;
+  const pMax = parseInt(newQuery.price_max) || 100000000;
+  selectedPriceValue.value = [pMin, pMax];
 
-const clearAllFilters = () => {
-  console.log('Xóa tất cả bộ lọc (trừ danh mục)');
-  selectedRegion.value = '';
-  advancedFilters.value = { video: false, seller: '' };
-  selectedPriceValue.value = [0, 100000000];
-  selectedCondition.value = '';
-  selectedSubCategory.value = ''; // Reset luôn danh mục con
-};
-// ------------------------------------
+  fetchProducts();
+}, { immediate: true, deep: true });
 
-const products = ref(
-  Array(10).fill({
-    id: 1,
-    title: 'Máy quạt mini giá tốt',
-    price: '400.000 đ',
-    originalPrice: '800.000 đ',
-    seller: 'Phạm Khoa',
-    location: 'Bình Dương',
-    image: 'placeholder.jpg'
-  })
-);
+onMounted(async () => {
+  try {
+    const res = await api.get('/categories');
+    categories.value = res.data.data || [];
+  } catch (e) {}
+});
 
-watch(
-  () => route.query.category, // 1. Theo dõi query 'category' trên URL
-  (newCategory) => {
-    // 2. Khi URL thay đổi, gán giá trị mới cho selectedCategory
-    if (newCategory) {
-      selectedCategory.value = newCategory;
-    } else {
-      selectedCategory.value = ''; // Nếu không có category, reset
-    }
-  },
-  { immediate: true } // 3. 'immediate: true' sẽ chạy hàm này ngay khi component tải (thay thế cho onMounted)
-);
+// Mock Apply Advanced Filter
+const handleApplyFilters = () => isFilterModalOpen.value = false;
 </script>
 
 <style scoped>
@@ -634,5 +705,58 @@ watch(
 .icon-wrapper .material-symbols-outlined {
   font-family: 'Material Symbols Outlined', sans-serif !important; 
   font-variation-settings: 'wght' 600; 
+}
+
+/* CSS cho trạng thái Loading và Empty */
+.state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #666;
+  text-align: center;
+  width: 100%;
+  min-height: 300px; /* Đảm bảo chiều cao để không bị giật layout */
+}
+
+/* Hiệu ứng xoay tròn (Spinner) */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff; /* Màu xanh chủ đạo */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Empty State Styles */
+.empty-icon {
+  font-size: 3rem;
+  color: #ccc;
+  margin-bottom: 15px;
+}
+
+.btn-reset {
+  margin-top: 15px;
+  padding: 8px 20px;
+  background-color: #fff;
+  border: 1px solid #007bff;
+  color: #007bff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-reset:hover {
+  background-color: #007bff;
+  color: white;
 }
 </style>

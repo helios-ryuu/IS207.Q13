@@ -1,6 +1,7 @@
 <template>
   <div class="search-filter-bar">
 
+    <!-- 1. CATEGORY PICKER -->
     <div class="category-picker-wrapper">
       <button class="category-dropdown" @click="toggleCategoryModal">
         <span v-html="categoryButtonText"></span>
@@ -24,18 +25,26 @@
               />
               <span class="cat-name" v-html="category.name"></span>
             </div>
-
             <div class="radio-button"></div>
           </li>
         </ul>
       </div>
     </div>
 
+    <!-- 2. SEARCH INPUT (Đã thêm v-model và @keyup.enter) -->
     <div class="search-input-wrapper">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input type="text" placeholder="Tìm sản phẩm..." />
+      
+      <!-- SỬA Ở ĐÂY: Thêm v-model và sự kiện Enter -->
+      <input 
+        type="text" 
+        v-model="keyword" 
+        placeholder="Tìm sản phẩm..." 
+        @keyup.enter="handleSearch"
+      />
     </div>
 
+    <!-- 3. LOCATION PICKER -->
     <div class="location-picker-wrapper">
       <button class="location-picker" @click="toggleLocationModal">
         <span>{{ selectedLocationText }}</span>
@@ -68,7 +77,8 @@
       </div>
     </div>
 
-    <button class="search-button">
+    <!-- 4. SEARCH BUTTON (Đã thêm @click) -->
+    <button class="search-button" @click="handleSearch">
       Tìm kiếm
     </button>
   </div>
@@ -76,6 +86,45 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router'; // 1. Import Router
+
+const router = useRouter(); // 2. Khởi tạo Router
+
+// --- STATE TÌM KIẾM ---
+const keyword = ref(''); // Biến lưu từ khóa
+
+// --- XỬ LÝ TÌM KIẾM (CHUYỂN TRANG) ---
+const handleSearch = () => {
+  // Tạo object query params
+  const query = {};
+
+  // 1. Thêm từ khóa
+  if (keyword.value.trim()) {
+    query.q = keyword.value.trim();
+  }
+
+  // 2. Thêm danh mục (Lưu ý: phải xóa thẻ <br> trong tên danh mục nếu có)
+  if (selectedCategory.value) {
+    query.category = selectedCategory.value.name.replace(/<br>/g, ' ');
+  }
+
+  // 3. Thêm khu vực
+  if (savedLocationText.value) {
+    // Chỉ lấy tên Tỉnh/Thành phố (phần sau dấu phẩy) để tìm kiếm rộng hơn
+    // Ví dụ: "Quận 1, Tp Hồ Chí Minh" -> lấy "Tp Hồ Chí Minh"
+    // Hoặc lấy cả chuỗi tùy logic backend của bạn. Ở đây mình lấy cả chuỗi.
+    query.location = savedLocationText.value.split(', ').pop(); // Lấy phần cuối (Tỉnh/TP)
+  }
+
+  console.log("Navigating to products with:", query);
+
+  // 4. Chuyển hướng sang trang ProductCatalog (giả sử path là /products)
+  // Nếu path trong router.js của bạn khác (vd: /catalog), hãy sửa lại dòng dưới
+  router.push({ path: '/products', query: query });
+};
+
+
+// --- CÁC LOGIC CŨ GIỮ NGUYÊN BÊN DƯỚI ---
 
 // --- QUẢN LÝ MODAL DANH MỤC ---
 const isCategoryModalOpen = ref(false);
@@ -83,21 +132,18 @@ const selectedCategory = ref(null);
 
 const toggleCategoryModal = () => {
   isCategoryModalOpen.value = !isCategoryModalOpen.value;
-  isLocationModalOpen.value = false; // Đóng modal khu vực nếu đang mở
+  isLocationModalOpen.value = false;
 };
 
 const selectCategory = (category) => {
   selectedCategory.value = category;
-  isCategoryModalOpen.value = false; // Đóng modal sau khi chọn
+  isCategoryModalOpen.value = false;
 };
 
-// === HÀM XỬ LÝ ẢNH ===
 const getImageUrl = (imageName) => {
-  // Trỏ thẳng vào thư mục public/DanhMuc
   return `/DanhMuc/${imageName}`;
 };
 
-// Computed để hiển thị tên danh mục trên nút
 const categoryButtonText = computed(() => {
   if (selectedCategory.value) {
     return selectedCategory.value.name.replace(/<br>/g, ' ');
@@ -105,13 +151,9 @@ const categoryButtonText = computed(() => {
   return 'Danh mục';
 });
 
-// === DỮ LIỆU DANH MỤC (ĐÃ CẬP NHẬT TÊN ẢNH) ===
 const categories = ref([
-  // Các mục chưa có ảnh trong folder bạn chụp, mình để trống ''
   { id: 2, name: 'Xe cộ', image: 'XeCo.png' },
   { id: 3, name: 'Thú cưng', image: 'ThuCung.webp' },
-
-  // Các mục có trong ảnh folder:
   { id: 4, name: 'Đồ gia dụng, nội<br>thất, cây cảnh', image: 'DoGiaDung.webp' },
   { id: 5, name: 'Giải trí, Thể thao, Sở<br>thích', image: 'GiaiTri.webp' },
   { id: 6, name: 'Mẹ và bé', image: 'MeBe.webp' },
@@ -119,7 +161,7 @@ const categories = ref([
   { id: 8, name: 'Cho tặng miễn phí', image: 'QuaTang.webp' },
   { id: 9, name: 'Việc làm', image: '' },
   { id: 10, name: 'Đồ điện tử', image: 'DoDienTu.webp' },
-  { id: 11, name: 'Tủ lạnh, máy lạnh,<br>máy giặt', image: 'TuLanh.webp' }, // Dùng tạm icon điện tử
+  { id: 11, name: 'Tủ lạnh, máy lạnh,<br>máy giặt', image: 'TuLanh.webp' },
   { id: 12, name: 'Đồ dùng văn phòng,<br>công nông nghiệp', image: 'MayIn.webp' },
   { id: 13, name: 'Thời trang, Đồ dùng<br>cá nhân', image: 'Thoitrang.webp' },
   { id: 14, name: 'Đồ ăn, thực phẩm<br>và các loại khác', image: 'DoAn.webp' },
@@ -127,8 +169,7 @@ const categories = ref([
   { id: 16, name: 'Tất cả danh mục', image: 'tat-ca-danh-muc.webp' },
 ]);
 
-
-// --- QUẢN LÝ MODAL KHU VỰC (Giữ nguyên logic cũ) ---
+// --- QUẢN LÝ MODAL KHU VỰC ---
 const isLocationModalOpen = ref(false);
 const provinces = ref([]);
 const districts = ref([]);
@@ -193,7 +234,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 1. Thanh Tìm Kiếm Chính */
+/* GIỮ NGUYÊN CSS CŨ CỦA BẠN */
 .search-filter-bar {
   display: flex;
   align-items: center;
@@ -205,208 +246,66 @@ onMounted(() => {
   gap: 12px;
   position: relative;
 }
-
-/* 2. Nút "Danh mục" */
-.category-picker-wrapper {
-  position: relative;
-}
-
+.category-picker-wrapper { position: relative; }
 .category-dropdown {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #ffffff;
-  border: 2px solid #333;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  gap: 8px;
-  padding: 8px 12px;
-  white-space: nowrap;
-  width: 200px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: #ffffff; border: 2px solid #333; border-radius: 6px;
+  cursor: pointer; font-size: 16px; font-weight: 500;
+  gap: 8px; padding: 8px 12px; white-space: nowrap; width: 200px;
 }
-.category-dropdown span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* --- MODAL DANH MỤC --- */
+.category-dropdown span { overflow: hidden; text-overflow: ellipsis; }
 .category-modal {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  width: 320px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  border: 1px solid #e0e0e0;
-  max-height: 400px;
-  overflow-y: auto;
+  position: absolute; top: calc(100% + 10px); left: 0; width: 320px;
+  background-color: #ffffff; border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+  z-index: 1000; border: 1px solid #e0e0e0; max-height: 400px; overflow-y: auto;
 }
-
-.category-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
+.category-list { list-style: none; padding: 0; margin: 0; }
 .category-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid #f5f5f5;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f5f5f5;
   transition: background-color 0.2s;
 }
-
-.category-list li:last-child {
-  border-bottom: none;
-}
-
-.category-list li:hover {
-  background-color: #f9f9f9;
-}
-
-/* Cụm chứa Ảnh và Tên danh mục */
-.category-content-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.cat-icon {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-  /* border-radius: 4px; */
-}
-
-.cat-name {
-  font-size: 15px;
-  color: #333;
-  line-height: 1.4;
-}
-
-/* Nút Radio */
-.radio-button {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid #ccc;
-  flex-shrink: 0;
-}
-
+.category-list li:last-child { border-bottom: none; }
+.category-list li:hover { background-color: #f9f9f9; }
+.category-content-left { display: flex; align-items: center; gap: 12px; }
+.cat-icon { width: 32px; height: 32px; object-fit: contain; }
+.cat-name { font-size: 15px; color: #333; line-height: 1.4; }
+.radio-button { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ccc; flex-shrink: 0; }
 .category-list li.selected .radio-button {
-  border-color: #ffd60a;
-  background-color: #ffd60a;
-  box-shadow: inset 0 0 0 3px white;
+  border-color: #ffd60a; background-color: #ffd60a; box-shadow: inset 0 0 0 3px white;
 }
-
-
-/* 3. Ô tìm kiếm */
 .search-input-wrapper {
-  display: flex;
-  align-items: center;
-  flex-grow: 1;
-  padding: 0 10px;
-  gap: 8px;
-  color: #777;
+  display: flex; align-items: center; flex-grow: 1;
+  padding: 0 10px; gap: 8px; color: #777;
 }
 .search-input-wrapper input {
-  border: none;
-  outline: none;
-  width: 100%;
-  font-size: 16px;
-  background: transparent;
+  border: none; outline: none; width: 100%;
+  font-size: 16px; background: transparent;
 }
-.search-input-wrapper input::placeholder {
-  color: #aaa;
-}
-
-/* 4. Nút Khu vực */
-.location-picker-wrapper {
-  position: relative;
-}
+.search-input-wrapper input::placeholder { color: #aaa; }
+.location-picker-wrapper { position: relative; }
 .location-picker {
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  background-color: #f5f5f5;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-size: 16px;
-  gap: 8px;
-  white-space: nowrap;
+  font-weight: bold; display: flex; align-items: center;
+  background-color: #f5f5f5; border: none; border-radius: 6px;
+  padding: 10px 14px; cursor: pointer; font-size: 16px; gap: 8px; white-space: nowrap;
 }
-
-/* 5. Nút Tìm kiếm */
 .search-button {
-  background-color: #ffd60a;
-  border: none;
-  border-radius: 6px;
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
+  background-color: #ffd60a; border: none; border-radius: 6px;
+  padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer;
 }
-
-/* 6. Modal Khu Vực */
 .location-modal {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 350px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-  padding: 20px;
-  z-index: 1000;
-  border: 1px solid #e0e0e0;
+  position: absolute; top: calc(100% + 10px); right: 0; width: 350px;
+  background-color: #ffffff; border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+  padding: 20px; z-index: 1000; border: 1px solid #e0e0e0;
 }
-.modal-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-top: 0;
-  margin-bottom: 20px;
-  text-align: center;
-}
-.form-group {
-  margin-bottom: 15px;
-}
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 14px;
-  color: #555;
-}
-.modal-select {
-  width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  background-color: #f9f9f9;
-}
-.loading-text {
-  font-size: 12px;
-  color: #888;
-  margin-top: 4px;
-}
+.modal-title { font-size: 1.2rem; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-align: center; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #555; }
+.modal-select { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; background-color: #f9f9f9; }
+.loading-text { font-size: 12px; color: #888; margin-top: 4px; }
 .modal-apply-btn {
-  width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  background-color: #ffd60a;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 10px;
+  width: 100%; padding: 12px; font-size: 16px; font-weight: bold;
+  color: #333; background-color: #ffd60a; border: none; border-radius: 6px;
+  cursor: pointer; margin-top: 10px;
 }
 </style>

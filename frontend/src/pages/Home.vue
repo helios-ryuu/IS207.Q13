@@ -30,7 +30,7 @@
               v-for="product in products"
               :key="product.id"
               :product="product"
-          />
+          /> 
         </div>
 
         <div v-if="products.length === 0 && loading" class="empty-state">
@@ -79,25 +79,72 @@ const pageToLoad = ref(1);
 const hasMoreProducts = ref(true);
 const totalProducts = ref(0);
 
-// Format price helper
-const formatPrice = (price) => {
-  if (!price) return '';
-  return new Intl.NumberFormat('vi-VN').format(price) + ' đ';
+// 1. Thêm hàm helper này vào Home.vue
+const getImageUrl = (url) => {
+  if (!url) return 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image';
+  // Nếu là link online (http/https) thì giữ nguyên
+  if (url.startsWith('http')) return url;
+  // Nếu là link local (/storage/...) thì nối thêm domain backend
+  return `http://localhost:8000${url}`;
 };
 
-// Map API response to component format
-const mapProduct = (item) => ({
-  id: item.id,
-  title: item.name,
-  price: formatPrice(item.price_range?.min || item.variants?.[0]?.price),
-  originalPrice: '',
-  seller: item.seller?.full_name || item.seller?.name || 'Shop VietMarket',
-  location: 'TP. HCM',
-  imageUrl: item.image || item.variants?.[0]?.images?.[0]?.image_url || 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image',
-  username: item.seller?.username || 'seller'
-});
+// Helper: Format giá tiền
+const formatPrice = (price) => {
+  if (!price) return '0 đ';
+  // Ép kiểu về số (float) trước khi format vì API trả về string "100000.00"
+  const numberPrice = parseFloat(price); 
+  return new Intl.NumberFormat('vi-VN').format(numberPrice) + ' đ';
+};
 
-// --- FETCH PRODUCTS FROM API ---
+// --- QUAN TRỌNG: Hàm map dữ liệu API sang Frontend ---
+const mapProduct = (item) => {
+
+  // Logic lấy ảnh thumbnail
+  let rawUrl = '';
+
+  // Ưu tiên 1: Lấy từ mảng images (Cấu trúc mới Backend trả về)
+  if (item.images && item.images.length > 0) {
+    rawUrl = item.images[0].url; 
+  } 
+
+  // Ưu tiên 2: Lấy từ thumbnail
+  else if (item.thumbnail) {
+    rawUrl = item.thumbnail;
+  }
+  
+  // Ưu tiên 3: Lấy từ variants (Cấu trúc cũ)
+  else if (item.variants?.[0]?.images?.[0]) {
+     const img = item.variants[0].images[0];
+     // Xử lý trường hợp ảnh trong variant là string hoặc object
+     rawUrl = typeof img === 'string' ? img : img.url;
+  }
+
+  // 2. Xử lý giá
+  const priceVal = item.price_range?.min || item.variants?.[0]?.price || 0;
+
+  // --- Xử lý Địa chỉ (Trích xuất từ Description) ---
+  let locationDisplay = 'Toàn quốc';
+  if (item.description) {
+    // Regex tìm dòng "Khu vực: ..."
+    const match = item.description.match(/Khu vực:\s*(.*?)(\n|$)/);
+    if (match && match[1]) {
+      locationDisplay = match[1].trim();
+    }
+  }
+
+  return {
+    id: item.id,
+    title: item.name,
+    price: formatPrice(priceVal),
+    originalPrice: '',
+    seller: item.seller?.name || 'Shop VietMarket', // API trả về seller.name
+    location: locationDisplay, // <--- Hiển thị địa chỉ thật
+    imageUrl: getImageUrl(rawUrl), // <--- Fix link ảnh localhost
+    username: 'seller',
+    is_favorited: item.is_favorited, 
+  };
+};
+
 const fetchProducts = async () => {
   if (loading.value) return;
   loading.value = true;
@@ -111,17 +158,30 @@ const fetchProducts = async () => {
       }
     });
 
-    const apiData = response.data.data || response.data;
-    const newProducts = Array.isArray(apiData) ? apiData : apiData.data || [];
+    console.log('🔥 Dữ liệu gốc từ API:', response.data);
+
+    // 1. Lấy mảng dữ liệu từ API
+    // (Laravel Resource trả về dạng { data: [...], links: ..., meta: ... })
+    const apiData = response.data.data || []; 
     
-    // Map and append products
-    const mappedProducts = newProducts.map(mapProduct);
+    // 2. Map dữ liệu sang format của Frontend
+    // (Lúc nãy lỗi do bạn gọi biến newProducts ở đây mà chưa khai báo)
+    const mappedProducts = apiData.map(mapProduct);
+    
+    console.log('✅ Dữ liệu sau khi map:', mappedProducts);
+
+    // 3. Đẩy vào biến products để hiển thị
     products.value.push(...mappedProducts);
 
-    // Check if more products available
-    const meta = response.data.meta || response.data;
-    totalProducts.value = meta.total || newProducts.length;
-    hasMoreProducts.value = products.value.length < totalProducts.value;
+    // 4. Xử lý phân trang (nút Xem thêm)
+    const meta = response.data.meta;
+    if (meta) {
+        totalProducts.value = meta.total;
+        hasMoreProducts.value = products.value.length < totalProducts.value;
+    } else {
+        // Nếu API không trả về meta thì thôi
+        hasMoreProducts.value = false;
+    }
 
   } catch (error) {
     console.error('Lỗi khi tải sản phẩm:', error);
