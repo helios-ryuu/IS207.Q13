@@ -8,56 +8,35 @@ use Illuminate\Support\Str;
 
 class ImageUploadService
 {
-    protected string $disk;
-
-    public function __construct()
-    {
-        // Xác định disk dựa trên environment
-        $this->disk = env('FILESYSTEM_DRIVER', 'public') === 'gcs' ? 'gcs' : 'public';
-    }
-
+    /**
+     * Upload ảnh vào thư mục Public và trả về đường dẫn
+     */
     public function upload(UploadedFile $file, string $folder = 'uploads'): string
     {
-        // Tạo tên file unique
+        // 1. Tạo tên file ngẫu nhiên
         $fileName = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
 
-        // Upload vào disk tương ứng
-        $path = $file->storeAs($folder, $fileName, $this->disk);
+        // 2. Luôn sử dụng disk 'public' cho môi trường Local
+        // (Tránh dùng env() trực tiếp để ngăn lỗi cache)
+        $path = $file->storeAs($folder, $fileName, 'public');
 
-        // Trả về URL
-        if ($this->disk === 'gcs') {
-            // Manually construct GCS public URL
-            $bucket = config('filesystems.disks.gcs.bucket');
-            $storageUri = config('filesystems.disks.gcs.storage_api_uri', 'https://storage.googleapis.com');
-            return $storageUri . '/' . $bucket . '/' . $path;
-        }
-
-        // Return relative URL for local storage (works with any port)
+        // 3. Trả về đường dẫn URL tương đối
+        // Frontend sẽ ghép với domain: http://localhost:8000/storage/...
         return '/storage/' . $path;
     }
 
+    /**
+     * Xóa ảnh
+     */
     public function delete(string $path): bool
     {
-        if ($this->disk === 'gcs') {
-            // Xử lý URL GCS
-            $bucketUrl = config('filesystems.disks.gcs.storage_api_uri', 'https://storage.googleapis.com');
-            $bucket = config('filesystems.disks.gcs.bucket');
-            $prefix = $bucketUrl . '/' . $bucket . '/';
-
-            if (str_starts_with($path, $prefix)) {
-                $relativePath = str_replace($prefix, '', $path);
-                if (Storage::disk('gcs')->exists($relativePath)) {
-                    return Storage::disk('gcs')->delete($relativePath);
-                }
-            }
-            return false;
-        }
-
-        // Xử lý local storage
+        // Chuyển URL '/storage/products/abc.jpg' -> path 'products/abc.jpg'
         $relativePath = str_replace('/storage/', '', $path);
+
         if (Storage::disk('public')->exists($relativePath)) {
             return Storage::disk('public')->delete($relativePath);
         }
+
         return false;
     }
 }
