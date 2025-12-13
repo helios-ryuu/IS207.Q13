@@ -146,6 +146,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'; // Thêm
 import { useRouter, useRoute } from 'vue-router'; // Thêm useRoute
 import LocationPickerModal from '../modals/LocationPickerModal.vue';
 import { useAuth } from '../../utils/useAuth';
+import { useCart } from '../../stores/cart';
 
 
 const router = useRouter();

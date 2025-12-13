@@ -63,7 +63,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../utils/api';
-import { getImageUrl } from '../utils/imageUrl';
+// import { getImageUrl } from '../utils/imageUrl'; <--- ĐÃ XÓA DÒNG NÀY ĐỂ TRÁNH LỖI TRÙNG TÊN
 
 // --- COMPONENT IMPORTS ---
 import Header from '../components/layout/HomeHeader.vue';
@@ -80,7 +80,7 @@ const pageToLoad = ref(1);
 const hasMoreProducts = ref(true);
 const totalProducts = ref(0);
 
-// 1. Thêm hàm helper này vào Home.vue
+// 1. Hàm helper xử lý ảnh (Giữ lại hàm này của bạn)
 const getImageUrl = (url) => {
   if (!url) return 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image';
   // Nếu là link online (http/https) thì giữ nguyên
@@ -159,17 +159,16 @@ const fetchProducts = async () => {
       }
     });
 
-    console.log('🔥 Dữ liệu gốc từ API:', response.data);
+    // console.log('🔥 Dữ liệu gốc từ API:', response.data);
 
     // 1. Lấy mảng dữ liệu từ API
     // (Laravel Resource trả về dạng { data: [...], links: ..., meta: ... })
     const apiData = response.data.data || []; 
     
     // 2. Map dữ liệu sang format của Frontend
-    // (Lúc nãy lỗi do bạn gọi biến newProducts ở đây mà chưa khai báo)
     const mappedProducts = apiData.map(mapProduct);
     
-    console.log('✅ Dữ liệu sau khi map:', mappedProducts);
+    // console.log('✅ Dữ liệu sau khi map:', mappedProducts);
 
     // 3. Đẩy vào biến products để hiển thị
     products.value.push(...mappedProducts);
@@ -212,7 +211,6 @@ const loadMore = () => {
   fetchProducts();
 };
 </script>
-
 <style scoped>
 /* (Toàn bộ CSS của bạn giữ nguyên, không thay đổi) */
 .home-page {

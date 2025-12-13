@@ -207,7 +207,7 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../utils/api';
-import { getImageUrl } from '../utils/imageUrl';
+// import { getImageUrl } from '../utils/imageUrl'; // Comment dòng này nếu hàm getImageUrl đã được khai báo lại bên dưới để tránh lỗi duplicate
 import Header from "../components/layout/SearchHeader.vue";
 import Footer from "../components/layout/AppFooter.vue";
 import ProductCard from '../components/product/ProductCardSimple.vue';
@@ -220,7 +220,7 @@ const product = ref(null);
 const loading = ref(true);
 const { addToCart } = useCart();
 
-// [MỚI] STATE REVIEW & RATING (Thêm vào đây)
+// [MỚI] STATE REVIEW & RATING
 const reviews = ref([]);
 
 const averageRating = computed(() => {
@@ -230,7 +230,7 @@ const averageRating = computed(() => {
   return avg % 1 === 0 ? avg : avg.toFixed(1);
 });
 
-// Các state cũ (Giữ nguyên)
+// Các state cũ
 const sellerListings = ref([]);
 const similarListings = ref([]);
 const currentImageIndex = ref(0);
@@ -246,8 +246,12 @@ const currentImage = computed(() => {
 const nextImage = () => {
   if (product.value) currentImageIndex.value = (currentImageIndex.value + 1) % product.value.images.length;
 };
+
+// [SỬA LỖI 1] Đã thêm dấu đóng ngoặc } bị thiếu ở đây
 const prevImage = () => {
   if (product.value) currentImageIndex.value = (currentImageIndex.value - 1 + product.value.images.length) % product.value.images.length;
+};
+
 // [SỬA] Hàm Chat để chuyển đúng dữ liệu cho trang Chat
 const handleChat = () => {
   if (!product.value) return;
@@ -265,11 +269,12 @@ const handleChat = () => {
 const goToSellerProfile = () => {
   if (product.value && product.value.seller) {
     router.push({
-      name: 'SellerProfile', // Tên route phải khớp với router
+      name: 'SellerProfile', 
       params: { id: product.value.seller.id }
     });
   }
 };
+
 const selectImage = (i) => currentImageIndex.value = i;
 
 // --- 2. FORMATTERS ---
@@ -279,31 +284,28 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('vi-VN');
 };
 
+// Hàm getImageUrl nội bộ
 const getImageUrl = (url) => {
   if (!url) return 'https://via.placeholder.com/400';
   if (url.startsWith('http')) return url;
-  return `http://localhost:8000${url}`; // Fix link ảnh local
+  return `http://localhost:8000${url}`; 
 };
 
 // --- 3. MAPPING DATA ---
 const mapProductDetail = (apiData) => {
-  // 1. Logic lấy danh sách ảnh (SỬA LẠI ĐOẠN NÀY)
   let allImages = [];
 
-  // TRƯỜNG HỢP 1: Backend trả về mảng 'images' ở root (Cấu trúc mới ta vừa làm)
-  // apiData.images = [{id: 1, url: '...'}, {id: 2, url: '...'}]
+  // TRƯỜNG HỢP 1: Backend trả về mảng 'images'
   if (apiData.images && Array.isArray(apiData.images) && apiData.images.length > 0) {
     allImages = apiData.images.map(imgObj => getImageUrl(imgObj.url));
   } 
-  
-  // TRƯỜNG HỢP 2: Fallback (Dự phòng nếu Backend cũ)
+  // TRƯỜNG HỢP 2: Fallback
   else {
     if (apiData.thumbnail) allImages.push(getImageUrl(apiData.thumbnail));
     if (apiData.variants) {
       apiData.variants.forEach(v => {
         if (v.images && Array.isArray(v.images)) {
           v.images.forEach(img => {
-             // Xử lý cả trường hợp img là string hoặc object
              const url = typeof img === 'string' ? img : img.url || img.image_url;
              if(url) allImages.push(getImageUrl(url));
           });
@@ -312,11 +314,9 @@ const mapProductDetail = (apiData) => {
     }
   }
 
-  // Lọc trùng (Unique) và xử lý ảnh lỗi
-  allImages = [...new Set(allImages)]; // Xóa link trùng
+  allImages = [...new Set(allImages)];
   if (allImages.length === 0) allImages.push('https://via.placeholder.com/600x400?text=No+Image');
 
-  // ... (Phần lấy giá và specs giữ nguyên) ...
   const minPrice = apiData.price_range?.min || apiData.variants?.[0]?.price || 0;
   const maxPrice = apiData.price_range?.max || minPrice;
 
@@ -334,9 +334,7 @@ const mapProductDetail = (apiData) => {
     price: formatPrice(minPrice),
     priceMin: formatPrice(minPrice),
     priceMax: formatPrice(maxPrice * 1.2),
-    
-    images: allImages, // <--- Mảng này giờ sẽ chứa đủ 2 ảnh
-    
+    images: allImages, 
     categories: apiData.categories || [],
     created_at: apiData.created_at,
     specs: specs,
@@ -349,8 +347,6 @@ const mapProductDetail = (apiData) => {
   };
 };
 
-
-
 const mapProductCard = (item) => ({
   id: item.id,
   title: item.name,
@@ -362,12 +358,9 @@ const mapProductCard = (item) => ({
 // --- 4. FETCH API ---
 const fetchProductDetail = async () => {
   loading.value = true;
-  visibleSellerCount.value = 4;
-  visibleSimilarCount.value = 8;
-
   const productId = route.params.id;
 
-  // [MỚI] 1. LẤY ĐÁNH GIÁ TỪ LOCALSTORAGE
+  // 1. LẤY ĐÁNH GIÁ TỪ LOCALSTORAGE
   const storageKey = `product_reviews_${productId}`;
   const storedReviews = localStorage.getItem(storageKey);
   if (storedReviews) {
@@ -376,11 +369,10 @@ const fetchProductDetail = async () => {
     reviews.value = [];
   }
 
-  // [MỚI] 2. GỌI API & XỬ LÝ FALLBACK
+  // 2. GỌI API
   try {
-    const id = route.params.id;
     // Gọi API chi tiết
-    const res = await api.get(`/products/${id}`);
+    const res = await api.get(`/products/${productId}`);
     product.value = mapProductDetail(res.data.data);
 
     // Gọi API tương tự (nếu có)
@@ -397,15 +389,18 @@ const fetchProductDetail = async () => {
         }));
       }
     } catch (err) {
-      console.error('Error fetching similar products:', err);
+      console.log('Không tải được SP tương tự (API lỗi hoặc chưa có)');
       similarListings.value = [];
     }
 
-    if (data.seller?.id) {
+    // [SỬA LỖI 2 & 3] Sửa logic lấy sản phẩm của người bán
+    // Sử dụng product.value thay vì biến 'data' không tồn tại
+    if (product.value && product.value.seller && product.value.seller.id) {
       try {
-        const sellerResponse = await api.get(`/products/seller/${data.seller.id}`);
+        const sellerResponse = await api.get(`/products/seller/${product.value.seller.id}`);
         const sellerData = sellerResponse.data.data || sellerResponse.data;
         const sellerProducts = Array.isArray(sellerData) ? sellerData : sellerData.data || [];
+        
         sellerListings.value = sellerProducts
             .filter(p => p.id !== parseInt(productId))
             .map(mapProductCard);
@@ -413,7 +408,7 @@ const fetchProductDetail = async () => {
         console.error('Error fetching seller products:', err);
         sellerListings.value = [];
       }
-    } catch (e) { console.log('Không tải được SP tương tự'); }
+    }
 
   } catch (error) {
     console.error("Lỗi tải sản phẩm:", error);
@@ -423,22 +418,7 @@ const fetchProductDetail = async () => {
   }
 };
 
-// --- 5. ACTIONS ---
-const handleChat = () => {
-  if (!product.value?.seller?.id) return;
-  router.push({
-    path: '/chat',
-    query: { partnerId: product.value.seller.id }
-  });
-};
-
-const goToSellerProfile = () => {
-  if (product.value?.seller?.id) {
-    router.push(`/seller/${product.value.seller.id}`);
-  }
-};
-
-// Watch ID đổi thì load lại (khi bấm vào SP tương tự)
+// Watch ID đổi thì load lại
 watch(() => route.params.id, (newId) => {
   if (newId) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
