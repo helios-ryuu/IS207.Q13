@@ -2,199 +2,144 @@
   <div class="product-detail-page">
     <Header />
     <main class="container">
-
-      <!-- Breadcrumbs -->
       <nav class="breadcrumbs">
         <router-link to="/">Trang chủ</router-link> / 
-        <span v-if="product?.categories?.[0]">{{ product.categories[0].name }} /</span>
+        <router-link to="/products">Sản phẩm</router-link> / 
         <strong>{{ product?.name || 'Đang tải...' }}</strong>
       </nav>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div> Đang tải thông tin sản phẩm...
-      </div>
-
-      <!-- Main Content -->
-      <div v-else-if="product" class="product-main-card">
-        
-        <!-- Left: Gallery -->
+      <div class="product-main-card">
         <section class="product-gallery">
           <div class="main-image-wrapper">
-            <button class="gallery-nav prev" @click="prevImage" v-if="product.images.length > 1">&lt;</button>
-            <button class="gallery-nav next" @click="nextImage" v-if="product.images.length > 1">&gt;</button>
-            
-            <img :src="currentImage" :alt="product.name" class="main-image">
+            <button class="gallery-nav prev" @click="prevImage">&lt;</button>
+            <button class="gallery-nav next" @click="nextImage">&gt;</button>
+            <div class="image-actions">
+              <button class="icon-btn" title="Yêu thích">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+              </button>
+            </div>
+            <img :src="currentImage" :alt="product?.name" class="main-image" @error="handleImageError">
           </div>
-          
-          <div class="thumbnail-list-wrapper" v-if="product.images.length > 1">
+          <div class="thumbnail-list-wrapper">
             <div class="thumbnail-list">
-              <img 
-                v-for="(img, index) in product.images" 
-                :key="index" 
-                :src="img" 
-                :class="{ active: index === currentImageIndex }" 
-                @click="selectImage(index)"
-              >
+              <img v-for="(image, index) in product?.images" :key="index" :src="image" alt="Thumbnail" :class="{ active: index === currentImageIndex }" @click="selectImage(index)" @error="handleImageError">
             </div>
           </div>
         </section>
 
-        <!-- Right: Info -->
         <section class="product-info">
           <h1>{{ product?.name }}</h1>
           
-          <div class="rating-summary-mini" v-if="reviews.length > 0">
-            <span class="score">{{ averageRating }}</span>
-            <div class="stars">
-              <span v-for="n in 5" :key="n" class="star">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="n <= Math.round(averageRating) ? '#ffc107' : '#ddd'" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-              </span>
+          <div class="meta-row">
+            <div class="rating-box" v-if="product?.seller?.rating">
+               <span class="score">{{ product.seller.rating }}</span>
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffc107" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
             </div>
-            <span class="count">({{ reviews.length }} đánh giá)</span>
-            <span class="separator">|</span>
-            <span class="sold">Đã bán 1.2k</span>
+            <span class="divider">|</span>
+            <span class="sold">Đã bán {{ product?.seller?.listings || 0 }}</span>
           </div>
 
-          <p class="description">{{ product?.description }}</p>
           <div class="price-section">
-            <span class="price">{{ product.price }}</span>
-            <span class="tag" v-for="cat in product.categories" :key="cat.id">{{ cat.name }}</span>
+            <span class="price">{{ product?.priceDisplay }}</span>
+            <span class="tag" v-for="tag in product?.tags" :key="tag">{{ tag }}</span>
           </div>
 
-          <div class="meta-info">
+          <div class="description-preview">
+            {{ product?.description }}
+          </div>
+
+          <div class="meta-info-list">
             <div class="meta-item">
-              <font-awesome-icon icon="map-marker-alt" />
-              <span>Khu vực: <strong>Toàn quốc</strong></span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <span>Khu vực: <strong>{{ product?.location }}</strong></span>
             </div>
             <div class="meta-item">
-              <font-awesome-icon icon="clock" />
-              <span>Ngày đăng: <strong>{{ formatDate(product.created_at) }}</strong></span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>Đăng lúc: <strong>{{ product?.lastUpdated }}</strong></span>
             </div>
           </div>
 
-          <!-- Market Price (Giả lập hiển thị khoảng giá) -->
-          <div class="price-range">
+          <div class="price-range" v-if="product?.marketPrice">
             <div class="price-range-header">
               <strong>Khoảng giá tham khảo</strong>
             </div>
             <span>Dựa trên tin đăng tương tự</span>
             <div class="range-bar-container">
-              <div class="range-bar-bg">
-                <div class="range-bar-active" style="left: 20%; right: 20%"></div>
+              <div class="range-tooltip" :style="{ left: product.marketPrice.position }">
+                {{ product.marketPrice.current }}
+                <div class="range-tooltip-arrow"></div>
               </div>
-              <span class="range-label-min">{{ product.priceMin }}</span>
-              <span class="range-label-max">{{ product.priceMax }}</span>
+              <div class="range-bar-bg">
+                <div class="range-bar-active" :style="{ left: product.marketPrice.minPosition, right: product.marketPrice.maxPosition }"></div>
+              </div>
+              <div class="range-labels">
+                <span class="range-label-min">{{ product.marketPrice.min }}</span>
+                <span class="range-label-max">{{ product.marketPrice.max }}</span>
+              </div>
             </div>
           </div>
 
-          <!-- Buttons -->
           <div class="action-buttons">
             <button class="btn-chat" @click="handleChat">
-              <font-awesome-icon icon="comment-dots" /> Chat ngay
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              Chat ngay
             </button>
-            <button class="btn-add-cart">Yêu thích</button> <!-- Đổi tạm thành yêu thích -->
-            <button class="btn-buy-now">Mua ngay</button>
+            
+            <button class="btn-add-cart" @click="handleAddToCart">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+              Thêm vào giỏ
+            </button>
+            
+            <button class="btn-buy-now" @click="handleBuyNow">
+              Mua ngay
+            </button>
           </div>
 
-          <!-- Seller Info -->
-          <div class="seller-info" v-if="product.seller">
-            <img :src="product.seller.avatar" class="seller-avatar">
+          <div class="seller-info">
+            <img :src="product?.seller.avatar" class="seller-avatar" @click="goToSellerProfile" @error="handleUserAvatarError">
             <div class="seller-details">
-              <strong @click="goToSellerProfile" class="pointer">{{ product.seller.name }}</strong>
-              <div class="sub-text">Hoạt động 5 phút trước</div>
-            </div>
-            <div class="seller-stats">
-              <div class="stat-item"><strong>{{ product.seller.listingCount || 5 }}</strong> <span>Tin bán</span></div>
+              <strong @click="goToSellerProfile" style="cursor: pointer">{{ product?.seller.name }}</strong>
+              <span class="active-status">Hoạt động 5 phút trước</span>
             </div>
             <button class="btn-view-profile" @click="goToSellerProfile">Xem trang</button>
           </div>
-
         </section>
       </div>
 
-      <div v-else class="not-found">
-        <h3>Không tìm thấy sản phẩm này</h3>
-        <button @click="router.push('/products')">Về danh sách</button>
-      </div>
-
-      <!-- Details & Comments -->
-      <div class="product-info-layout" v-if="product">
+      <div class="product-info-layout">
         <div class="bottom-left-column">
+          <section class="bottom-card" id="description">
+            <h2>Mô tả chi tiết</h2>
+            <p>{{ product?.detailedDescription }}</p>
+          </section>
+          
           <section class="bottom-card" id="specs">
             <h2>Thông tin chi tiết</h2>
             <ul class="specs-list">
-              <li v-for="(val, key) in product.specs" :key="key">
-                <span class="spec-label">{{ key }}</span>
-                <span class="spec-value">{{ val }}</span>
-              </li>
-              <li>
-                <span class="spec-label">Tình trạng</span>
-                <span class="spec-value">Đã sử dụng</span>
+              <li v-for="spec in product?.specs" :key="spec.label">
+                <span class="spec-label">{{ spec.label }}</span>
+                <span class="spec-value">{{ spec.value }}</span>
               </li>
             </ul>
-          </section>
-          
-          <section class="bottom-card">
-            <h2>Mô tả đầy đủ</h2>
-            <p style="white-space: pre-line;">{{ product.detailedDescription }}</p>
           </section>
         </div>
         
         <div class="bottom-right-column">
-          <section class="bottom-card review-section">
-            <h2>Đánh giá sản phẩm</h2>
-            
-            <div class="rating-overview">
-              <div class="rating-score-box">
-                <span class="big-score">{{ averageRating }}</span>
-                <span class="total-stars">/ 5</span>
-              </div>
-              <div class="stars-large">
-                <span v-for="n in 5" :key="n" class="star">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" :fill="n <= Math.round(averageRating) ? '#ffc107' : '#ddd'" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                </span>
-              </div>
-              <div class="total-count">{{ reviews.length }} nhận xét</div>
-            </div>
-
-            <div class="review-list">
-              <div v-if="reviews.length === 0" class="empty-review">
-                Chưa có đánh giá nào cho sản phẩm này.
-              </div>
-
-              <div v-for="review in reviews" :key="review.id" class="review-item">
-                <img :src="review.userAvatar" class="user-avatar" />
-                <div class="review-content">
-                  <div class="review-header">
-                    <strong class="user-name">{{ review.userName }}</strong>
-                    <span class="review-date">{{ review.date }}</span>
-                  </div>
-                  
-                  <div class="user-rating-stars">
-                    <span v-for="n in 5" :key="n" class="star-small">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="n <= review.rating ? '#ffc107' : '#ddd'" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                    </span>
-                  </div>
-                  
-                  <div class="variant-info" v-if="review.variant">Phân loại: {{ review.variant }}</div>
-                  <p class="comment-text">{{ review.comment }}</p>
-                </div>
-              </div>
-            </div>
-          </section>
+          <CommentSection :comments="product?.comments" />
         </div>
       </div>
 
-      <!-- Related Products -->
-      <section class="related-listings-card" v-if="similarListings.length > 0">
+      <section class="related-listings-card" v-if="visibleSellerListings.length > 0">
+        <h2>Tin khác của {{ product?.seller.name }}</h2>
+        <div class="horizontal-product-list">
+          <ProductCard v-for="item in visibleSellerListings" :key="item.id" :product="item" />
+        </div>
+      </section>
+
+      <section class="related-listings-card" v-if="visibleSimilarListings.length > 0">
         <h2>Tin đăng tương tự</h2>
         <div class="grid-product-list">
-          <ProductCard
-              v-for="item in similarListings"
-              :key="item.id"
-              :product="item"
-          />
+          <ProductCard v-for="item in visibleSimilarListings" :key="item.id" :product="item" />
         </div>
       </section>
 
@@ -207,339 +152,325 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../utils/api';
-// import { getImageUrl } from '../utils/imageUrl'; // Comment dòng này nếu hàm getImageUrl đã được khai báo lại bên dưới để tránh lỗi duplicate
+import { getImageUrl } from '../utils/imageUrl';
 import Header from "../components/layout/SearchHeader.vue";
 import Footer from "../components/layout/AppFooter.vue";
+import CommentSection from '../components/CommentSection.vue';
 import ProductCard from '../components/product/ProductCardSimple.vue';
 import { useCart } from '../stores/cart';
+import { useAuth } from '../utils/useAuth';
 
 const route = useRoute();
 const router = useRouter();
-
 const product = ref(null);
 const loading = ref(true);
+
 const { addToCart } = useCart();
+const { isLoggedIn } = useAuth();
 
-// [MỚI] STATE REVIEW & RATING
-const reviews = ref([]);
-
-const averageRating = computed(() => {
-  if (reviews.value.length === 0) return 0;
-  const total = reviews.value.reduce((sum, r) => sum + r.rating, 0);
-  const avg = total / reviews.value.length;
-  return avg % 1 === 0 ? avg : avg.toFixed(1);
-});
-
-// Các state cũ
+// State & Logic "Xem thêm"
 const sellerListings = ref([]);
 const similarListings = ref([]);
+const visibleSellerListings = computed(() => sellerListings.value.slice(0, 4));
+const visibleSimilarListings = computed(() => similarListings.value.slice(0, 8));
+
+// Logic Ảnh
 const currentImageIndex = ref(0);
-
-// --- 1. XỬ LÝ ẢNH ---
 const currentImage = computed(() => {
-  if (product.value?.images?.length) {
-    return product.value.images[currentImageIndex.value];
-  }
-  return 'https://via.placeholder.com/600x400?text=No+Image';
+  if (product.value?.images?.length > 0) return product.value.images[currentImageIndex.value];
+  return 'https://via.placeholder.com/600x400/eeeeee/cccccc?text=Loading...';
 });
+const nextImage = () => { if (product.value) currentImageIndex.value = (currentImageIndex.value + 1) % product.value.images.length; };
+const prevImage = () => { if (product.value) currentImageIndex.value = (currentImageIndex.value - 1 + product.value.images.length) % product.value.images.length; };
+const selectImage = (index) => { currentImageIndex.value = index; };
 
-const nextImage = () => {
-  if (product.value) currentImageIndex.value = (currentImageIndex.value + 1) % product.value.images.length;
-};
+// Helper Error Images
+const handleImageError = (e) => { e.target.src = "https://via.placeholder.com/600x400?text=No+Image"; };
+const handleUserAvatarError = (e) => { e.target.src = "https://via.placeholder.com/50?text=User"; };
 
-// [SỬA LỖI 1] Đã thêm dấu đóng ngoặc } bị thiếu ở đây
-const prevImage = () => {
-  if (product.value) currentImageIndex.value = (currentImageIndex.value - 1 + product.value.images.length) % product.value.images.length;
-};
+// === HÀM XỬ LÝ (LOGIC QUAN TRỌNG) ===
 
-// [SỬA] Hàm Chat để chuyển đúng dữ liệu cho trang Chat
+// 1. Chat
 const handleChat = () => {
   if (!product.value) return;
+  if (!isLoggedIn.value) {
+    if(confirm('Bạn cần đăng nhập để chat với người bán. Đăng nhập ngay?')) {
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    }
+    return;
+  }
   router.push({
     path: '/chat',
-    query: {
-      sellerId: product.value.seller.id,
-      sellerName: product.value.seller.name,
-      sellerAvatar: product.value.seller.avatar,
-      productName: product.value.name
-    }
+    query: { sellerId: product.value.seller.id, productName: product.value.name }
   });
 };
 
+// 2. Thêm vào giỏ hàng (ĐÃ SỬA: Đảm bảo lấy đúng variant_id)
+const handleAddToCart = async () => {
+  if (!product.value) return;
+  
+  if (!isLoggedIn.value) {
+    if(confirm('Bạn cần đăng nhập để thêm vào giỏ hàng. Đăng nhập ngay?')) {
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    }
+    return;
+  }
+  
+  // Tạo object gửi sang Store
+  // Store sẽ dùng 'variant_id' để gọi API.
+  // Chúng ta đảm bảo product.value.variant_id là chính xác từ hàm mapProductFromApi
+  const cartItem = {
+    id: product.value.id,
+    variant_id: product.value.variant_id, // Quan trọng: Đây phải là ID của Variant, không phải Product (nếu có variant)
+    name: product.value.name,
+    price: product.value.priceNumber,     // Gửi giá dạng số
+    image: product.value.image,
+    seller: product.value.seller,
+    quantity: 1
+  };
+
+  console.log("Adding to cart:", cartItem); // Debug log để kiểm tra
+
+  const success = await addToCart(cartItem);
+  if (success) {
+    alert('Đã thêm sản phẩm vào giỏ hàng!');
+  }
+};
+
+// 3. Mua ngay
+const handleBuyNow = async () => {
+  if (!product.value) return;
+
+  if (!isLoggedIn.value) {
+    if(confirm('Bạn cần đăng nhập để mua hàng. Đăng nhập ngay?')) {
+      router.push({ path: '/login', query: { redirect: route.fullPath } });
+    }
+    return;
+  }
+
+  const cartItem = {
+    id: product.value.id,
+    variant_id: product.value.variant_id,
+    name: product.value.name,
+    price: product.value.priceNumber,
+    image: product.value.image,
+    seller: product.value.seller,
+    quantity: 1
+  };
+
+  const success = await addToCart(cartItem);
+  if (success) {
+    router.push('/cart');
+  }
+};
+
+// 4. Chuyển trang người bán
 const goToSellerProfile = () => {
-  if (product.value && product.value.seller) {
-    router.push({
-      name: 'SellerProfile', 
-      params: { id: product.value.seller.id }
+  if (product.value?.seller) {
+    router.push({ name: 'SellerProfile', params: { id: product.value.seller.id } });
+  }
+};
+
+// === HELPER FUNCTIONS ===
+const formatPrice = (price) => {
+  if (!price) return '0';
+  return new Intl.NumberFormat('vi-VN').format(price);
+};
+
+// === MAP DATA (QUAN TRỌNG: LẤY ĐÚNG ID) ===
+const mapProductFromApi = (data) => {
+  // Tìm variant đầu tiên
+  let firstVariant = {};
+  if (data.variants && data.variants.length > 0) {
+    firstVariant = data.variants[0];
+  }
+
+  // Xử lý hình ảnh
+  const images = [];
+  if (data.variants) {
+    data.variants.forEach(v => {
+      if (v.images) v.images.forEach(img => images.push(getImageUrl(typeof img === 'string' ? img : img.image_url)));
     });
   }
-};
-
-const selectImage = (i) => currentImageIndex.value = i;
-
-// --- 2. FORMATTERS ---
-const formatPrice = (price) => new Intl.NumberFormat('vi-VN').format(price) + ' đ';
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('vi-VN');
-};
-
-// Hàm getImageUrl nội bộ
-const getImageUrl = (url) => {
-  if (!url) return 'https://via.placeholder.com/400';
-  if (url.startsWith('http')) return url;
-  return `http://localhost:8000${url}`; 
-};
-
-// --- 3. MAPPING DATA ---
-const mapProductDetail = (apiData) => {
-  let allImages = [];
-
-  // TRƯỜNG HỢP 1: Backend trả về mảng 'images'
-  if (apiData.images && Array.isArray(apiData.images) && apiData.images.length > 0) {
-    allImages = apiData.images.map(imgObj => getImageUrl(imgObj.url));
-  } 
-  // TRƯỜNG HỢP 2: Fallback
-  else {
-    if (apiData.thumbnail) allImages.push(getImageUrl(apiData.thumbnail));
-    if (apiData.variants) {
-      apiData.variants.forEach(v => {
-        if (v.images && Array.isArray(v.images)) {
-          v.images.forEach(img => {
-             const url = typeof img === 'string' ? img : img.url || img.image_url;
-             if(url) allImages.push(getImageUrl(url));
-          });
-        }
-      });
-    }
+  // Nếu không có ảnh từ variant, thử lấy ảnh từ root product (nếu API có trả về)
+  if (images.length === 0 && data.image) {
+      images.push(getImageUrl(data.image));
   }
+  if (images.length === 0) images.push('https://via.placeholder.com/600x400/eeeeee/cccccc?text=No+Image');
 
-  allImages = [...new Set(allImages)];
-  if (allImages.length === 0) allImages.push('https://via.placeholder.com/600x400?text=No+Image');
+  // Xử lý giá tiền
+  const rawPrice = firstVariant.price || data.price_range?.min || data.price || 0;
+  const displayPrice = formatPrice(rawPrice) + ' đ';
 
-  const minPrice = apiData.price_range?.min || apiData.variants?.[0]?.price || 0;
-  const maxPrice = apiData.price_range?.max || minPrice;
-
-  const specs = {};
-  if (apiData.variants?.[0]) {
-    if (apiData.variants[0].color) specs['Màu sắc'] = apiData.variants[0].color;
-    if (apiData.variants[0].size) specs['Kích thước'] = apiData.variants[0].size;
-  }
+  // QUAN TRỌNG: Xác định variant_id
+  // Nếu có variant, dùng ID variant. Nếu không (sản phẩm đơn), dùng ID sản phẩm.
+  const finalVariantId = firstVariant.id || data.id;
 
   return {
-    id: apiData.id,
-    name: apiData.name,
-    description: apiData.description,
-    detailedDescription: apiData.description,
-    price: formatPrice(minPrice),
-    priceMin: formatPrice(minPrice),
-    priceMax: formatPrice(maxPrice * 1.2),
-    images: allImages, 
-    categories: apiData.categories || [],
-    created_at: apiData.created_at,
-    specs: specs,
+    id: data.id,                  // Product ID
+    variant_id: finalVariantId,   // Variant ID (Dùng để thêm giỏ hàng)
+    name: data.name,
+    description: data.description,
+    priceDisplay: displayPrice,   // Dùng hiển thị
+    priceNumber: rawPrice,        // Dùng tính toán
+    image: images[0],
+    tags: data.categories?.map(c => c.name) || [],
+    location: data.location || 'Toàn quốc',
+    lastUpdated: new Date(data.updated_at || new Date()).toLocaleDateString('vi-VN'),
+    images: images,
     seller: {
-      id: apiData.seller?.id,
-      name: apiData.seller?.name || 'Người bán',
-      avatar: getImageUrl(apiData.seller?.avatar),
-      listingCount: 10
-    }
+      id: data.seller?.id || 0,
+      name: data.seller?.full_name || data.seller?.username || 'Shop VietMarket',
+      avatar: getImageUrl(data.seller?.avatar) || 'https://via.placeholder.com/50',
+      listings: 10, rating: 5.0, reviews: 100
+    },
+    marketPrice: {
+      min: formatPrice(data.price_range?.min) + ' đ',
+      max: formatPrice(data.price_range?.max) + ' đ',
+      current: displayPrice,
+      position: '50%', minPosition: '20%', maxPosition: '20%'
+    },
+    detailedDescription: data.description || 'Chưa có mô tả chi tiết.',
+    specs: [
+      { label: 'Tình trạng:', value: data.status === 'active' ? 'Còn hàng' : 'Hết hàng' },
+      { label: 'Màu sắc:', value: firstVariant.color || 'N/A' }
+    ],
+    comments: []
   };
 };
 
 const mapProductCard = (item) => ({
   id: item.id,
   title: item.name,
-  price: formatPrice(item.price_range?.min || 0),
-  location: 'Toàn quốc',
-  imageUrl: getImageUrl(item.thumbnail || item.variants?.[0]?.images?.[0])
+  price: formatPrice(item.price_range?.min || item.variants?.[0]?.price) + ' đ',
+  location: item.location || 'Toàn quốc',
+  imageUrl: getImageUrl(item.image || item.variants?.[0]?.images?.[0]?.image_url)
 });
 
-// --- 4. FETCH API ---
+// Fetch Data
 const fetchProductDetail = async () => {
   loading.value = true;
+  // Reset product để tránh hiển thị thông tin cũ
+  product.value = null; 
+  
   const productId = route.params.id;
-
-  // 1. LẤY ĐÁNH GIÁ TỪ LOCALSTORAGE
-  const storageKey = `product_reviews_${productId}`;
-  const storedReviews = localStorage.getItem(storageKey);
-  if (storedReviews) {
-    reviews.value = JSON.parse(storedReviews);
-  } else {
-    reviews.value = [];
-  }
-
-  // 2. GỌI API
   try {
-    // Gọi API chi tiết
-    const res = await api.get(`/products/${productId}`);
-    product.value = mapProductDetail(res.data.data);
+    const response = await api.get(`/products/${productId}`);
+    const data = response.data.data || response.data;
+    
+    // Map dữ liệu
+    product.value = mapProductFromApi(data);
 
-    // Gọi API tương tự (nếu có)
+    // Fetch Similar & Seller Products
     try {
-      const similarResponse = await api.get(`/products/${productId}/similar`);
-      if (similarResponse.data.success) {
-        similarListings.value = similarResponse.data.data.map(item => ({
-          id: item.id,
-          title: item.title,
-          price: formatPrice(item.price) + ' đ',
-          location: item.location || 'TP. HCM',
-          imageUrl: getImageUrl(item.image),
-          seller: item.seller,
-        }));
-      }
-    } catch (err) {
-      console.log('Không tải được SP tương tự (API lỗi hoặc chưa có)');
-      similarListings.value = [];
+      const similarRes = await api.get(`/products/${productId}/similar`);
+      if (similarRes.data.success) similarListings.value = similarRes.data.data.map(item => ({...item, imageUrl: getImageUrl(item.image), price: formatPrice(item.price) + ' đ'}));
+    } catch (e) {}
+    
+    if (data.seller?.id) {
+       try {
+         const sellerRes = await api.get(`/products/seller/${data.seller.id}`);
+         const sData = sellerRes.data.data || sellerRes.data;
+         sellerListings.value = (Array.isArray(sData) ? sData : sData.data || []).filter(p => p.id != productId).map(mapProductCard);
+       } catch (e) {}
     }
 
-    // [SỬA LỖI 2 & 3] Sửa logic lấy sản phẩm của người bán
-    // Sử dụng product.value thay vì biến 'data' không tồn tại
-    if (product.value && product.value.seller && product.value.seller.id) {
-      try {
-        const sellerResponse = await api.get(`/products/seller/${product.value.seller.id}`);
-        const sellerData = sellerResponse.data.data || sellerResponse.data;
-        const sellerProducts = Array.isArray(sellerData) ? sellerData : sellerData.data || [];
-        
-        sellerListings.value = sellerProducts
-            .filter(p => p.id !== parseInt(productId))
-            .map(mapProductCard);
-      } catch (err) {
-        console.error('Error fetching seller products:', err);
-        sellerListings.value = [];
-      }
-    }
-
-  } catch (error) {
-    console.error("Lỗi tải sản phẩm:", error);
-    product.value = null;
-  } finally {
-    loading.value = false;
-  }
+  } catch (error) { console.error(error); }
+  loading.value = false;
 };
 
-// Watch ID đổi thì load lại
-watch(() => route.params.id, (newId) => {
-  if (newId) {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    fetchProductDetail();
-  }
+// Watch route thay đổi để load lại trang
+watch(() => route.params.id, (newId) => { 
+  if (newId) { 
+    fetchProductDetail(); 
+    window.scrollTo({top: 0}); 
+  } 
 });
 
-onMounted(() => {
-  fetchProductDetail();
-});
+onMounted(() => { fetchProductDetail(); });
 </script>
 
 <style scoped>
-/* GIỮ NGUYÊN CSS CŨ CỦA BẠN, CHỈ THÊM MỘT CHÚT CHO LOADING */
-.loading-state {
-  padding: 50px; text-align: center; color: #666; font-size: 1.2rem;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-}
-.spinner {
-  width: 24px; height: 24px; border: 3px solid #eee; border-top-color: #ffd60a;
-  border-radius: 50%; animation: spin 1s infinite linear;
-}
-@keyframes spin { 100% { transform: rotate(360deg); } }
+/* CSS GIỮ NGUYÊN */
+.product-detail-page { background-color: #f8f9fa; padding-bottom: 40px; font-family: 'Inter', sans-serif; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 
-/* CSS CŨ */
-.product-detail-page { background-color: #f4f4f4; padding-bottom: 30px; }
-.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 15px; }
-.breadcrumbs { font-size: 0.9rem; color: #555; padding: 20px 0; }
-.breadcrumbs a { text-decoration: none; color: #555; }
-.product-main-card { display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+/* Breadcrumbs */
+.breadcrumbs { padding: 15px 0; font-size: 0.9rem; color: #666; }
+.breadcrumbs a { color: #0d6efd; text-decoration: none; }
+.breadcrumbs strong { color: #333; }
+
+/* Main Card */
+.product-main-card { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
 @media (max-width: 992px) { .product-main-card { grid-template-columns: 1fr; } }
-.product-gallery { display: flex; flex-direction: column; gap: 15px; }
-.main-image-wrapper { position: relative; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: #f9f9f9; }
-.main-image { width: 100%; height: 100%; object-fit: contain; }
-.gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,0.8); cursor: pointer; font-size: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+/* Gallery */
+.main-image-wrapper { position: relative; aspect-ratio: 4/3; border-radius: 8px; overflow: hidden; border: 1px solid #f0f0f0; }
+.main-image { width: 100%; height: 100%; object-fit: contain; background: #fafafa; }
+.image-actions { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.icon-btn { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.9); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #555; transition: all 0.2s; }
+.icon-btn:hover { background: #fff; color: #dc3545; }
+.gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; background: rgba(255,255,255,0.8); border: none; border-radius: 50%; cursor: pointer; font-size: 1.2rem; }
 .gallery-nav.prev { left: 10px; } .gallery-nav.next { right: 10px; }
-.thumbnail-list-wrapper { display: flex; gap: 10px; align-items: center; }
-.thumbnail-list { display: flex; gap: 10px; overflow-x: auto; flex-grow: 1; padding-bottom: 5px; }
-.thumbnail-list img { width: 70px; height: 50px; object-fit: cover; border-radius: 4px; border: 2px solid transparent; cursor: pointer; }
-.thumbnail-list img.active { border-color: #007bff; }
-.product-info { display: flex; flex-direction: column; gap: 15px; }
-.product-info h1 { font-size: 1.5rem; margin: 0; line-height: 1.3; }
-.description { color: #555; margin: 0; font-size: 0.95rem; }
-.price-section { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.price { font-size: 1.8rem; font-weight: bold; color: #d70000; }
-.tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; color: #555; }
-.meta-info { display: flex; flex-direction: column; gap: 8px; padding: 15px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
-.meta-item { display: flex; gap: 10px; color: #555; align-items: center; font-size: 0.95rem; }
-.price-range { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
-.price-range-header { font-weight: bold; margin-bottom: 5px; }
-.range-bar-container { position: relative; margin-top: 25px; height: 20px; }
-.range-bar-bg { height: 6px; background: #e9ecef; border-radius: 3px; position: relative; top: 7px; }
-.range-bar-active { position: absolute; height: 100%; background: #28a745; border-radius: 3px; opacity: 0.6; }
-.range-label-min { position: absolute; bottom: -20px; left: 0; font-size: 0.8rem; color: #777; }
-.range-label-max { position: absolute; bottom: -20px; right: 0; font-size: 0.8rem; color: #777; }
-.action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-.btn-chat { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-buy-now { background: #d70000; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; grid-column: span 2; }
-.btn-add-cart { background: #fff; border: 1px solid #ddd; color: #333; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-.seller-info { display: flex; gap: 12px; align-items: center; padding: 15px; border: 1px solid #eee; border-radius: 8px; margin-top: 10px; }
+.thumbnail-list { display: flex; gap: 10px; margin-top: 15px; overflow-x: auto; padding-bottom: 5px; }
+.thumbnail-list img { width: 70px; height: 70px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; object-fit: cover; }
+.thumbnail-list img.active { border-color: #0d6efd; }
+
+/* Info Section */
+.product-info h1 { font-size: 1.8rem; margin: 0 0 10px 0; color: #222; }
+.price-section { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; }
+.price { font-size: 1.8rem; color: #dc3545; font-weight: 700; }
+.tag { background: #f0f2f5; color: #555; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
+
+.meta-row { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #666; margin-bottom: 15px; }
+.rating-box { display: flex; align-items: center; gap: 4px; color: #ffc107; font-weight: bold; }
+.description-preview { color: #555; line-height: 1.5; margin-bottom: 20px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.meta-info-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; font-size: 0.95rem; color: #444; }
+.meta-item { display: flex; align-items: center; gap: 8px; }
+
+/* Action Buttons Grid */
+.action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.btn-chat, .btn-add-cart, .btn-buy-now { height: 44px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1rem; transition: opacity 0.2s; }
+
+/* Chat: Xanh dương */
+.btn-chat { background: #0d6efd; color: white; grid-column: 1 / 2; }
+/* Thêm giỏ hàng: Viền cam / Nền nhạt */
+.btn-add-cart { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; grid-column: 2 / 3; }
+.btn-add-cart:hover { background: #ffeeba; }
+/* Mua ngay: Đỏ - Full dòng dưới */
+.btn-buy-now { background: #dc3545; color: white; grid-column: 1 / 3; }
+
+.btn-chat:hover, .btn-buy-now:hover { opacity: 0.9; }
+
+/* Seller Info */
+.seller-info { display: flex; align-items: center; gap: 12px; padding: 16px; background: #f8f9fa; border-radius: 8px; }
 .seller-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-.seller-details { flex-grow: 1; overflow: hidden; }
-.seller-details strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub-text { font-size: 0.8rem; color: #888; }
-.seller-stats { display: flex; gap: 15px; font-size: 0.85rem; margin-right: 10px; }
-.btn-view-profile { background: white; border: 1px solid #007bff; color: #007bff; padding: 6px 12px; border-radius: 15px; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
-.product-info-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 30px; }
-@media (max-width: 992px) { .product-info-layout { grid-template-columns: 1fr; } }
-.bottom-card { background-color: #ffffff; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); margin-bottom: 20px; }
-.specs-list { list-style: none; padding: 0; margin: 0; }
-.specs-list li { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
-.specs-list li:last-child { border-bottom: none; }
-.spec-label { color: #666; } .spec-value { font-weight: 500; color: #333; }
-.related-listings-card { margin-top: 30px; }
-.related-listings-card h2 { font-size: 1.4rem; font-weight: bold; margin-bottom: 20px; }
-.grid-product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
-.pointer { cursor: pointer; }
-.not-found { text-align: center; padding: 50px; }
-.not-found button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-.spec-label { color: #555; } .spec-value { font-weight: 500; }
+.seller-details { flex: 1; }
+.seller-details strong { display: block; color: #333; }
+.active-status { font-size: 0.8rem; color: #28a745; }
+.btn-view-profile { padding: 6px 12px; border: 1px solid #ced4da; background: white; border-radius: 20px; font-size: 0.85rem; cursor: pointer; }
 
-.related-listings-card { background-color: #ffffff; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); overflow: hidden; margin-top: 30px; }
-.related-listings-card h2 { font-size: 1.5rem; font-weight: bold; margin-top: 0; margin-bottom: 20px; }
+/* Price Range Chart */
+.price-range { background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+.range-bar-container { position: relative; margin-top: 30px; height: 30px; }
+.range-bar-bg { height: 6px; background: #e9ecef; border-radius: 3px; position: relative; top: 10px; }
+.range-bar-active { position: absolute; height: 100%; background: #28a745; border-radius: 3px; }
+.range-tooltip { position: absolute; top: -25px; transform: translateX(-50%); background: #333; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; white-space: nowrap; }
+.range-labels { display: flex; justify-content: space-between; margin-top: 15px; font-size: 0.8rem; color: #666; }
 
-/* "Tin khác" */
-.horizontal-product-list { display: flex; overflow-x: auto; gap: 15px; padding-bottom: 15px; margin: 0 -24px; padding-left: 24px; padding-right: 24px; }
-.horizontal-product-list :deep(.product-card) { width: 220px; flex-shrink: 0; }
-.horizontal-product-list :deep(a) { flex-shrink: 0; }
+/* Bottom Layout */
+.product-info-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px; }
+@media (max-width: 768px) { .product-info-layout { grid-template-columns: 1fr; } }
+.bottom-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 24px; }
+.bottom-card h2 { font-size: 1.25rem; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 12px; margin-bottom: 16px; }
+.specs-list li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f8f9fa; }
+.spec-label { color: #666; } .spec-value { font-weight: 600; color: #333; }
 
-/* "Tin tương tự" */
-.grid-product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
-.grid-product-list :deep(.product-card) { width: auto; flex-shrink: 1; }
-
-.see-more-btn { display: block; width: 100%; padding: 12px; margin-top: 20px; border: 1px solid #007bff; color: #007bff; background: #fff; border-radius: 6px; font-weight: bold; cursor: pointer; }
-.see-more-btn:hover { background-color: #f0f8ff; }
-
-/* --- [MỚI] STYLES CHO PHẦN RATING MỚI (ADDITIONAL CSS) --- */
-.rating-summary-mini { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; font-size: 0.95rem; color: #555; }
-.rating-summary-mini .score { color: #ffc107; font-weight: 700; border-bottom: 1px solid #ffc107; font-size: 1.1rem; }
-.rating-summary-mini .separator { color: #ddd; }
-
-.review-section { padding: 24px; }
-.rating-overview { background: #fffbf8; border: 1px solid #f9ede5; padding: 20px; display: flex; align-items: center; gap: 30px; margin-bottom: 25px; border-radius: 6px; }
-.rating-score-box { text-align: center; color: #ffc107; }
-.big-score { font-size: 2.5rem; font-weight: 700; }
-.total-stars { font-size: 1.1rem; color: #ffc107; }
-.total-count { color: #555; margin-top: 5px; font-size: 0.9rem; }
-
-.rating-filters { display: flex; gap: 10px; flex-wrap: wrap; }
-.rating-filters button { background: #fff; border: 1px solid #ddd; padding: 6px 15px; cursor: pointer; border-radius: 2px; }
-.rating-filters button.active { border-color: #0055aa; color: #0055aa; font-weight: 600; }
-
-.review-list { display: flex; flex-direction: column; gap: 20px; }
-.review-item { display: flex; gap: 15px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
-.user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
-.review-content { flex: 1; }
-.review-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.user-name { font-size: 0.95rem; color: #333; font-weight: 600; }
-.review-date { font-size: 0.8rem; color: #999; }
-.user-rating-stars { margin-bottom: 5px; display: flex; gap: 2px; }
-.variant-info { font-size: 0.85rem; color: #888; margin-bottom: 8px; }
-.comment-text { font-size: 0.95rem; line-height: 1.5; color: #444; }
-.empty-review { text-align: center; color: #999; font-style: italic; padding: 20px; }
+/* Related Items */
+.related-listings-card { background: white; padding: 20px; border-radius: 12px; margin-top: 24px; }
+.related-listings-card h2 { font-size: 1.25rem; margin-bottom: 16px; }
+.horizontal-product-list { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 10px; }
+.horizontal-product-list > * { flex: 0 0 200px; }
+.grid-product-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
 </style>
