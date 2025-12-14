@@ -11,9 +11,7 @@
       </div>
 
       <div class="checkout-content">
-        <!-- Left Column: Shipping & Payment Info -->
         <div class="checkout-form">
-          <!-- Shipping Address -->
           <div class="form-section">
             <h2>Địa chỉ giao hàng</h2>
             <div class="form-group">
@@ -101,7 +99,6 @@
             </div>
           </div>
 
-          <!-- Payment Method -->
           <div class="form-section">
             <h2>Phương thức thanh toán</h2>
             <div class="payment-methods">
@@ -156,14 +153,14 @@
           </div>
         </div>
 
-        <!-- Right Column: Order Summary -->
         <div class="order-summary-section">
           <div class="summary-card">
             <h2>Đơn hàng của bạn</h2>
             
             <div class="order-items">
-              <div v-for="item in checkoutItems" :key="item.id" class="order-item">
-                <img :src="getImageUrl(item.image)" :alt="item.name" class="order-item-image" />
+              <div v-if="checkoutItems.length === 0" class="empty-msg">Đang tải sản phẩm...</div>
+              <div v-else v-for="item in checkoutItems" :key="item.id" class="order-item">
+                <img :src="getImageUrl(item.image)" :alt="item.name" class="order-item-image" @error="handleImageError" />
                 <div class="order-item-info">
                   <h4>{{ item.name }}</h4>
                   <p>{{ item.seller?.name || 'Shop VietMarket' }}</p>
@@ -202,7 +199,7 @@
             <button 
               class="btn-place-order" 
               @click="handlePlaceOrder"
-              :disabled="!isFormValid || isProcessing"
+              :disabled="!isFormValid || isProcessing || checkoutItems.length === 0"
             >
               <span v-if="isProcessing">Đang xử lý...</span>
               <span v-else>Đặt hàng</span>
@@ -220,9 +217,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useCart } from '../stores/cart';
+import { useCart } from '../stores/cart'; // Đảm bảo đường dẫn đúng
 import api from '../utils/api';
 import { getImageUrl } from '../utils/imageUrl';
 import Header from '../components/layout/SearchHeader.vue';
@@ -230,14 +227,11 @@ import Footer from '../components/layout/AppFooter.vue';
 
 const router = useRouter();
 const route = useRoute();
-const { cartItems, clearCart } = useCart();
+const { cartItems, refreshCart, clearCart } = useCart();
 
-// Get selected items from cart
-const selectedItemIds = ref([]);
-const checkoutItems = ref([]);
 const isProcessing = ref(false);
 
-// Shipping Info
+// Shipping Info Form
 const shippingInfo = ref({
   fullName: '',
   phone: '',
@@ -249,45 +243,94 @@ const shippingInfo = ref({
   note: ''
 });
 
-// Payment Method
 const paymentMethod = ref('cod');
 
-// Load checkout items
+// === 1. LOGIC LẤY SẢN PHẨM CHECKOUT ===
+
+// Refresh cart khi vào trang để đảm bảo dữ liệu mới nhất
 onMounted(() => {
-  // Get selected items from query params or use all items
-  const selectedIds = route.query.items ? route.query.items.split(',').map(Number) : cartItems.value.map(item => item.id);
-  selectedItemIds.value = selectedIds;
+  refreshCart();
+});
+
+// Computed để lọc sản phẩm dựa trên URL param ?items=1,2,3
+const checkoutItems = computed(() => {
+  if (!cartItems.value || cartItems.value.length === 0) return [];
+
+  // Nếu có param items trên URL
+  if (route.query.items) {
+    // Chuyển chuỗi "1,2,3" thành mảng số [1, 2, 3]
+    const selectedIds = route.query.items.split(',').map(id => parseInt(id));
+    
+    // Lọc cartItems có id nằm trong danh sách đã chọn
+    return cartItems.value.filter(item => selectedIds.includes(item.id));
+  }
   
-  checkoutItems.value = cartItems.value.filter(item => selectedIds.includes(item.id));
-  
-  // If no items to checkout, redirect to cart
-  if (checkoutItems.value.length === 0) {
-    router.push('/cart');
+  // Nếu không có param items, trả về rỗng (hoặc toàn bộ cart tùy logic bạn muốn)
+  return []; 
+});
+
+// Theo dõi checkoutItems, nếu rỗng sau khi tải xong thì báo lỗi/redirect
+watch(checkoutItems, (newItems) => {
+  if (cartItems.value.length > 0 && newItems.length === 0) {
+    // alert('Không tìm thấy sản phẩm thanh toán. Vui lòng chọn lại từ giỏ hàng.');
+    // router.push('/cart');
   }
 });
 
-// Computed properties
+
+// === 2. LOGIC TÍNH TIỀN (QUAN TRỌNG) ===
+
+// Helper: Chuyển đổi giá an toàn (Xử lý cả số và chuỗi)
+const parsePrice = (price) => {
+  if (typeof price === 'number') return price;
+  if (typeof price === 'string') {
+    // Xóa tất cả ký tự không phải số
+    return parseFloat(price.replace(/[^0-9]/g, '')) || 0;
+  }
+  return 0;
+};
+
+// Helper: Format hiển thị tiền
+const formatPrice = (price) => {
+  const num = typeof price === 'number' ? price : parsePrice(price);
+  return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
+};
+
+// Tổng số lượng
 const totalQuantity = computed(() => {
   return checkoutItems.value.reduce((sum, item) => sum + item.quantity, 0);
 });
 
+// Tổng tiền hàng
 const subtotal = computed(() => {
   return checkoutItems.value.reduce((total, item) => {
-    const price = parseFloat(item.price.replace(/[^0-9]/g, '')) || 0;
-    return total + (price * item.quantity);
+    return total + (parsePrice(item.price) * item.quantity);
   }, 0);
 });
 
+// Phí vận chuyển
 const shippingFee = computed(() => {
+  if (subtotal.value === 0) return 0;
   return subtotal.value > 500000 ? 0 : 30000;
 });
 
 const discount = ref(0);
 
+// Tổng thanh toán cuối cùng
 const total = computed(() => {
   return subtotal.value + shippingFee.value - discount.value;
 });
 
+// Tính tiền từng món (để hiển thị)
+const calculateItemTotal = (item) => {
+  return parsePrice(item.price) * item.quantity;
+};
+
+const handleImageError = (e) => {
+  e.target.src = "https://via.placeholder.com/80?text=No+Img";
+};
+
+// Validate form
 const isFormValid = computed(() => {
   return shippingInfo.value.fullName && 
          shippingInfo.value.phone && 
@@ -298,24 +341,8 @@ const isFormValid = computed(() => {
          paymentMethod.value;
 });
 
-// Format price
-const formatPrice = (price) => {
-  let numPrice = price;
-  if (typeof price === 'string') {
-    numPrice = parseFloat(price.replace(/[^0-9]/g, '')) || 0;
-  }
-  return new Intl.NumberFormat('vi-VN').format(numPrice) + ' đ';
-};
 
-// Calculate item total
-const calculateItemTotal = (item) => {
-  const price = typeof item.price === 'string'
-    ? parseFloat(item.price.replace(/[^0-9]/g, '')) || 0
-    : item.price || 0;
-  return price * item.quantity;
-};
-
-// Handle place order
+// === 3. XỬ LÝ ĐẶT HÀNG (GỌI API) ===
 const handlePlaceOrder = async () => {
   if (!isFormValid.value) {
     alert('Vui lòng điền đầy đủ thông tin giao hàng!');
@@ -325,48 +352,51 @@ const handlePlaceOrder = async () => {
   isProcessing.value = true;
 
   try {
-    // 1. Map payment method frontend sang backend enum
     const paymentMethodMap = {
       'cod': 'cash',
       'transfer': 'bank_transfer',
       'card': 'credit_card'
     };
 
-    // 2. Chuẩn bị dữ liệu gửi đi (Gộp cả địa chỉ và thông tin thanh toán)
+    // Chuẩn bị payload gửi lên server
     const orderPayload = {
-      // Thông tin địa chỉ (để backend tạo ShippingAddress)
       receiver_name: shippingInfo.value.fullName,
       phone_number: shippingInfo.value.phone,
       street_address: shippingInfo.value.address,
       province: shippingInfo.value.province,
       district: shippingInfo.value.district,
       ward: shippingInfo.value.ward,
-      
-      // Thông tin đơn hàng
       payment_method: paymentMethodMap[paymentMethod.value] || 'cash',
-      notes: shippingInfo.value.note || ''
+      notes: shippingInfo.value.note || '',
+      
+      // Quan trọng: Gửi danh sách sản phẩm để Backend biết đơn hàng gồm gì
+      // (Tùy backend của bạn có yêu cầu field này không, nhưng thường là có nếu API tạo đơn độc lập với Cart)
+      items: checkoutItems.value.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          price: parsePrice(item.price),
+          variant_id: item.variant_id // Nếu có variant
+      }))
     };
 
-    console.log('Sending order payload:', orderPayload);
+    console.log('Sending Order:', orderPayload);
 
-    // 3. Gọi 1 API duy nhất để tạo đơn
+    // Gọi API
     const response = await api.post('/orders', orderPayload);
     
-    console.log('Order created:', response.data);
+    // Nếu thành công
+    alert('Đặt hàng thành công! Đơn hàng của bạn đang được xử lý.');
+    
+    // Xóa giỏ hàng (Refresh lại từ server để đồng bộ)
+    await refreshCart(); 
 
-    // 4. Xóa giỏ hàng local (Backend đã xóa trong DB rồi, nhưng cần update UI)
-    await clearCart(); 
-
-    alert('Đặt hàng thành công! Đơn hàng của bạn đang chờ xác nhận.');
-
-    // 5. Chuyển hướng về trang quản lý đơn hàng
-    // (Lưu ý: Tên route của bạn có thể là /purchase-orders hoặc /orders)
-    router.push('/purchase-orders'); 
+    // Chuyển hướng
+    router.push('/purchase-orders');
 
   } catch (error) {
-    console.error('Error placing order:', error);
-    const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!';
-    alert(`Lỗi: ${errorMessage}`);
+    console.error('Lỗi đặt hàng:', error);
+    const msg = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.';
+    alert(msg);
   } finally {
     isProcessing.value = false;
   }
@@ -374,6 +404,7 @@ const handlePlaceOrder = async () => {
 </script>
 
 <style scoped>
+/* CSS giữ nguyên như cũ */
 .checkout-page {
   background-color: #f8f9fa;
   min-height: 100vh;
@@ -572,6 +603,13 @@ textarea.form-control {
   margin-bottom: 20px;
 }
 
+.empty-msg {
+  text-align: center;
+  color: #888;
+  font-style: italic;
+  padding: 20px;
+}
+
 .order-item {
   display: flex;
   gap: 15px;
@@ -584,10 +622,11 @@ textarea.form-control {
 }
 
 .order-item-image {
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: 70px;
   object-fit: cover;
   border-radius: 6px;
+  border: 1px solid #eee;
 }
 
 .order-item-info {
@@ -596,13 +635,14 @@ textarea.form-control {
 
 .order-item-info h4 {
   margin: 0 0 5px 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #333;
+  line-height: 1.3;
 }
 
 .order-item-info p {
-  margin: 0 0 10px 0;
-  font-size: 0.9rem;
+  margin: 0 0 8px 0;
+  font-size: 0.85rem;
   color: #666;
 }
 
@@ -615,6 +655,9 @@ textarea.form-control {
 .order-item-price .quantity {
   color: #666;
   font-size: 0.9rem;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 .order-item-price .price {
