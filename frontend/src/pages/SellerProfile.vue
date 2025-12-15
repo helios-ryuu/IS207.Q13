@@ -4,7 +4,7 @@
 
     <main class="container">
       <nav class="breadcrumbs">
-        <router-link to="/">Trang chủ</router-link> / Người bán / 
+        <router-link to="/">Trang chủ</router-link> / Người dùng /
         <strong>{{ seller.name || 'Đang tải...' }}</strong>
       </nav>
 
