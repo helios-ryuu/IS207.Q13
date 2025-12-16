@@ -26,8 +26,7 @@ RUN set -eux; \
         pdo_mysql \
         bcmath \
         zip \
-        intl \
-        opcache
+        intl
 
 # Configure PHP upload limits
 RUN echo "upload_max_filesize = 10M" >> /usr/local/etc/php/conf.d/uploads.ini && \
@@ -36,11 +35,10 @@ RUN echo "upload_max_filesize = 10M" >> /usr/local/etc/php/conf.d/uploads.ini &&
 
 # Copy vendor first (cached layer), then source code
 COPY --from=composer-base /app/vendor ./vendor
-COPY --chown=www-data:www-data . .
+COPY . .
 
 # Set permissions
 RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache \
-    && chmod -R 775 /app/storage /app/bootstrap/cache \
     && rm -rf /app/bootstrap/cache/*.php
 
 EXPOSE 8000
