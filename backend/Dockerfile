@@ -12,9 +12,8 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-d
 FROM php:8.5-alpine AS production
 WORKDIR /app
 
-# Install dependencies with APK cache mount
-RUN --mount=type=cache,target=/var/cache/apk \
-    set -eux; \
+# Install dependencies
+RUN set -eux; \
     apk add --no-cache \
         bash \
         curl \
