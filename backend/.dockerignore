@@ -1,0 +1,44 @@
+# Dependencies (will be built in container)
+vendor/
+node_modules/
+
+# Environment files (sensitive)
+.env
+.env.*
+!.env.example
+
+# Storage (runtime data)
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/app/public/*
+
+# Development & Testing
+tests/
+phpunit.xml
+.phpunit.result.cache
+.phpunit.cache/
+
+# Version Control
+.git/
+.gitignore
+.gitattributes
+
+# IDE & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Documentation
+README.md
+docs/
+
+# Build artifacts
+*.log
+docker-compose*.yml
+
+# Temporary files
+product_response*.json
