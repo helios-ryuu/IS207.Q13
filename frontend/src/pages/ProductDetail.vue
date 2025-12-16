@@ -174,19 +174,31 @@ const similarListings = ref([]);
 const visibleSellerListings = computed(() => sellerListings.value.slice(0, 4));
 const visibleSimilarListings = computed(() => similarListings.value.slice(0, 8));
 
+// Fallback images - Data URI để tránh lỗi network và infinite loop
+const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="600" height="400" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="20" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+const FALLBACK_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="12" text-anchor="middle" dy=".3em"%3EUser%3C/text%3E%3C/svg%3E';
+
 // Logic Ảnh
 const currentImageIndex = ref(0);
 const currentImage = computed(() => {
   if (product.value?.images?.length > 0) return product.value.images[currentImageIndex.value];
-  return 'https://via.placeholder.com/600x400/eeeeee/cccccc?text=Loading...';
+  return FALLBACK_IMAGE;
 });
 const nextImage = () => { if (product.value) currentImageIndex.value = (currentImageIndex.value + 1) % product.value.images.length; };
 const prevImage = () => { if (product.value) currentImageIndex.value = (currentImageIndex.value - 1 + product.value.images.length) % product.value.images.length; };
 const selectImage = (index) => { currentImageIndex.value = index; };
 
-// Helper Error Images
-const handleImageError = (e) => { e.target.src = "https://via.placeholder.com/600x400?text=No+Image"; };
-const handleUserAvatarError = (e) => { e.target.src = "https://via.placeholder.com/50?text=User"; };
+// Helper Error Images - Prevent infinite loop by checking if already using fallback
+const handleImageError = (e) => { 
+  if (!e.target.src.startsWith('data:')) {
+    e.target.src = FALLBACK_IMAGE;
+  }
+};
+const handleUserAvatarError = (e) => { 
+  if (!e.target.src.startsWith('data:')) {
+    e.target.src = FALLBACK_AVATAR;
+  }
+};
 
 // === HÀM XỬ LÝ (LOGIC QUAN TRỌNG) ===
 
@@ -285,18 +297,24 @@ const mapProductFromApi = (data) => {
     firstVariant = data.variants[0];
   }
 
-  // Xử lý hình ảnh
+  // Xử lý hình ảnh - API trả về data.images[] với property 'url'
   const images = [];
-  if (data.variants) {
-    data.variants.forEach(v => {
-      if (v.images) v.images.forEach(img => images.push(getImageUrl(typeof img === 'string' ? img : img.image_url)));
+  
+  // Ưu tiên 1: Lấy từ mảng images ở root (cấu trúc mới từ ProductResource)
+  if (data.images && data.images.length > 0) {
+    data.images.forEach(img => {
+      const url = typeof img === 'string' ? img : (img.url || img.image_url);
+      if (url) images.push(getImageUrl(url));
     });
   }
-  // Nếu không có ảnh từ variant, thử lấy ảnh từ root product (nếu API có trả về)
-  if (images.length === 0 && data.image) {
-      images.push(getImageUrl(data.image));
+  
+  // Ưu tiên 2: Lấy từ thumbnail
+  if (images.length === 0 && data.thumbnail) {
+    images.push(getImageUrl(data.thumbnail));
   }
-  if (images.length === 0) images.push('https://via.placeholder.com/600x400/eeeeee/cccccc?text=No+Image');
+  
+  // Fallback: placeholder
+  if (images.length === 0) images.push(FALLBACK_IMAGE);
 
   // Xử lý giá tiền
   const rawPrice = firstVariant.price || data.price_range?.min || data.price || 0;
@@ -320,8 +338,8 @@ const mapProductFromApi = (data) => {
     images: images,
     seller: {
       id: data.seller?.id || 0,
-      name: data.seller?.full_name || data.seller?.username || 'Shop VietMarket',
-      avatar: getImageUrl(data.seller?.avatar) || 'https://via.placeholder.com/50',
+      name: data.seller?.name || data.seller?.username || 'Shop VietMarket',
+      avatar: getImageUrl(data.seller?.avatar, FALLBACK_AVATAR),
       listings: 10, rating: 5.0, reviews: 100
     },
     marketPrice: {
