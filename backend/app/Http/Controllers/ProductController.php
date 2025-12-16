@@ -51,7 +51,7 @@ class ProductController extends Controller
             $keyword = $request->keyword;
             $query->where(function ($q) use ($keyword) {
                 $q->where('name', 'like', '%' . $keyword . '%')
-                ->orWhere('description', 'like', '%' . $keyword . '%');
+                    ->orWhere('description', 'like', '%' . $keyword . '%');
             });
         }
 
@@ -76,21 +76,21 @@ class ProductController extends Controller
 
         // 6. Sắp xếp
         if ($request->has('sort')) {
-            if ($request->sort == 'oldest') $query->oldest();
+            if ($request->sort == 'oldest')
+                $query->oldest();
             elseif ($request->sort == 'price_asc') {
                 // Sắp xếp đơn giản theo variant đầu tiên (hoặc join bảng nếu cần chính xác)
                 $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
                     ->orderBy('product_variants.price', 'asc')
                     ->select('products.*')
                     ->distinct();
-            } 
-            elseif ($request->sort == 'price_desc') {
+            } elseif ($request->sort == 'price_desc') {
                 $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
                     ->orderBy('product_variants.price', 'desc')
                     ->select('products.*')
                     ->distinct();
-            } 
-            else $query->latest();
+            } else
+                $query->latest();
         } else {
             $query->latest();
         }
@@ -238,7 +238,7 @@ class ProductController extends Controller
                     'id' => $p->id,
                     'title' => $p->name,
                     'price' => $variant?->price ?? 0,
-                    'image' => $variant?->images->first()?->image_url ?? null,
+                    'image' => $variant?->images->first()?->full_image_url ?? null,
                     'location' => $p->seller?->address ?? 'Chưa xác định',
                     'seller' => $p->seller?->full_name ?? 'Người bán',
                     'category' => $p->categories->first()?->name ?? 'Chưa phân loại',
@@ -277,7 +277,7 @@ class ProductController extends Controller
                     'title' => $p->name,
                     'description' => $p->description,
                     'price' => $variant?->price ?? 0,
-                    'image' => $variant?->images->first()?->image_url ?? null,
+                    'image' => $variant?->images->first()?->full_image_url ?? null,
                     'status' => $p->status,
                     'category' => $p->categories->first()?->name ?? 'Chưa phân loại',
                     'views' => 0, // TODO: implement view tracking

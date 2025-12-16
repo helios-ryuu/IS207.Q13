@@ -101,26 +101,30 @@ const routes = [
     {
         path: '/post',
         name: 'CreatePost',
-        component: CreatePost
+        component: CreatePost,
+        meta: { requiresAuth: true }
     },
-
-    { // <--- THÊM DÒNG NÀY
+    {
         path: '/edit-post/:id',
         name: 'EditPost', 
-        component: EditPost }, 
-
-    { 
+        component: EditPost,
+        meta: { requiresAuth: true }
+    }, 
+    {
         path: '/purchase-orders', 
-        component: OrderManagement 
+        component: OrderManagement,
+        meta: { requiresAuth: true }
     },
     {
         path: '/sales-orders',
-        component: SalesOrderManagement
+        component: SalesOrderManagement,
+        meta: { requiresAuth: true }
     },
     {
         path: '/seller/:id',
         name: 'SellerProfile',
-        component: SellerProfile
+        component: SellerProfile,
+        meta: { requiresAuth: true }
     },
     { 
         path: '/support',

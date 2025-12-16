@@ -12,7 +12,7 @@ class ProductResource extends JsonResource
     {
         // 1. Xử lý Variants (Kiểm tra nếu variants null thì trả về collection rỗng)
         $variants = $this->relationLoaded('variants') ? $this->variants : collect();
-        
+
         $minPrice = $variants->min('price') ?? 0;
         $maxPrice = $variants->max('price') ?? 0;
 
@@ -23,7 +23,7 @@ class ProductResource extends JsonResource
                 return $variant->images->map(function ($img) {
                     return [
                         'id' => $img->id,
-                        'url' => $img->image_url
+                        'url' => $img->full_image_url // Sử dụng accessor để xử lý cả GCS và local
                     ];
                 });
             }
@@ -54,7 +54,7 @@ class ProductResource extends JsonResource
                 'max' => $maxPrice,
             ],
             'is_favorited' => $isFavorited, // <--- Đã xử lý an toàn
-            
+
             'images' => $allImages, // <--- Trả về mảng ảnh
 
             'thumbnail' => $allImages->first()['url'] ?? null, // Lấy ảnh đầu tiên làm thumbnail
@@ -64,7 +64,7 @@ class ProductResource extends JsonResource
                 'name' => $this->seller->full_name ?? $this->seller->name ?? 'Unknown',
                 'avatar' => $this->seller->avatar ?? null,
             ],
-            
+
             // ... (Phần còn lại giữ nguyên)
             'categories' => CategoryResource::collection($this->whenLoaded('categories')),
             'created_at' => $this->created_at,

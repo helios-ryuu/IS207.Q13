@@ -152,19 +152,10 @@ class UserProfileController extends Controller
 
     /**
      * Extract relative path from full URL
+     * Delegates to ImageUploadService for consistent path handling
      */
     private function extractPath(string $url): string
     {
-        // GCS URL: https://storage.googleapis.com/bucket/avatars/users/file.jpg
-        if (str_contains($url, 'storage.googleapis.com')) {
-            $parts = parse_url($url);
-            $path = ltrim($parts['path'] ?? '', '/');
-            // Remove bucket name from path
-            $segments = explode('/', $path, 2);
-            return $segments[1] ?? $path;
-        }
-
-        // Local URL: /storage/avatars/users/file.jpg
-        return str_replace('/storage/', '', $url);
+        return $this->imageService->extractPath($url);
     }
 }
