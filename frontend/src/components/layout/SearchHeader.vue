@@ -142,11 +142,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'; // Thêm watch
-import { useRouter, useRoute } from 'vue-router'; // Thêm useRoute
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import LocationPickerModal from '../modals/LocationPickerModal.vue';
 import { useAuth } from '../../utils/useAuth';
 import { useCart } from '../../stores/cart';
+import api from '../../utils/api';
 
 
 const router = useRouter();
@@ -183,12 +184,38 @@ const isUserMenuOpen = ref(false);
 const isLocationPickerOpen = ref(false);
 const selectedLocation = ref('Toàn quốc');
 const isNotificationOpen = ref(false);
-const notifications = ref([
-  { id: 1, type: 'order', title: 'Đơn hàng mới', message: 'Bạn có đơn hàng mới từ Nguyễn Văn A', time: '5 phút trước', read: false, link: '/orders' },
-  { id: 2, type: 'message', title: 'Tin nhắn mới', message: 'Trần Thị B đã gửi tin nhắn cho bạn', time: '15 phút trước', read: false, link: '/chat' },
-  { id: 3, type: 'like', title: 'Sản phẩm được yêu thích', message: 'Sản phẩm "iPhone 13 Pro Max" của bạn được 5 người yêu thích', time: '1 giờ trước', read: false, link: '/manage-posts' },
-  { id: 4, type: 'system', title: 'Cập nhật hệ thống', message: 'Chúng tôi đã cập nhật tính năng mới cho ứng dụng', time: '2 giờ trước', read: true, link: null }
-]);
+const notifications = ref([]);
+
+// Fetch notifications từ API
+const fetchNotifications = async () => {
+  if (!isLoggedIn.value) return;
+  try {
+    const res = await api.get('/notifications');
+    const rawData = res.data.data || res.data || [];
+    notifications.value = rawData.map(n => ({
+      id: n.id,
+      type: n.type || 'system',
+      title: n.title || 'Thông báo',
+      message: n.content || n.message || '',
+      time: formatTimeAgo(n.created_at),
+      read: !!n.read_at,
+      link: n.link || null
+    }));
+  } catch (e) {
+    console.error('Failed to fetch notifications:', e);
+  }
+};
+
+// Helper format time
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+};
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
 
@@ -209,9 +236,19 @@ const handleLogout = () => {
 
 const toggleUserMenu = () => { isUserMenuOpen.value = !isUserMenuOpen.value; };
 const toggleCategoryMenu = () => { isCategoryMenuOpen.value = !isCategoryMenuOpen.value; };
-const toggleNotifications = () => { isNotificationOpen.value = !isNotificationOpen.value; };
+const toggleNotifications = () => { 
+  isNotificationOpen.value = !isNotificationOpen.value;
+  if (isNotificationOpen.value) fetchNotifications(); // Refresh khi mở
+};
 
-const markAllAsRead = () => { notifications.value.forEach(n => n.read = true); };
+const markAllAsRead = async () => {
+  try {
+    await api.put('/notifications/read-all');
+    notifications.value.forEach(n => n.read = true);
+  } catch (e) {
+    console.error('Failed to mark all as read:', e);
+  }
+};
 
 const handleNotificationClick = (notif) => {
   notif.read = true;

@@ -49,13 +49,6 @@
           <div class="card-header">
             <div class="shop-info">
               <span class="shop-name">Khách hàng: {{ order.customerName }}</span>
-              <button class="btn-chat" @click="contactCustomer(order)">
-                <font-awesome-icon icon="comments" /> Chat
-              </button>
-
-              <button class="btn-view-shop" @click="viewCustomerDetail(order)">
-                <font-awesome-icon icon="user" /> Xem KH
-              </button>
             </div>
             <div class="order-status">
               <span class="delivery-status">Cập nhật lúc: <strong>{{ order.lastUpdateDisplay }}</strong></span>
@@ -278,7 +271,7 @@ const generateDemoData = () => {
         shopName: `Shop Bán Lẻ ${randomProd.cat}`,
         sellerId: 7,
         sellerName: 'VietMarket',
-        sellerAvatar: 'https://via.placeholder.com/50?text=Shop',
+        sellerAvatar: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="10" text-anchor="middle" dy=".3em"%3EShop%3C/text%3E%3C/svg%3E',
 
         productId: randomProd.id,
         productName: randomProd.name,
@@ -375,22 +368,21 @@ function formatDateTime(timestamp) {
   const day = date.toLocaleDateString('vi-VN');
   return `${time} ${day}`;
 }
-const handleImageError = (e) => { e.target.src = "https://via.placeholder.com/150?text=No+Image"; };
-const handleAvatarError = (e) => { e.target.src = "https://via.placeholder.com/50?text=User"; };
+const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="12" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+const FALLBACK_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="10" text-anchor="middle" dy=".3em"%3EUser%3C/text%3E%3C/svg%3E';
+const handleImageError = (e) => { e.target.src = FALLBACK_IMAGE; };
+const handleAvatarError = (e) => { e.target.src = FALLBACK_AVATAR; };
 
-// --- LOGIC VÒNG ĐỜI ---
 onMounted(() => {
   fetchOrders();
 });
 
-// --- FILTER ---
 const allFilteredOrders = computed(() => {
   return orders.value.filter(order => {
-    // Lọc theo tab và danh mục
     const matchTab = activeTab.value === 'all' || order.statusId === activeTab.value;
     const matchCategory = selectedCategories.value.length === 0 || selectedCategories.value.includes(order.category);
     return matchTab && matchCategory;
-  }).sort((a, b) => b.lastUpdate - a.lastUpdate); // Sắp xếp theo lastUpdate (Mới nhất lên đầu)
+  }).sort((a, b) => b.lastUpdate - a.lastUpdate);
 });
 
 const visibleOrders = computed(() => allFilteredOrders.value.slice(0, visibleCount.value));

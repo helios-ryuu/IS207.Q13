@@ -29,20 +29,15 @@
 </template>
 
 <script setup>
-import { defineProps } from 'vue';
-
-// Định nghĩa prop 'comments' mà component này sẽ nhận
-// từ 'ProductDetail.vue'
 defineProps({
   comments: {
-    type: Array, // Dữ liệu phải là một mảng
-    default: () => [] // Giá trị mặc định là mảng rỗng
+    type: Array,
+    default: () => []
   }
 });
 </script>
 
 <style scoped>
-/* CSS chỉ dành riêng cho khối bình luận */
 .bottom-card {
   background-color: #ffffff;
   padding: 24px;
@@ -82,7 +77,7 @@ defineProps({
 .comment-content p {
   margin: 5px 0;
   padding: 12px;
-  background-color: #f5f5f5; /* Nền xám nhạt cho bình luận */
+  background-color: #f5f5f5;
   border-radius: 8px;
 }
 .comment-footer {
@@ -105,7 +100,6 @@ defineProps({
   padding: 20px 0;
 }
 
-/* Form bình luận mới */
 .comment-form {
   margin-top: 30px;
   border-top: 1px solid #f0f0f0;

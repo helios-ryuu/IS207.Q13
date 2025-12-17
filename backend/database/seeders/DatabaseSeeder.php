@@ -20,21 +20,21 @@ class DatabaseSeeder extends Seeder
             ShippingAddressSeeder::class,
             BankAccountSeeder::class,
 
-                // 3. Product data
-            ProductSeeder::class,
-            ProductPostSeeder::class,
+                // 3. Product data - DISABLED for production (user-generated)
+                // ProductSeeder::class,
+                // ProductPostSeeder::class,
 
-                // 4. Business data (phụ thuộc product + user)
-            FavoriteSeeder::class,
-            CartSeeder::class,
-            OrderSeeder::class,
-            ReviewSeeder::class,
-            MessageSeeder::class,
+                // 4. Business data - DISABLED for production (user-generated)
+                // FavoriteSeeder::class,
+                // CartSeeder::class,
+                // OrderSeeder::class,
+                // ReviewSeeder::class,
+                // MessageSeeder::class,
             NotificationSeeder::class,
 
-                // 5. Junction tables (phụ thuộc orders + posts)
-            AppliedPromotionSeeder::class,
-            AppliedServiceSeeder::class,
+            // 5. Junction tables - DISABLED (depends on orders)
+            // AppliedPromotionSeeder::class,
+            // AppliedServiceSeeder::class,
         ]);
     }
 }

@@ -125,9 +125,10 @@ const isLoading = ref(false);
 const searchKeyword = ref('');
 const sortOption = ref('newest');
 
-// Helper xử lý ảnh
+// Helper xử lý ảnh - sử dụng data URI để tránh lỗi network
+const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="12" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
 const getImageUrl = (url) => {
-  if (!url) return 'https://via.placeholder.com/150/eee/000?text=No+Image';
+  if (!url) return FALLBACK_IMAGE;
   if (url.startsWith('http')) return url;
   return `http://localhost:8000${url}`;
 };
