@@ -98,7 +98,10 @@
           <template v-else>
             <router-link to="/manage-posts" class="manage-btn">Quản lý tin</router-link>
             <div class="avatar-wrapper" @click.stop="toggleUserMenu">
-              <img :src="user?.avatar_url || '/avatar.jpg'" alt="Avatar" class="avatar">
+              <div v-if="!user?.avatar_url" class="avatar-letter">
+                {{ user?.name ? user.name.charAt(0).toUpperCase() : 'U' }}
+              </div>
+              <img v-else :src="user.avatar_url" alt="Avatar" class="avatar">
               <font-awesome-icon icon="chevron-down" class="arrow-small" />
               <div v-if="isUserMenuOpen" class="user-dropdown">
                 <router-link to="/profile">Trang cá nhân</router-link>
@@ -120,7 +123,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router'; 
 import { useAuth } from '../../utils/useAuth';
 import { useCart } from '../../stores/cart';
-// import LoginModal from './LoginModal.vue'; // <-- ĐÃ XÓA (Không dùng modal)
+import api from '../../utils/api';
 
 const isCategoryMenuOpen = ref(false);
 const { cartCount } = useCart();
@@ -133,72 +136,72 @@ const isUserMenuOpen = ref(false);
 
 // Notification state
 const isNotificationOpen = ref(false);
-const notifications = ref([
-  {
-    id: 1,
-    type: 'order',
-    title: 'Đơn hàng mới',
-    message: 'Bạn có đơn hàng mới từ Nguyễn Văn A',
-    time: '5 phút trước',
-    read: false,
-    link: '/orders'
-  },
-  {
-    id: 2,
-    type: 'message',
-    title: 'Tin nhắn mới',
-    message: 'Trần Thị B đã gửi tin nhắn cho bạn',
-    time: '15 phút trước',
-    read: false,
-    link: '/chat'
-  },
-  {
-    id: 3,
-    type: 'like',
-    title: 'Sản phẩm được yêu thích',
-    message: 'Sản phẩm "iPhone 13 Pro Max" của bạn được 5 người yêu thích',
-    time: '1 giờ trước',
-    read: false,
-    link: '/manage-posts'
-  },
-  {
-    id: 4,
-    type: 'system',
-    title: 'Cập nhật hệ thống',
-    message: 'Chúng tôi đã cập nhật tính năng mới cho ứng dụng',
-    time: '2 giờ trước',
-    read: true,
-    link: null
+const notifications = ref([]);
+
+// Fetch notifications từ API
+const fetchNotifications = async () => {
+  if (!isLoggedIn.value) return;
+  try {
+    const res = await api.get('/notifications');
+    const rawData = res.data.data || res.data || [];
+    notifications.value = rawData.map(n => ({
+      id: n.id,
+      type: n.type || 'system',
+      title: n.title || 'Thông báo',
+      message: n.content || n.message || '',
+      time: formatTimeAgo(n.created_at),
+      read: !!n.read_at,
+      link: n.link || null
+    }));
+  } catch (e) {
+    console.error('Failed to fetch notifications:', e);
   }
-]);
+};
+
+// Helper format time
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+};
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
 
 // const isLoginModalOpen = ref(false); // <-- ĐÃ XÓA
-// const handleLogin = () => { ... }; // <-- ĐÃ XÓA (Vì <router-link> sẽ xử lý)
-// const onLoginSuccess = () => { ... }; // <-- ĐÃ XÓA
 
-// SỬA ĐỔI: Hàm xử lý khi bấm nút Chat
+// SỬa ĐỔI: Hàm xử lý khi bấm nút Chat
 const handleChatClick = () => {
   if (isLoggedIn.value) {
-    router.push('/chat'); // Nếu đã đăng nhập, chuyển trang
+    router.push('/chat');
   } else {
-    router.push('/login'); // Nếu chưa, chuyển đến trang /login
+    router.push('/login');
   }
 };
 
 // (Các hàm logic cũ giữ nguyên)
 const handleLogout = () => { 
-  logout(); // Gọi hàm logout của useAuth
+  logout();
   isUserMenuOpen.value = false; 
 };
 
 const toggleUserMenu = () => { isUserMenuOpen.value = !isUserMenuOpen.value; };
 const toggleCategoryMenu = () => { isCategoryMenuOpen.value = !isCategoryMenuOpen.value; };
-const toggleNotifications = () => { isNotificationOpen.value = !isNotificationOpen.value; };
+const toggleNotifications = () => { 
+  isNotificationOpen.value = !isNotificationOpen.value;
+  if (isNotificationOpen.value) fetchNotifications();
+};
 
-const markAllAsRead = () => {
-  notifications.value.forEach(n => n.read = true);
+const markAllAsRead = async () => {
+  try {
+    await api.put('/notifications/read-all');
+    notifications.value.forEach(n => n.read = true);
+  } catch (e) {
+    console.error('Failed to mark all as read:', e);
+  }
 };
 
 const handleNotificationClick = (notif) => {
@@ -403,6 +406,21 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
   height: 36px;
   border-radius: 50%;
   background-color: #6f42c1;
+  border: 2px solid white;
+  box-shadow: 0 0 5px rgba(0,0,0,0.2);
+  object-fit: cover;
+}
+.avatar-letter {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
   border: 2px solid white;
   box-shadow: 0 0 5px rgba(0,0,0,0.2);
 }

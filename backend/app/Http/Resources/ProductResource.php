@@ -12,7 +12,7 @@ class ProductResource extends JsonResource
     {
         // 1. Xử lý Variants (Kiểm tra nếu variants null thì trả về collection rỗng)
         $variants = $this->relationLoaded('variants') ? $this->variants : collect();
-        
+
         $minPrice = $variants->min('price') ?? 0;
         $maxPrice = $variants->max('price') ?? 0;
 
@@ -23,7 +23,7 @@ class ProductResource extends JsonResource
                 return $variant->images->map(function ($img) {
                     return [
                         'id' => $img->id,
-                        'url' => $img->image_url
+                        'url' => $img->full_image_url // Sử dụng accessor để xử lý cả GCS và local
                     ];
                 });
             }
@@ -53,21 +53,32 @@ class ProductResource extends JsonResource
                 'min' => $minPrice,
                 'max' => $maxPrice,
             ],
-            'is_favorited' => $isFavorited, // <--- Đã xử lý an toàn
-            
-            'images' => $allImages, // <--- Trả về mảng ảnh
+            'is_favorited' => $isFavorited,
 
-            'thumbnail' => $allImages->first()['url'] ?? null, // Lấy ảnh đầu tiên làm thumbnail
+            'images' => $allImages,
+            'thumbnail' => $allImages->first()['url'] ?? null,
+
+            // Thêm variants để frontend có thể lấy price và các thông tin khác
+            'variants' => $variants->map(function ($v) {
+                return [
+                    'id' => $v->id,
+                    'price' => $v->price,
+                    'quantity' => $v->quantity ?? 1,
+                    'color' => $v->color ?? null,
+                    'size' => $v->size ?? null,
+                ];
+            }),
 
             'seller' => [
                 'id' => $this->seller_id,
                 'name' => $this->seller->full_name ?? $this->seller->name ?? 'Unknown',
-                'avatar' => $this->seller->avatar ?? null,
+                'username' => $this->seller->username ?? null,
+                'avatar' => $this->seller->avatar_url ?? null, // Sử dụng accessor để lấy URL đầy đủ
             ],
-            
-            // ... (Phần còn lại giữ nguyên)
+
             'categories' => CategoryResource::collection($this->whenLoaded('categories')),
             'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

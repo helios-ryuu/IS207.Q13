@@ -8,8 +8,12 @@
         <span class="current">Giỏ hàng của bạn</span>
       </div>
 
-      <!-- Giỏ hàng trống -->
-      <div v-if="cartItems.length === 0" class="empty-cart">
+      <div v-if="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải giỏ hàng...</p>
+      </div>
+
+      <div v-else-if="cartItems.length === 0" class="empty-cart">
         <div class="empty-icon">🛒</div>
         <h2>Giỏ hàng của bạn đang trống</h2>
         <p>Hãy thêm sản phẩm vào giỏ hàng để tiếp tục mua sắm!</p>
@@ -18,7 +22,6 @@
         </button>
       </div>
 
-      <!-- Giỏ hàng có sản phẩm -->
       <div v-else class="cart-content">
         <div class="cart-items">
           <div v-for="item in cartItems" :key="item.id" class="cart-item">
@@ -30,7 +33,13 @@
               />
             </div>
             
-            <img :src="item.image" :alt="item.name" class="item-image" @click="goToProduct(item.id)">
+            <img 
+              :src="item.image" 
+              :alt="item.name" 
+              class="item-image" 
+              @click="goToProduct(item.id)"
+              @error="handleImageError"
+            >
             
             <div class="item-info">
               <h3 class="item-name" @click="goToProduct(item.id)">{{ item.name }}</h3>
@@ -42,12 +51,11 @@
             
             <div class="item-actions">
               <div class="quantity-control">
-                <button @click="decreaseQuantity(item.id)" class="qty-btn">-</button>
+                <button @click="decreaseQuantity(item.id)" class="qty-btn" :disabled="item.quantity <= 1">-</button>
                 <input 
                   type="number" 
                   :value="item.quantity" 
-                  @input="updateItemQuantity(item.id, $event.target.value)"
-                  min="1"
+                  readonly
                   class="qty-input"
                 />
                 <button @click="increaseQuantity(item.id)" class="qty-btn">+</button>
@@ -125,22 +133,39 @@ import Header from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 
 const router = useRouter();
-const { cartItems, removeFromCart, updateQuantity, cartTotal, isLoading, refreshCart } = useCart();
+const { cartItems, removeFromCart, updateQuantity, isLoading, refreshCart } = useCart();
 
 // Refresh cart khi vào trang
-onMounted(() => {
-  refreshCart();
+onMounted(async () => {
+  await refreshCart();
 });
 
 // State cho checkbox - watch để update khi cart thay đổi
 const selectedItems = ref([]);
+
+// Tự động chọn tất cả sản phẩm mới thêm vào (hoặc giữ nguyên logic cũ tùy ý)
 watch(cartItems, (newItems) => {
-  selectedItems.value = newItems.map(item => item.id);
+  // Chỉ reset nếu danh sách items thay đổi hoàn toàn (ví dụ mới load trang)
+  if (selectedItems.value.length === 0 && newItems.length > 0) {
+     // selectedItems.value = newItems.map(item => item.id); // Uncomment dòng này nếu muốn mặc định chọn hết
+  }
 }, { immediate: true });
 
 // State cho mã giảm giá
 const promoCode = ref('');
 const discount = ref(0);
+
+// Helper: Parse giá an toàn
+const parsePrice = (price) => {
+  if (typeof price === 'number') return price;
+  if (typeof price === 'string') return parseFloat(price.replace(/[^0-9]/g, '')) || 0;
+  return 0;
+};
+
+// Format giá tiền
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('vi-VN').format(parsePrice(price)) + ' đ';
+};
 
 // Toggle chọn sản phẩm
 const toggleSelectItem = (itemId) => {
@@ -164,13 +189,14 @@ const selectedSubtotal = computed(() => {
   return cartItems.value
     .filter(item => selectedItems.value.includes(item.id))
     .reduce((total, item) => {
-      const price = parseFloat(item.price.replace(/[^0-9]/g, '')) || 0;
-      return total + (price * item.quantity);
+      return total + (parsePrice(item.price) * item.quantity);
     }, 0);
 });
 
 // Phí vận chuyển
 const shippingFee = computed(() => {
+  // Logic ví dụ: Freeship cho đơn > 500k
+  if (selectedSubtotal.value === 0) return 0;
   return selectedSubtotal.value > 500000 ? 0 : 30000;
 });
 
@@ -179,21 +205,9 @@ const selectedTotal = computed(() => {
   return selectedSubtotal.value + shippingFee.value - discount.value;
 });
 
-// Format giá tiền
-const formatPrice = (price) => {
-  let numPrice = price;
-  if (typeof price === 'string') {
-    numPrice = parseFloat(price.replace(/[^0-9]/g, '')) || 0;
-  }
-  return new Intl.NumberFormat('vi-VN').format(numPrice) + ' đ';
-};
-
 // Tính tổng tiền của một item
 const calculateItemTotal = (item) => {
-  const price = typeof item.price === 'string' 
-    ? parseFloat(item.price.replace(/[^0-9]/g, '')) || 0 
-    : item.price || 0;
-  return (price * item.quantity);
+  return parsePrice(item.price) * item.quantity;
 };
 
 // Điều chỉnh số lượng
@@ -211,13 +225,6 @@ const decreaseQuantity = async (itemId) => {
   }
 };
 
-const updateItemQuantity = async (itemId, value) => {
-  const quantity = parseInt(value) || 1;
-  if (quantity > 0) {
-    await updateQuantity(itemId, quantity);
-  }
-};
-
 // Xóa sản phẩm
 const removeItem = async (itemId) => {
   if (confirm('Bạn có chắc muốn xóa sản phẩm này khỏi giỏ hàng?')) {
@@ -228,6 +235,10 @@ const removeItem = async (itemId) => {
       selectedItems.value.splice(index, 1);
     }
   }
+};
+
+const handleImageError = (e) => {
+  e.target.src = "https://via.placeholder.com/120?text=No+Image";
 };
 
 // Áp dụng mã giảm giá
@@ -251,7 +262,6 @@ const proceedToCheckout = () => {
     alert('Vui lòng chọn ít nhất một sản phẩm để thanh toán!');
     return;
   }
-  // Chuyển đến trang thanh toán với danh sách sản phẩm đã chọn
   router.push({
     path: '/checkout',
     query: { items: selectedItems.value.join(',') }
@@ -279,6 +289,26 @@ const proceedToCheckout = () => {
 }
 .breadcrumbs .separator { margin: 0 5px; color: #777; }
 .breadcrumbs .current { color: #333; }
+
+/* Loading State */
+.loading-state {
+  text-align: center;
+  padding: 50px;
+  color: #666;
+}
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 /* Empty Cart */
 .empty-cart {
@@ -316,7 +346,7 @@ const proceedToCheckout = () => {
 .item-checkbox input { width: 20px; height: 20px; cursor: pointer; }
 .item-image {
   width: 120px; height: 120px; object-fit: cover; border-radius: 8px;
-  cursor: pointer; transition: transform 0.3s;
+  cursor: pointer; transition: transform 0.3s; border: 1px solid #eee;
 }
 .item-image:hover { transform: scale(1.05); }
 @media (max-width: 768px) { .item-image { width: 80px; height: 80px; } }
@@ -325,6 +355,7 @@ const proceedToCheckout = () => {
 .item-name {
   font-size: 1.1rem; font-weight: 600; margin: 0 0 10px 0; color: #333;
   cursor: pointer; transition: color 0.3s;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .item-name:hover { color: #007bff; }
 .item-seller { font-size: 0.9rem; color: #666; margin-bottom: 10px; }
@@ -336,27 +367,30 @@ const proceedToCheckout = () => {
 }
 
 .quantity-control {
-  display: flex; align-items: center; gap: 5px; border: 1px solid #ddd;
+  display: flex; align-items: center; gap: 0; border: 1px solid #ddd;
   border-radius: 6px; overflow: hidden;
 }
 .qty-btn {
   width: 32px; height: 32px; border: none; background: #f0f0f0;
   cursor: pointer; font-size: 1.2rem; transition: background 0.3s;
+  display: flex; align-items: center; justify-content: center;
 }
-.qty-btn:hover { background: #e0e0e0; }
+.qty-btn:hover:not(:disabled) { background: #e0e0e0; }
+.qty-btn:disabled { background: #f9f9f9; color: #ccc; cursor: not-allowed; }
 .qty-input {
-  width: 50px; height: 32px; text-align: center; border: none;
+  width: 40px; height: 32px; text-align: center; border: none;
+  border-left: 1px solid #ddd; border-right: 1px solid #ddd;
   font-size: 1rem; font-weight: 600;
 }
 .qty-input::-webkit-inner-spin-button,
 .qty-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
-.item-subtotal { font-size: 1.2rem; font-weight: 700; color: #d70000; min-width: 120px; text-align: right; }
+.item-subtotal { font-size: 1.1rem; font-weight: 700; color: #333; min-width: 100px; text-align: right; }
 .btn-remove {
-  background: #ff4444; color: white; border: none; width: 36px; height: 36px;
-  border-radius: 6px; cursor: pointer; transition: background 0.3s;
+  background: white; color: #ff4444; border: 1px solid #ff4444; width: 36px; height: 36px;
+  border-radius: 6px; cursor: pointer; transition: all 0.3s;
 }
-.btn-remove:hover { background: #cc0000; }
+.btn-remove:hover { background: #ff4444; color: white; }
 
 /* Cart Summary */
 .cart-summary { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 20px; }
@@ -364,45 +398,45 @@ const proceedToCheckout = () => {
   background: white; padding: 24px; border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-.summary-card h2 { font-size: 1.5rem; margin: 0 0 20px 0; color: #333; }
+.summary-card h2 { font-size: 1.3rem; margin: 0 0 20px 0; color: #333; font-weight: 700; }
 .summary-row {
   display: flex; justify-content: space-between; margin-bottom: 15px;
-  font-size: 1rem; color: #555;
+  font-size: 0.95rem; color: #555;
 }
-.summary-row.total { font-size: 1.2rem; font-weight: 700; color: #333; margin-top: 10px; }
+.summary-row.total { font-size: 1.1rem; font-weight: 700; color: #333; margin-top: 15px; }
 .amount { font-weight: 600; color: #333; }
-.total-amount { font-size: 1.5rem; color: #d70000; }
+.total-amount { font-size: 1.4rem; color: #d70000; }
 .summary-divider { height: 1px; background: #e0e0e0; margin: 15px 0; }
 
 .btn-checkout {
-  width: 100%; background: #ff6600; color: white; border: none; padding: 15px;
-  border-radius: 6px; font-size: 1.1rem; font-weight: 700; cursor: pointer;
-  transition: background 0.3s; margin-top: 20px;
+  width: 100%; background: #ff6600; color: white; border: none; padding: 14px;
+  border-radius: 6px; font-size: 1rem; font-weight: 700; cursor: pointer;
+  transition: background 0.3s; margin-top: 10px;
 }
 .btn-checkout:hover:not(:disabled) { background: #e55a00; }
 .btn-checkout:disabled { background: #ccc; cursor: not-allowed; }
 
 .btn-continue-shopping-outline {
-  width: 100%; background: white; color: #007bff; border: 2px solid #007bff;
-  padding: 12px; border-radius: 6px; font-size: 1rem; font-weight: 600;
+  width: 100%; background: white; color: #007bff; border: 1px solid #007bff;
+  padding: 12px; border-radius: 6px; font-size: 0.95rem; font-weight: 600;
   cursor: pointer; transition: all 0.3s; margin-top: 10px;
 }
-.btn-continue-shopping-outline:hover { background: #007bff; color: white; }
+.btn-continue-shopping-outline:hover { background: #f0f7ff; }
 
 /* Promo Section */
 .promo-section {
   background: white; padding: 20px; border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-.promo-section h3 { font-size: 1.1rem; margin: 0 0 15px 0; color: #333; }
+.promo-section h3 { font-size: 1rem; margin: 0 0 15px 0; color: #333; }
 .promo-input-group { display: flex; gap: 10px; }
 .promo-input {
   flex: 1; padding: 10px; border: 1px solid #ddd;
-  border-radius: 6px; font-size: 0.95rem;
+  border-radius: 6px; font-size: 0.9rem;
 }
 .btn-apply-promo {
-  background: #28a745; color: white; border: none; padding: 10px 20px;
-  border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.3s;
+  background: #28a745; color: white; border: none; padding: 0 20px;
+  border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.3s; font-size: 0.9rem;
 }
 .btn-apply-promo:hover { background: #218838; }
 </style>

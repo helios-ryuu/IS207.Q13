@@ -12,6 +12,7 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-d
 FROM php:8.5-alpine AS production
 WORKDIR /app
 
+# Install dependencies
 RUN set -eux; \
     apk add --no-cache \
         bash \
@@ -32,13 +33,18 @@ RUN echo "upload_max_filesize = 10M" >> /usr/local/etc/php/conf.d/uploads.ini &&
     echo "post_max_size = 12M" >> /usr/local/etc/php/conf.d/uploads.ini && \
     echo "max_execution_time = 60" >> /usr/local/etc/php/conf.d/uploads.ini
 
+# Copy vendor first (cached layer), then source code
 COPY --from=composer-base /app/vendor ./vendor
 COPY . .
 
+# Set permissions
 RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache \
     && rm -rf /app/bootstrap/cache/*.php
 
 EXPOSE 8000
 
-# Clear caches and start server
-CMD php artisan config:clear && php artisan cache:clear && php artisan serve --host=0.0.0.0 --port=8000
+# Cache config/routes for production and start server
+CMD php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache && \
+    php artisan serve --host=0.0.0.0 --port=8000

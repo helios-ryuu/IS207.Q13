@@ -51,7 +51,7 @@
             <img :src="activeConversation.avatar" alt="Avatar" class="convo-avatar">
             <div>
               <h4>{{ activeConversation.name }}</h4>
-              <span>Đang hoạt động</span>
+              <span class="chat-header-subtitle">Chat với người bán</span>
             </div>
           </div>
           <button class="icon-btn"><font-awesome-icon icon="ellipsis-v" /></button>
@@ -59,14 +59,15 @@
 
         <div class="message-area" ref="messageAreaRef">
           <div class="product-info-card" v-if="currentProductContext">
-            <img src="https://via.placeholder.com/50" alt="SP" class="product-image">
+            <img v-if="currentProductImage" :src="currentProductImage" alt="SP" class="product-image">
+            <div v-else class="product-image-placeholder"><font-awesome-icon icon="box" /></div>
             <div class="product-details">
               <span style="font-size: 0.8rem; color: #777;">Đang quan tâm:</span>
               <span style="font-weight: bold; color: #d70000; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">{{ currentProductContext }}</span>
             </div>
           </div>
 
-          <div class="date-divider"><span>Hôm nay</span></div>
+          <div class="date-divider"><span>{{ todayDateLabel }}</span></div>
 
           <div
               v-for="message in activeMessages"
@@ -101,12 +102,16 @@
 import { ref, onMounted, watch, nextTick, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuth } from '../utils/useAuth';
+import api from '../utils/api';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 
+// Fallback avatar - Data URI
+const FALLBACK_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="12" text-anchor="middle" dy=".3em"%3EUser%3C/text%3E%3C/svg%3E';
+
 const router = useRouter();
 const route = useRoute();
-const { isLoggedIn } = useAuth();
+const { isLoggedIn, user } = useAuth();
 
 const newMessage = ref('');
 const messageAreaRef = ref(null);
@@ -116,6 +121,7 @@ const activeTab = ref('all');
 const searchTerm = ref('');
 const allMessages = ref({});
 const currentProductContext = ref(null);
+const currentProductImage = ref(null);
 
 watch(isLoggedIn, (isNowLoggedIn) => {
   if (isNowLoggedIn === false) router.push('/');
@@ -128,6 +134,11 @@ const activeMessages = computed(() => {
   return allMessages.value[activeConversationId.value] || [];
 });
 
+// Dynamic date label
+const todayDateLabel = computed(() => {
+  return new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' });
+});
+
 const filteredConversations = computed(() => {
   return conversations.value.filter(convo => {
     const matchesTab = (activeTab.value === 'unread') ? convo.unread : true;
@@ -136,49 +147,89 @@ const filteredConversations = computed(() => {
   });
 });
 
-onMounted(() => {
-  // 1. Tải dữ liệu giả lập có sẵn
-  conversations.value = [
-    { id: 1, name: 'Cửa Hàng Giá Rẻ', preview: 'Sản phẩm này đã qua sử dụng chưa?', time: 'Vài giây trước', avatar: 'https://via.placeholder.com/40/007bff/fff?text=CH', unread: false },
-    { id: 2, name: 'Điện Thoại Vui', preview: 'Bạn có ship không?', time: '5 phút trước', avatar: 'https://via.placeholder.com/40/ffc107/fff?text=DT', unread: false },
-  ];
-  allMessages.value = {
-    1: [{ id: 101, text: 'Chào shop', type: 'sent' }, { id: 102, text: 'Chào bạn', type: 'received' }],
-    2: [{ id: 201, text: 'Ship Cod ko?', type: 'sent' }]
-  };
+onMounted(async () => {
+  // 1. Fetch conversations từ API
+  try {
+    const res = await api.get('/messages');
+    const rawData = res.data.data || res.data || [];
+    
+    // Group by user to create conversations
+    const userMap = new Map();
+    rawData.forEach(msg => {
+      const otherUserId = msg.sender_id === user.value?.id ? msg.receiver_id : msg.sender_id;
+      const otherUserName = msg.sender_id === user.value?.id ? msg.receiver?.name : msg.sender?.name;
+      const otherUserAvatar = msg.sender_id === user.value?.id ? msg.receiver?.avatar_url : msg.sender?.avatar_url;
+      
+      if (!userMap.has(otherUserId)) {
+        userMap.set(otherUserId, {
+          id: otherUserId,
+          name: otherUserName || 'Người dùng',
+          avatar: otherUserAvatar || FALLBACK_AVATAR,
+          preview: msg.content,
+          time: formatTimeAgo(msg.created_at),
+          unread: !msg.read_at && msg.receiver_id === user.value?.id
+        });
+      }
+    });
+    
+    conversations.value = Array.from(userMap.values());
+    
+    // Group messages by conversation
+    rawData.forEach(msg => {
+      const otherUserId = msg.sender_id === user.value?.id ? msg.receiver_id : msg.sender_id;
+      if (!allMessages.value[otherUserId]) {
+        allMessages.value[otherUserId] = [];
+      }
+      allMessages.value[otherUserId].push({
+        id: msg.id,
+        text: msg.content,
+        type: msg.sender_id === user.value?.id ? 'sent' : 'received'
+      });
+    });
+  } catch (e) {
+    console.error('Failed to fetch messages:', e);
+  }
 
   // 2. XỬ LÝ KHI CHUYỂN TỪ TRANG CHI TIẾT SẢN PHẨM
-  const { sellerId, sellerName, sellerAvatar, productName } = route.query;
+  const { sellerId, sellerName, sellerAvatar, productName, productImage } = route.query;
 
   if (sellerId) {
     if (productName) currentProductContext.value = productName;
+    if (productImage) currentProductImage.value = productImage;
 
-    // Tìm xem đã có cuộc hội thoại với người này chưa
     const existingConvo = conversations.value.find(c => c.id == sellerId);
 
     if (existingConvo) {
-      // Nếu có, chọn nó
       selectConversation(sellerId);
     } else {
-      // Nếu chưa, tạo mới
       const newConvo = {
         id: sellerId,
         name: sellerName || 'Người bán',
-        avatar: sellerAvatar || 'https://via.placeholder.com/40/4caf50/fff?text=NB', // Avatar mặc định nếu thiếu
+        avatar: sellerAvatar || FALLBACK_AVATAR,
         preview: productName ? `Quan tâm: ${productName}` : 'Bắt đầu trò chuyện',
         time: 'Vừa xong',
         unread: false
       };
 
       conversations.value.unshift(newConvo);
-      allMessages.value[sellerId] = []; // Tạo mảng tin nhắn trống
+      allMessages.value[sellerId] = [];
       selectConversation(sellerId);
     }
   } else if (conversations.value.length > 0) {
-    // Nếu vào trực tiếp trang chat, chọn cái đầu tiên
     selectConversation(conversations.value[0].id);
   }
 });
+
+// Helper format time
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+};
 
 const selectConversation = (id) => {
   activeConversationId.value = id;
@@ -194,12 +245,15 @@ const selectConversation = (id) => {
   scrollToBottom();
 };
 
-const sendMessage = (textToSend = null) => {
+const sendMessage = async (textToSend = null) => {
   const text = textToSend || newMessage.value;
   if (!text || text.trim() === '') return;
+  if (!activeConversationId.value) return;
 
+  // Optimistic update - show immediately
+  const tempId = Date.now();
   const newMsg = {
-    id: Date.now(),
+    id: tempId,
     text: text,
     type: 'sent',
   };
@@ -209,12 +263,32 @@ const sendMessage = (textToSend = null) => {
   }
   allMessages.value[activeConversationId.value].push(newMsg);
 
-  // Cập nhật preview
+  // Update preview
   const convo = conversations.value.find(c => c.id == activeConversationId.value);
-  if (convo) convo.preview = text;
+  if (convo) {
+    convo.preview = text;
+    convo.time = 'Vừa xong';
+  }
 
   newMessage.value = '';
   scrollToBottom();
+
+  // Call API to save message
+  try {
+    const res = await api.post('/messages', {
+      receiver_id: activeConversationId.value,
+      content: text
+    });
+    
+    // Update with real ID from server
+    const savedMsg = allMessages.value[activeConversationId.value].find(m => m.id === tempId);
+    if (savedMsg && res.data.data) {
+      savedMsg.id = res.data.data.id;
+    }
+  } catch (e) {
+    console.error('Failed to send message:', e);
+    // Mark as failed (optional: show error indicator)
+  }
 };
 
 const sendQuickReply = (text) => sendMessage(text);
@@ -267,7 +341,9 @@ const goToHome = () => router.push('/');
 .date-divider { text-align: center; font-size: 0.8rem; color: #888; margin: 0.5rem 0; }
 .product-info-card { display: flex; gap: 0.75rem; padding: 0.75rem; background: white; border-radius: 8px; border: 1px solid #eee; max-width: 350px; align-self: center; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 .product-image { width: 50px; height: 50px; border-radius: 4px; object-fit: cover; }
+.product-image-placeholder { width: 50px; height: 50px; border-radius: 4px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #888; font-size: 20px; }
 .product-details { font-size: 0.9rem; font-weight: 500; display: flex; flex-direction: column; justify-content: center; }
+.chat-header-subtitle { font-size: 0.8rem; color: #888; }
 .message { padding: 0.5rem 1rem; border-radius: 18px; max-width: 70%; width: fit-content; line-height: 1.4; }
 .message.received { background-color: #e9e9e9; align-self: flex-start; border-bottom-left-radius: 4px; }
 .message.sent { background-color: #fde8b1; color: #333; align-self: flex-end; border-bottom-right-radius: 4px; }

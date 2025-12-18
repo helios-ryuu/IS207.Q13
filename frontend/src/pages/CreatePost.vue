@@ -36,10 +36,7 @@ const categories = ref([])
 // File upload
 const photos = ref([])
 const photoURLs = ref([]) // Cached URLs
-const video = ref(null)
-const videoURL = ref('') // Cached URL
 const photoInput = ref(null)
-const videoInput = ref(null)
 
 // Address data (Giữ nguyên logic cũ của bạn vì Backend chưa có API địa chỉ)
 const cities = [
@@ -109,8 +106,7 @@ const getCategoryId = (name) => {
 }
 
 // Handlers
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB (Sửa lại cho khớp thông báo)
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
 
 const formatPrice = (e) => { 
   // Chỉ giữ lại số
@@ -156,26 +152,6 @@ const removePhoto = (i) => {
   photoURLs.value.splice(i, 1)
 }
 
-const handleVideoUpload = (e) => {
-  const file = e.target.files[0]
-  if (!file) return
-  
-  if (file.size > MAX_VIDEO_SIZE) {
-    showError('Video vượt quá 50MB')
-    return
-  }
-  if (videoURL.value) URL.revokeObjectURL(videoURL.value)
-  video.value = file
-  videoURL.value = URL.createObjectURL(file)
-}
-
-const removeVideo = () => {
-  if (videoURL.value) URL.revokeObjectURL(videoURL.value)
-  video.value = null
-  videoURL.value = ''
-  if (videoInput.value) videoInput.value.value = ''
-}
-
 const handleCategorySelect = (sel) => { category.value = sel; isCategoryModalOpen.value = false }
 
 const validateForm = () => {
@@ -199,13 +175,10 @@ const handleSubmit = async () => {
     // 1. Chuẩn bị dữ liệu Product
     // Chuyển giá từ string "5.000.000" về số int 5000000
     const rawPrice = parseInt(price.value.replace(/\./g, '').replace(/,/g, ''));
-    
-    // Gộp địa chỉ thành string (vì Backend chưa có bảng Address riêng cho Product)
-    const locationString = `${city.value === 'hcm' ? 'TP.HCM' : city.value}, ${district.value}`;
 
     const payload = {
       name: title.value,
-      description: description.value + `\n\n--- \nKhu vực: ${locationString} \nTình trạng: ${condition.value}`,
+      description: description.value, // Chỉ lưu mô tả thuần túy
       category_ids: [getCategoryId(category.value)], // Backend nhận mảng ID
       status: 'active', // Mặc định hiển thị luôn
       
@@ -267,7 +240,7 @@ const handleSubmit = async () => {
       <div class="card">
         <!-- Left: Upload -->
         <div class="upload-col">
-          <h2>Hình ảnh và Video</h2>
+          <h2>Hình ảnh sản phẩm</h2>
           
           <div v-if="photos.length < 6" class="upload-box" @click="$refs.photoInput.click()">
             <input ref="photoInput" type="file" accept="image/*" multiple hidden @change="handlePhotoUpload" />
@@ -279,16 +252,6 @@ const handleSubmit = async () => {
               <img :src="photoURLs[i]" />
               <button class="remove-btn" @click.stop="removePhoto(i)">×</button>
             </div>
-          </div>
-          
-          <div v-if="!video" class="upload-box" @click="$refs.videoInput.click()">
-            <input ref="videoInput" type="file" accept="video/*" hidden @change="handleVideoUpload" />
-            <span>Thêm video (tùy chọn, tối đa 50MB)</span>
-          </div>
-          
-          <div v-if="video" class="video-preview">
-            <video :src="videoURL" controls></video>
-            <button class="remove-btn" @click="removeVideo">Xóa video</button>
           </div>
         </div>
         
