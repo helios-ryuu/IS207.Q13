@@ -147,6 +147,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions', [TransactionController::class, 'index']);      // Xem danh sách
     Route::get('/transactions/{id}', [TransactionController::class, 'show']);  // Xem chi tiết
     Route::post('/transactions/verify', [TransactionController::class, 'verify']); // Xác thực
+
+    // --- SELLER ORDER MANAGEMENT ---
+    Route::prefix('seller')->group(function () {
+        Route::get('/orders', [OrderController::class, 'getSellerOrders']);           // Danh sách đơn bán
+        Route::put('/orders/{id}/accept', [OrderController::class, 'acceptOrder']);   // Chấp nhận đơn
+        Route::put('/orders/{id}/ship', [OrderController::class, 'shipOrder']);       // Giao cho vận chuyển
+        Route::put('/orders/{id}/cancel', [OrderController::class, 'sellerCancelOrder']); // Seller hủy đơn
+        Route::put('/orders/{id}/confirm-return', [OrderController::class, 'confirmReturn']); // Xác nhận hoàn hàng
+    });
 });
 
 // --- ADMIN ROUTES ---

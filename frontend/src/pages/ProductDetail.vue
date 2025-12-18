@@ -29,15 +29,6 @@
 
         <section class="product-info">
           <h1>{{ product?.name }}</h1>
-          
-          <div class="meta-row">
-            <div class="rating-box" v-if="product?.seller?.rating">
-               <span class="score">{{ product.seller.rating }}</span>
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffc107" stroke="none"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-            </div>
-            <span class="divider">|</span>
-            <span class="sold">Đã bán {{ product?.seller?.listings || 0 }}</span>
-          </div>
 
           <div class="price-section">
             <span class="price">{{ product?.priceDisplay }}</span>
@@ -59,25 +50,7 @@
             </div>
           </div>
 
-          <div class="price-range" v-if="product?.marketPrice">
-            <div class="price-range-header">
-              <strong>Khoảng giá tham khảo</strong>
-            </div>
-            <span>Dựa trên tin đăng tương tự</span>
-            <div class="range-bar-container">
-              <div class="range-tooltip" :style="{ left: product.marketPrice.position }">
-                {{ product.marketPrice.current }}
-                <div class="range-tooltip-arrow"></div>
-              </div>
-              <div class="range-bar-bg">
-                <div class="range-bar-active" :style="{ left: product.marketPrice.minPosition, right: product.marketPrice.maxPosition }"></div>
-              </div>
-              <div class="range-labels">
-                <span class="range-label-min">{{ product.marketPrice.min }}</span>
-                <span class="range-label-max">{{ product.marketPrice.max }}</span>
-              </div>
-            </div>
-          </div>
+
 
           <div class="action-buttons">
             <button class="btn-chat" @click="handleChat">
@@ -96,10 +69,12 @@
           </div>
 
           <div class="seller-info">
-            <img :src="product?.seller.avatar" class="seller-avatar" @click="goToSellerProfile" @error="handleUserAvatarError">
+            <div v-if="!product?.seller.avatar || product?.seller.avatar.startsWith('data:')" class="seller-avatar-letter" @click="goToSellerProfile">
+              {{ product?.seller.name ? product.seller.name.charAt(0).toUpperCase() : 'S' }}
+            </div>
+            <img v-else :src="product?.seller.avatar" class="seller-avatar" @click="goToSellerProfile" @error="handleUserAvatarError">
             <div class="seller-details">
               <strong @click="goToSellerProfile" style="cursor: pointer">{{ product?.seller.name }}</strong>
-              <span class="active-status">Hoạt động 5 phút trước</span>
             </div>
             <button class="btn-view-profile" @click="goToSellerProfile">Xem trang</button>
           </div>
@@ -213,7 +188,13 @@ const handleChat = () => {
   }
   router.push({
     path: '/chat',
-    query: { sellerId: product.value.seller.id, productName: product.value.name }
+    query: { 
+      sellerId: product.value.seller.id, 
+      sellerName: product.value.seller.name,
+      sellerAvatar: product.value.seller.avatar,
+      productName: product.value.name,
+      productImage: product.value.image
+    }
   });
 };
 
@@ -338,20 +319,14 @@ const mapProductFromApi = (data) => {
     images: images,
     seller: {
       id: data.seller?.id || 0,
-      name: data.seller?.name || data.seller?.username || 'Shop VietMarket',
-      avatar: getImageUrl(data.seller?.avatar, FALLBACK_AVATAR),
-      listings: 10, rating: 5.0, reviews: 100
-    },
-    marketPrice: {
-      min: formatPrice(data.price_range?.min) + ' đ',
-      max: formatPrice(data.price_range?.max) + ' đ',
-      current: displayPrice,
-      position: '50%', minPosition: '20%', maxPosition: '20%'
+      name: data.seller?.name || data.seller?.full_name || data.seller?.username || 'Người bán',
+      avatar: getImageUrl(data.seller?.avatar || data.seller?.avatar_url, FALLBACK_AVATAR)
     },
     detailedDescription: data.description || 'Chưa có mô tả chi tiết.',
     specs: [
       { label: 'Tình trạng:', value: data.status === 'active' ? 'Còn hàng' : 'Hết hàng' },
-      { label: 'Màu sắc:', value: firstVariant.color || 'N/A' }
+      { label: 'Màu sắc:', value: firstVariant.color || 'N/A' },
+      { label: 'Kích cỡ:', value: firstVariant.size || 'N/A' }
     ],
     comments: []
   };
@@ -463,7 +438,8 @@ onMounted(() => { fetchProductDetail(); });
 
 /* Seller Info */
 .seller-info { display: flex; align-items: center; gap: 12px; padding: 16px; background: #f8f9fa; border-radius: 8px; }
-.seller-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+.seller-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; cursor: pointer; }
+.seller-avatar-letter { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; cursor: pointer; }
 .seller-details { flex: 1; }
 .seller-details strong { display: block; color: #333; }
 .active-status { font-size: 0.8rem; color: #28a745; }

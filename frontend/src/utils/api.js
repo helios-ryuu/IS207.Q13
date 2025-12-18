@@ -1,7 +1,14 @@
 import axios from 'axios'
 
+// Backend apiPrefix is '' in bootstrap/app.php, so no /api suffix needed
+const getBaseURL = () => {
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  // Remove trailing slash if present
+  return url.replace(/\/+$/, '')
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'

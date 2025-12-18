@@ -12,22 +12,19 @@
       <div class="seller-header-card" v-if="seller.id">
         <div class="seller-info-left">
           <div class="avatar-wrapper">
-            <img :src="seller.avatar" :alt="seller.name" class="seller-avatar">
-            <span class="status-dot online"></span>
+            <div v-if="!seller.avatar" class="seller-avatar-letter">
+              {{ seller.name ? seller.name.charAt(0).toUpperCase() : 'U' }}
+            </div>
+            <img v-else :src="seller.avatar" :alt="seller.name" class="seller-avatar">
           </div>
           <div class="seller-basic">
             <h1 class="seller-name">{{ seller.name }}</h1>
             <div class="seller-meta">
-              <span class="active-time">Hoạt động gần đây</span>
+              <span class="active-time">Thành viên từ {{ seller.joinDate }}</span>
             </div>
             <div class="seller-actions">
               <button class="btn-chat" @click="handleChat">
                 <font-awesome-icon icon="comment" /> Chat ngay
-              </button>
-              <!-- Nút theo dõi (Logic này cần API User Follow, tạm thời để giao diện) -->
-              <button class="btn-follow" @click="handleFollow">
-                <span v-if="isFollowing">Đang theo dõi</span>
-                <span v-else>+ Theo dõi</span>
               </button>
             </div>
           </div>
@@ -35,19 +32,16 @@
 
         <div class="seller-stats-right">
           <div class="stat-item">
-            <strong>{{ seller.rating || 5.0 }} <span style="color:#ffc107">★</span></strong>
-            <span>Đánh giá</span>
-          </div>
-          <div class="stat-item">
-            <strong>{{ seller.followerCount || 0 }}</strong>
-            <span>Người theo dõi</span>
+            <strong v-if="seller.rating > 0">{{ seller.rating.toFixed(1) }} <span style="color:#ffc107">★</span></strong>
+            <strong v-else style="font-size: 0.9rem; color: #888;">Chưa có</strong>
+            <span>Đánh giá{{ seller.reviewCount > 0 ? ` (${seller.reviewCount})` : '' }}</span>
           </div>
           <div class="stat-item">
             <strong>{{ listings.length }}</strong>
             <span>Tin đang bán</span>
           </div>
           <div class="stat-item">
-            <strong>{{ seller.joinDate || 'Mới tham gia' }}</strong>
+            <strong>{{ seller.joinDate }}</strong>
             <span>Tham gia</span>
           </div>
         </div>
@@ -101,22 +95,27 @@ const route = useRoute();
 const router = useRouter();
 
 const loading = ref(false);
-const isFollowing = ref(false);
 
 const seller = ref({
   id: 0,
   name: '',
-  avatar: 'https://via.placeholder.com/100?text=U',
-  rating: 5.0,
-  followerCount: 0,
-  joinDate: ''
+  avatar: null,
+  joinDate: '',
+  rating: 0,
+  reviewCount: 0
 });
 
 const listings = ref([]);
 
+// Fallback images - Data URI 
+const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="14" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+
 // Helper xử lý ảnh
 const getImageUrl = (url) => {
-  if (!url) return 'https://via.placeholder.com/200?text=No+Image';
+  if (!url) return FALLBACK_IMAGE;
+  if (url.startsWith('http://localhost/')) {
+    return url.replace('http://localhost/', 'http://localhost:8000/');
+  }
   if (url.startsWith('http')) return url;
   return `http://localhost:8000${url}`;
 };
@@ -152,17 +151,33 @@ const fetchShopData = async () => {
     // 2. Lấy thông tin Seller từ sản phẩm đầu tiên (nếu có)
     if (rawData.length > 0) {
       const firstItem = rawData[0];
+      const createdDate = firstItem.created_at ? new Date(firstItem.created_at) : new Date();
+      const formattedDate = createdDate.toLocaleDateString('vi-VN'); // DD/MM/YYYY
+      
       seller.value = {
         id: firstItem.seller?.id,
-        name: firstItem.seller?.name || 'Người dùng',
-        avatar: getImageUrl(firstItem.seller?.avatar),
-        rating: 4.8, // Mock
-        followerCount: 10, // Mock
-        joinDate: '2023' // Mock
+        name: firstItem.seller?.name || firstItem.seller?.full_name || 'Người bán',
+        avatar: firstItem.seller?.avatar_url || firstItem.seller?.avatar || null,
+        joinDate: formattedDate,
+        rating: 0,
+        reviewCount: 0
       };
+      
+      // 3. Lấy đánh giá của seller
+      try {
+        const reviewRes = await api.get(`/sellers/${sellerId}/reviews`);
+        const reviews = reviewRes.data.data || [];
+        if (reviews.length > 0) {
+          const totalRating = reviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+          seller.value.rating = totalRating / reviews.length;
+          seller.value.reviewCount = reviews.length;
+        }
+      } catch (e) {
+        console.log('No reviews found');
+      }
     } else {
-      // Nếu Seller chưa có bài đăng nào -> Cần gọi API GET User info riêng
-      // Nhưng hiện tại chưa có API đó, nên tạm thời để thông tin trống hoặc mock
+      // Nếu Seller chưa có bài đăng nào
+      seller.value.id = sellerId;
       seller.value.name = 'Người dùng #' + sellerId;
     }
 
@@ -185,10 +200,7 @@ const handleChat = () => {
   });
 };
 
-const handleFollow = () => {
-  isFollowing.value = !isFollowing.value;
-  // TODO: Gọi API Follow
-};
+
 
 // Watch ID thay đổi (khi bấm vào seller khác từ trang này)
 watch(() => route.params.id, (newId) => {
@@ -210,6 +222,7 @@ onMounted(() => {
 .seller-info-left { display: flex; gap: 20px; align-items: center; }
 .avatar-wrapper { position: relative; }
 .seller-avatar { width: 80px; height: 80px; border-radius: 50%; border: 1px solid #eee; object-fit: cover; }
+.seller-avatar-letter { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 32px; }
 .status-dot { width: 14px; height: 14px; background-color: #4caf50; border: 2px solid white; border-radius: 50%; position: absolute; bottom: 5px; right: 5px; }
 .seller-basic { display: flex; flex-direction: column; gap: 8px; }
 .seller-name { font-size: 1.5rem; font-weight: bold; margin: 0; }

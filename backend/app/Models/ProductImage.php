@@ -52,12 +52,14 @@ class ProductImage extends Model
             return "https://storage.googleapis.com/{$bucket}/{$path}";
         }
 
-        // Local: ensure it starts with /storage/
+        // Local: return ABSOLUTE URL with APP_URL
+        $baseUrl = config('app.url', 'http://localhost:8000');
+
         if (str_starts_with($url, '/storage/')) {
-            return $url;
+            return $baseUrl . $url;
         }
 
-        return '/storage/' . ltrim($url, '/');
+        return $baseUrl . '/storage/' . ltrim($url, '/');
     }
 
     // Relationships

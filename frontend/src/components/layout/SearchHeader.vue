@@ -117,7 +117,10 @@
           <template v-else>
             <router-link to="/manage-posts" class="manage-btn">Quản lý tin</router-link>
             <div class="avatar-wrapper" @click.stop="toggleUserMenu">
-              <img :src="user?.avatar_url || '/avatar.jpg'" alt="Avatar" class="avatar">
+              <div v-if="!user?.avatar_url" class="avatar-letter">
+                {{ user?.name ? user.name.charAt(0).toUpperCase() : 'U' }}
+              </div>
+              <img v-else :src="user.avatar_url" alt="Avatar" class="avatar">
               <font-awesome-icon icon="chevron-down" class="arrow-small" />
               <div v-if="isUserMenuOpen" class="user-dropdown">
                 <router-link to="/profile">Trang cá nhân</router-link>
@@ -306,7 +309,8 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
 .login-btn { background-color: #f5a623; color: black; }
 .register-btn { background-color: #eee; color: #333; }
 .avatar-wrapper { position: relative; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
-.avatar { width: 36px; height: 36px; border-radius: 50%; background-color: #6f42c1; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background-color: #6f42c1; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.2); object-fit: cover; }
+.avatar-letter { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.2); }
 .arrow-small { font-size: 0.8rem; }
 .user-dropdown { position: absolute; top: 120%; right: 0; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); padding: 0.5rem; width: 200px; z-index: 100; display: flex; flex-direction: column; }
 .user-dropdown a, .user-dropdown button { padding: 0.75rem 1rem; border: none; background: none; text-align: left; cursor: pointer; border-radius: 4px; text-decoration: none; color: #333; font-size: 14px; }

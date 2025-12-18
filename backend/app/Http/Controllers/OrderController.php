@@ -20,15 +20,15 @@ class OrderController extends Controller
 
     // 1. POST /api/orders (Tạo đơn)
     // Thay Request thường bằng CreateOrderRequest
-    public function store(CreateOrderRequest $request) 
+    public function store(CreateOrderRequest $request)
     {
         try {
             $userId = Auth::id();
             // $request->validated() sẽ trả về dữ liệu đã được kiểm tra (tên, sđt, địa chỉ...)
             $order = $this->orderService->createOrder($userId, $request->validated());
-            
+
             return response()->json([
-                'status' => 'success', 
+                'status' => 'success',
                 'message' => 'Đặt hàng thành công!',
                 'data' => new OrderResource($order)
             ], 201);
@@ -83,17 +83,82 @@ class OrderController extends Controller
     }
 
     // 6. GET /api/seller/orders (Danh sách đơn bán)
-    public function getSellerOrders()
+    public function getSellerOrders(Request $request)
     {
         try {
-            $sellerId = Auth::id(); // Lấy ID người đang đăng nhập
-            $orders = $this->orderService->getSellerOrders($sellerId);
-            
-            // Tái sử dụng OrderResource hoặc trả về dữ liệu gốc
-            // Ở đây mình trả về dạng Resource collection cho chuẩn
+            $sellerId = Auth::id();
+            $status = $request->query('status'); // Filter by status if provided
+            $orders = $this->orderService->getSellerOrders($sellerId, $status);
+
             return response()->json([
-                'status' => 'success', 
+                'status' => 'success',
                 'data' => OrderResource::collection($orders)
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 7. PUT /api/seller/orders/{id}/accept - Chấp nhận đơn hàng
+    public function acceptOrder($id)
+    {
+        try {
+            $sellerId = Auth::id();
+            $order = $this->orderService->acceptOrder($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã chấp nhận đơn hàng',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 8. PUT /api/seller/orders/{id}/ship - Chuyển sang vận chuyển
+    public function shipOrder($id)
+    {
+        try {
+            \Log::info("Ship order request received for ID: $id");
+            $sellerId = Auth::id();
+            $order = $this->orderService->shipOrder($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã chuyển đơn hàng sang vận chuyển',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            \Log::error("Ship order failed: " . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 9. PUT /api/seller/orders/{id}/cancel - Seller hủy đơn
+    public function sellerCancelOrder($id)
+    {
+        try {
+            $sellerId = Auth::id();
+            $order = $this->orderService->sellerCancelOrder($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã hủy đơn hàng',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 10. PUT /api/seller/orders/{id}/confirm-return - Xác nhận hoàn hàng
+    public function confirmReturn($id)
+    {
+        try {
+            $sellerId = Auth::id();
+            $order = $this->orderService->confirmReturn($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã xác nhận hoàn hàng và hoàn tiền',
+                'data' => new OrderResource($order)
             ]);
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
