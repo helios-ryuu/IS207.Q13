@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers;
 
+
+use App\Models\Order;
+use App\Models\Wallet;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\DB;
 use App\Services\OrderService;
 use App\Http\Resources\OrderResource;
 use App\Http\Requests\CreateOrderRequest; // <--- Import Request mới
@@ -71,17 +76,62 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|string|in:pending,confirmed,processing,shipped,delivered,cancelled,refunded'
+            'status' => 'required|string|in:pending,confirmed,processing,shipped,delivered,completed,cancelled,refunded'
         ]);
 
+        DB::beginTransaction(); // Bắt đầu giao dịch bảo đảm an toàn
         try {
-            $this->orderService->updateStatus($id, $request->status);
+            $order = Order::findOrFail($id);
+            $oldStatus = $order->status;
+            $newStatus = $request->status;
+
+            // 1. Cập nhật trạng thái đơn hàng
+            // (Nếu Service của bạn chỉ update status đơn giản thì giữ dòng này, 
+            // nếu không hãy dùng $order->update(['status' => $newStatus]);)
+            $this->orderService->updateStatus($id, $newStatus);
+
+            // 2. LOGIC MỚI: Cộng tiền cho Seller khi đơn hoàn tất
+            if ($newStatus === 'completed' && $oldStatus !== 'completed') {
+                
+                // Lấy Seller từ sản phẩm đầu tiên trong đơn
+                // (Giả định chi tiết đơn nằm trong quan hệ 'details' và product có 'user_id')
+                $firstDetail = $order->details->first(); // Hoặc $order->orderDetails->first() tùy model của bạn
+                $sellerId = $firstDetail ? $firstDetail->product->user_id : null;
+
+                if ($sellerId) {
+                    // Tìm ví của seller (hoặc tạo mới nếu chưa có)
+                    $wallet = Wallet::firstOrCreate(
+                        ['user_id' => $sellerId],
+                        ['balance' => 0, 'status' => 'active']
+                    );
+
+                    // Cộng tiền (Ví dụ: Trừ 5% phí sàn, Seller nhận 95%)
+                    $income = $order->total_amount; 
+                    // $income = $order->total_amount * 0.95; // Nếu muốn trừ phí
+
+                    $wallet->balance += $income;
+                    $wallet->save();
+
+                    // Lưu lịch sử biến động số dư
+                    Transaction::create([
+                        'order_id' => $order->id, // Gắn với đơn hàng
+                        'amount' => $income,      // Số dương = tiền vào
+                        'payment_method' => 'system',
+                        'status' => 'completed',
+                        'transaction_code' => 'INCOME_' . $order->id,
+                        'transaction_date' => now(),
+                        // 'user_id' => $sellerId, // Bỏ comment nếu bảng transaction có cột user_id
+                    ]);
+                }
+            }
+
+            DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Cập nhật trạng thái thành công']);
         } catch (Exception $e) {
+            DB::rollBack();
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }
-
     // 6. GET /api/seller/orders (Danh sách đơn bán)
     public function getSellerOrders()
     {
@@ -99,4 +149,6 @@ class OrderController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }
+
+    
 }

@@ -20,7 +20,7 @@ import SellerProfile from '../pages/SellerProfile.vue';
 import SupportPage from '../pages/SupportPage.vue';
 import Cart from '../pages/Cart.vue';
 import Checkout from '../pages/Checkout.vue';
-
+import Wallet from '../pages/Wallet.vue';
 const routes = [
     {
         path: '/',
@@ -141,7 +141,14 @@ const routes = [
         name: 'Checkout',
         component: Checkout,
         meta: { requiresAuth: true }
-    }
+    },
+
+    {
+    path: '/wallet',
+    name: 'Wallet',
+    component: Wallet,
+    meta: { requiresAuth: true } // Yêu cầu đăng nhập
+}
 ]
 
 const router = createRouter({

@@ -121,6 +121,7 @@
               <font-awesome-icon icon="chevron-down" class="arrow-small" />
               <div v-if="isUserMenuOpen" class="user-dropdown">
                 <router-link to="/profile">Trang cá nhân</router-link>
+                <router-link to="/wallet" class="dropdown-item">Ví của tôi</router-link>
                 <router-link to="/purchase-orders" class="dropdown-item">Quản lý đơn mua</router-link>
                 <router-link to="/sales-orders" class="dropdown-item">Quản lý đơn bán</router-link>
                 <router-link v-if="user && user.role === 'admin'" to="/admin">Admin</router-link>

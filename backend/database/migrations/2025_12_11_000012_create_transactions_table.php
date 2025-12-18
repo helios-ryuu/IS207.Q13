@@ -10,7 +10,13 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('order_id')->constrained('orders')->onDelete('restrict');
+            
+            // [MỚI] Thêm user_id để biết giao dịch Nạp/Rút là của ai
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+
+            // [SỬA] Thêm ->nullable() vì Nạp/Rút tiền không gắn với đơn hàng nào cả
+            $table->foreignId('order_id')->nullable()->constrained('orders')->onDelete('restrict');
+            
             $table->decimal('amount', 15, 2);
             $table->enum('payment_method', ['cash', 'bank_transfer', 'wallet', 'credit_card']);
             $table->enum('status', ['pending', 'completed', 'failed', 'refunded'])->default('pending');
