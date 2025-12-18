@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
-
+use App\Services\OrderService;
+use App\Http\Resources\OrderResource;
+use App\Http\Requests\CreateOrderRequest;
 use App\Models\Order;
 use App\Models\Wallet;
 use App\Models\Transaction;
-use Illuminate\Support\Facades\DB;
-use App\Services\OrderService;
-use App\Http\Resources\OrderResource;
-use App\Http\Requests\CreateOrderRequest; // <--- Import Request mới
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Exception;
 
 class OrderController extends Controller
@@ -24,16 +23,14 @@ class OrderController extends Controller
     }
 
     // 1. POST /api/orders (Tạo đơn)
-    // Thay Request thường bằng CreateOrderRequest
-    public function store(CreateOrderRequest $request) 
+    public function store(CreateOrderRequest $request)
     {
         try {
             $userId = Auth::id();
-            // $request->validated() sẽ trả về dữ liệu đã được kiểm tra (tên, sđt, địa chỉ...)
             $order = $this->orderService->createOrder($userId, $request->validated());
             
             return response()->json([
-                'status' => 'success', 
+                'status' => 'success',
                 'message' => 'Đặt hàng thành công!',
                 'data' => new OrderResource($order)
             ], 201);
@@ -43,7 +40,7 @@ class OrderController extends Controller
         }
     }
 
-    // ... Giữ nguyên các hàm index, show, cancel, updateStatus ...
+    // 2. GET /api/orders (Danh sách đơn mua)
     public function index()
     {
         $userId = Auth::id();
@@ -51,6 +48,7 @@ class OrderController extends Controller
         return response()->json(['status' => 'success', 'data' => OrderResource::collection($orders)]);
     }
 
+    // 3. GET /api/orders/{id} (Chi tiết đơn hàng)
     public function show($id)
     {
         try {
@@ -62,6 +60,7 @@ class OrderController extends Controller
         }
     }
 
+    // 4. PUT /api/orders/{id}/cancel (Hủy đơn mua)
     public function cancel($id)
     {
         try {
@@ -73,54 +72,47 @@ class OrderController extends Controller
         }
     }
 
+    // 5. PUT /api/orders/{id}/status (Cập nhật trạng thái & Cộng tiền ví)
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
             'status' => 'required|string|in:pending,confirmed,processing,shipped,delivered,completed,cancelled,refunded'
         ]);
 
-        DB::beginTransaction(); // Bắt đầu giao dịch bảo đảm an toàn
+        DB::beginTransaction();
         try {
             $order = Order::findOrFail($id);
             $oldStatus = $order->status;
             $newStatus = $request->status;
 
-            // 1. Cập nhật trạng thái đơn hàng
-            // (Nếu Service của bạn chỉ update status đơn giản thì giữ dòng này, 
-            // nếu không hãy dùng $order->update(['status' => $newStatus]);)
+            // 1. Cập nhật trạng thái
             $this->orderService->updateStatus($id, $newStatus);
 
-            // 2. LOGIC MỚI: Cộng tiền cho Seller khi đơn hoàn tất
+            // 2. LOGIC VÍ: Cộng tiền cho Seller khi đơn hoàn tất
             if ($newStatus === 'completed' && $oldStatus !== 'completed') {
                 
-                // Lấy Seller từ sản phẩm đầu tiên trong đơn
-                // (Giả định chi tiết đơn nằm trong quan hệ 'details' và product có 'user_id')
-                $firstDetail = $order->details->first(); // Hoặc $order->orderDetails->first() tùy model của bạn
+                $firstDetail = $order->details->first(); 
                 $sellerId = $firstDetail ? $firstDetail->product->user_id : null;
 
                 if ($sellerId) {
-                    // Tìm ví của seller (hoặc tạo mới nếu chưa có)
                     $wallet = Wallet::firstOrCreate(
                         ['user_id' => $sellerId],
                         ['balance' => 0, 'status' => 'active']
                     );
 
-                    // Cộng tiền (Ví dụ: Trừ 5% phí sàn, Seller nhận 95%)
                     $income = $order->total_amount; 
-                    // $income = $order->total_amount * 0.95; // Nếu muốn trừ phí
-
                     $wallet->balance += $income;
                     $wallet->save();
 
-                    // Lưu lịch sử biến động số dư
                     Transaction::create([
-                        'order_id' => $order->id, // Gắn với đơn hàng
-                        'amount' => $income,      // Số dương = tiền vào
-                        'payment_method' => 'system',
+                        'user_id' => $sellerId,
+                        'order_id' => $order->id,
+                        'amount' => $income,
+                        'payment_method' => 'wallet', // system/wallet
                         'status' => 'completed',
-                        'transaction_code' => 'INCOME_' . $order->id,
+                        'transaction_code' => 'INC_' . $order->id . '_' . time(),
                         'transaction_date' => now(),
-                        // 'user_id' => $sellerId, // Bỏ comment nếu bảng transaction có cột user_id
+                        'response_data' => json_encode(['note' => 'Doanh thu bán hàng']),
                     ]);
                 }
             }
@@ -132,15 +124,15 @@ class OrderController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }
-    // 6. GET /api/seller/orders (Danh sách đơn bán)
-    public function getSellerOrders()
+
+    // 6. GET /api/seller/orders (Danh sách đơn bán - Có filter)
+    public function getSellerOrders(Request $request)
     {
         try {
-            $sellerId = Auth::id(); // Lấy ID người đang đăng nhập
-            $orders = $this->orderService->getSellerOrders($sellerId);
-            
-            // Tái sử dụng OrderResource hoặc trả về dữ liệu gốc
-            // Ở đây mình trả về dạng Resource collection cho chuẩn
+            $sellerId = Auth::id();
+            $status = $request->query('status'); // Filter by status if provided
+            $orders = $this->orderService->getSellerOrders($sellerId, $status);
+
             return response()->json([
                 'status' => 'success', 
                 'data' => OrderResource::collection($orders)
@@ -150,5 +142,71 @@ class OrderController extends Controller
         }
     }
 
-    
+    // --- CÁC HÀM MỚI TỪ NHÁNH MAIN (MERGE VÀO) ---
+
+    // 7. PUT /api/seller/orders/{id}/accept - Chấp nhận đơn hàng
+    public function acceptOrder($id)
+    {
+        try {
+            $sellerId = Auth::id();
+            $order = $this->orderService->acceptOrder($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã chấp nhận đơn hàng',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 8. PUT /api/seller/orders/{id}/ship - Chuyển sang vận chuyển
+    public function shipOrder($id)
+    {
+        try {
+            \Log::info("Ship order request received for ID: $id");
+            $sellerId = Auth::id();
+            $order = $this->orderService->shipOrder($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã chuyển đơn hàng sang vận chuyển',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            \Log::error("Ship order failed: " . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 9. PUT /api/seller/orders/{id}/cancel - Seller hủy đơn
+    public function sellerCancelOrder($id)
+    {
+        try {
+            $sellerId = Auth::id();
+            $order = $this->orderService->sellerCancelOrder($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã hủy đơn hàng',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 10. PUT /api/seller/orders/{id}/confirm-return - Xác nhận hoàn hàng
+    public function confirmReturn($id)
+    {
+        try {
+            $sellerId = Auth::id();
+            $order = $this->orderService->confirmReturn($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đã xác nhận hoàn hàng và hoàn tiền',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
 }

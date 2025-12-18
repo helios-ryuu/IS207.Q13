@@ -98,7 +98,10 @@
           <template v-else>
             <router-link to="/manage-posts" class="manage-btn">Quản lý tin</router-link>
             <div class="avatar-wrapper" @click.stop="toggleUserMenu">
-              <img :src="user?.avatar_url || '/avatar.jpg'" alt="Avatar" class="avatar">
+              <div v-if="!user?.avatar_url" class="avatar-letter">
+                {{ user?.name ? user.name.charAt(0).toUpperCase() : 'U' }}
+              </div>
+              <img v-else :src="user.avatar_url" alt="Avatar" class="avatar">
               <font-awesome-icon icon="chevron-down" class="arrow-small" />
               <div v-if="isUserMenuOpen" class="user-dropdown">
                 <router-link to="/profile">Trang cá nhân</router-link>
@@ -404,6 +407,21 @@ onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside
   height: 36px;
   border-radius: 50%;
   background-color: #6f42c1;
+  border: 2px solid white;
+  box-shadow: 0 0 5px rgba(0,0,0,0.2);
+  object-fit: cover;
+}
+.avatar-letter {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
   border: 2px solid white;
   box-shadow: 0 0 5px rgba(0,0,0,0.2);
 }
