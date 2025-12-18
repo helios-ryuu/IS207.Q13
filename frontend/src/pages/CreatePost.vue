@@ -175,13 +175,10 @@ const handleSubmit = async () => {
     // 1. Chuẩn bị dữ liệu Product
     // Chuyển giá từ string "5.000.000" về số int 5000000
     const rawPrice = parseInt(price.value.replace(/\./g, '').replace(/,/g, ''));
-    
-    // Gộp địa chỉ thành string (vì Backend chưa có bảng Address riêng cho Product)
-    const locationString = `${city.value === 'hcm' ? 'TP.HCM' : city.value}, ${district.value}`;
 
     const payload = {
       name: title.value,
-      description: description.value + `\n\n--- \nKhu vực: ${locationString} \nTình trạng: ${condition.value}`,
+      description: description.value, // Chỉ lưu mô tả thuần túy
       category_ids: [getCategoryId(category.value)], // Backend nhận mảng ID
       status: 'active', // Mặc định hiển thị luôn
       

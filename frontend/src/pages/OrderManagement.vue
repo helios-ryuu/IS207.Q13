@@ -49,10 +49,6 @@
           <div class="card-header">
             <div class="shop-info">
               <span class="shop-name">{{ order.shopName }}</span>
-              <button class="btn-chat" @click="contactSeller(order)">
-                <font-awesome-icon icon="comments" /> Chat
-              </button>
-              
               <button class="btn-view-shop" @click="visitShop(order)">
                 <font-awesome-icon icon="store" /> Xem Shop
               </button>
@@ -74,7 +70,10 @@
                 <span class="meta-item">Giá: <strong>{{ order.price }}</strong></span>
               </div>
               <div class="seller-wrapper">
-                <img :src="order.sellerAvatar" class="seller-avatar" @error="handleAvatarError">
+                <div v-if="!order.sellerAvatar" class="seller-avatar-letter">
+                  {{ order.sellerName ? order.sellerName.charAt(0).toUpperCase() : 'S' }}
+                </div>
+                <img v-else :src="order.sellerAvatar" class="seller-avatar" @error="handleAvatarError">
                 <span>{{ order.sellerName }}</span>
               </div>
             </div>
@@ -91,17 +90,14 @@
             <div class="action-buttons">
               
               <template v-if="order.statusId === 'pending'">
-                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ</button>
                 <button class="btn btn-outline-danger" @click="cancelOrder(order.id)">Hủy Đơn</button>
               </template>
 
               <template v-else-if="order.statusId === 'shipping'">
-                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ</button>
                 <button class="btn btn-disabled" disabled>Đang vận chuyển</button>
               </template>
 
               <template v-else-if="order.statusId === 'delivering'">
-                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ</button>
                 <button class="btn btn-primary" @click="confirmReceived(order.id)">Đã Nhận Hàng</button>
               </template>
 
@@ -122,7 +118,7 @@
               </template>
 
               <template v-else>
-                <button class="btn btn-default" @click="contactSeller(order)">Liên hệ người bán</button>
+                <button class="btn btn-default" @click="visitShop(order)">Xem Shop</button>
               </template>
 
             </div>
@@ -166,12 +162,15 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 import api from '../utils/api'; // Sử dụng API thật
 import { getImageUrl } from '../utils/imageUrl';
+
+const { proxy } = getCurrentInstance();
+const $toast = proxy.$toast;
 
 const router = useRouter();
 const goToHome = () => router.push('/');
@@ -240,8 +239,10 @@ const fetchOrders = async () => {
       return {
         id: order.id,
         trackingCode: order.tracking_code,
-        shopName: 'VietMarket Shop', 
-        productName: displayName,
+        shopName: firstItem.seller_name || 'Shop VietMarket', 
+        shopId: firstItem.seller_id,
+        productId: firstItem.product_id,
+        productName: firstItem.product_name || displayName,
         variant: firstItem.variant || '',
         category: 'Tổng hợp',
         
@@ -252,9 +253,9 @@ const fetchOrders = async () => {
         price: displayPrice,      
         totalPrice: displayPrice, 
         
-        image: getImageUrl(firstItem.image || 'default.jpg'),
-        sellerAvatar: '/avatar.jpg',
-        sellerName: 'Shop'
+        image: firstItem.image || null,
+        sellerAvatar: firstItem.seller_avatar || null,
+        sellerName: firstItem.seller_name || 'Người bán'
       };
     });
   } catch (error) {
@@ -265,19 +266,21 @@ const fetchOrders = async () => {
 };
 
 // 2. Hủy đơn hàng (API Thật)
+// 2. Hủy đơn hàng (API Thật)
 const cancelOrder = async (orderId) => {
   if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return;
   
   try {
     await api.post(`/orders/${orderId}/cancel`);
-    alert('Đã hủy đơn hàng thành công');
+    $toast.success('Đã hủy đơn hàng thành công');
     await fetchOrders(); // Load lại danh sách
   } catch (error) {
     console.error("Lỗi hủy đơn:", error);
-    alert(error.response?.data?.message || 'Không thể hủy đơn hàng này');
+    $toast.error(error.response?.data?.message || 'Không thể hủy đơn hàng này');
   }
 };
 
+// 3. Xác nhận đã nhận hàng (API Thật - Cần backend hỗ trợ PUT status)
 // 3. Xác nhận đã nhận hàng (API Thật - Cần backend hỗ trợ PUT status)
 const confirmReceived = async (orderId) => {
   if (!confirm('Bạn xác nhận đã nhận được hàng và hài lòng với sản phẩm?')) return;
@@ -285,11 +288,11 @@ const confirmReceived = async (orderId) => {
     // Gọi API update status thành completed (Nếu backend cho phép User update)
     // Nếu backend chưa có, bạn cần báo backend mở quyền này cho user
     await api.put(`/orders/${orderId}/status`, { status: 'completed' });
-    alert('Cảm ơn bạn đã mua hàng!');
+    $toast.success('Cảm ơn bạn đã mua hàng!');
     await fetchOrders();
   } catch (error) {
     console.error("Lỗi xác nhận:", error);
-    alert('Có lỗi xảy ra, vui lòng thử lại sau.');
+    $toast.error('Có lỗi xảy ra, vui lòng thử lại sau.');
   }
 };
 
@@ -338,13 +341,28 @@ const getDeliveryStatusText = (status) => {
 };
 
 // --- CÁC HÀM ĐIỀU HƯỚNG ---
-const visitShop = (order) => alert("Tính năng đang phát triển");
-const buyAgain = (order) => alert("Tính năng đang phát triển");
-const contactSeller = (order) => alert("Tính năng Chat đang phát triển");
+const visitShop = (order) => {
+  if (order.shopId) {
+    router.push({ name: 'SellerProfile', params: { id: order.shopId } });
+  } else {
+    alert('Không tìm thấy thông tin người bán');
+  }
+};
+const buyAgain = (order) => {
+  if (order.productId) {
+    router.push({ path: `/product/${order.productId}` });
+  } else {
+    alert('Không tìm thấy sản phẩm');
+  }
+};
 
 // --- MODAL & ACTION LOGIC (UI từ Main) ---
-const handleImageError = (e) => { e.target.src = "https://via.placeholder.com/150?text=No+Image"; };
-const handleAvatarError = (e) => { e.target.src = "https://via.placeholder.com/50?text=User"; };
+// Fallback images - Data URI
+const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="12" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+const FALLBACK_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="10" text-anchor="middle" dy=".3em"%3EUser%3C/text%3E%3C/svg%3E';
+
+const handleImageError = (e) => { if (!e.target.src.startsWith('data:')) e.target.src = FALLBACK_IMAGE; };
+const handleAvatarError = (e) => { if (!e.target.src.startsWith('data:')) e.target.src = FALLBACK_AVATAR; };
 
 // Logic Đánh giá (Frontend Mockup - chưa gọi API thật vì chưa có endpoint rating)
 const checkIfRated = (orderId) => ratedOrderIds.value.includes(orderId);
@@ -455,7 +473,8 @@ onMounted(() => {
 .update-time { color: #0055aa; font-weight: 500; }
 
 .seller-wrapper { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.9rem; color: #555; }
-.seller-avatar { width: 24px; height: 24px; border-radius: 50%; }
+.seller-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.seller-avatar-letter { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
 .product-price { font-size: 1.1rem; color: #0055aa; font-weight: 700; }
 
 /* Footer & Buttons */

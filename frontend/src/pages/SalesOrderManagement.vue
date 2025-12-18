@@ -41,7 +41,7 @@
       </div>
 
       <div v-if="isLoading" class="loading-state">
-        <p>Đang khởi tạo dữ liệu mẫu...</p>
+        <p>Đang tải dữ liệu...</p>
       </div>
 
       <div v-else class="order-list">
@@ -57,7 +57,7 @@
           </div>
 
           <div class="product-row">
-            <img :src="order.image" alt="Sản phẩm" class="product-img" @error="handleImageError">
+            <img :src="order.image || FALLBACK_IMAGE" alt="Sản phẩm" class="product-img" @error="handleImageError">
             <div class="product-info">
               <h3 class="product-name">{{ order.productName }}</h3>
               <p class="product-variant">Phân loại: {{ order.variant }}</p>
@@ -65,10 +65,6 @@
               <div class="order-meta">
                 <span class="meta-item">Mã Đơn hàng: <strong>{{ order.trackingCode }}</strong></span>
                 <span class="meta-item">Ngày Đặt: <strong>{{ order.orderDateDisplay }}</strong></span>
-              </div>
-              <div class="seller-wrapper">
-                <img :src="order.sellerAvatar" class="seller-avatar" @error="handleAvatarError">
-                <span>{{ order.sellerName }}</span>
               </div>
             </div>
             <div class="product-price">
@@ -88,31 +84,27 @@
               </template>
 
               <template v-else-if="order.statusId === 'processing'">
-                <button class="btn btn-default" @click="viewShippingLabel(order)">In Vận đơn</button>
                 <button class="btn btn-primary" @click="shipOrder(order)">Đóng gói xong, giao vận</button>
               </template>
 
               <template v-else-if="order.statusId === 'shipping' || order.statusId === 'delivering'">
-                <button class="btn btn-default" @click="viewTracking(order)">Theo dõi vận đơn</button>
-                <button class="btn btn-default" @click="contactShipping(order)">Liên hệ Vận chuyển</button>
+                <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
               </template>
 
               <template v-else-if="order.statusId === 'completed'">
-                <button class="btn btn-default" @click="viewReviews(order)">Xem đánh giá ({{ Math.floor(Math.random() * 5) + 1}} sao)</button>
                 <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
               </template>
 
               <template v-else-if="order.statusId === 'cancelled'">
-                <button class="btn btn-default" @click="viewCancelReason(order)">Xem lý do hủy</button>
+                <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
               </template>
 
               <template v-else-if="order.statusId === 'return'">
-                <button class="btn btn-default" @click="viewReturnDetails(order)">Xem chi tiết lý do</button>
                 <button class="btn btn-primary" @click="refundOrder(order)">Xác nhận nhận hàng hoàn</button>
               </template>
 
               <template v-else-if="order.statusId === 'refunded'">
-                <button class="btn btn-disabled" disabled>Đã Hoàn Tiền (Ghi nhận)</button>
+                <button class="btn btn-disabled" disabled>Đã Hoàn Tiền</button>
               </template>
 
               <template v-else>
@@ -158,10 +150,10 @@ import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
+import * as sellerOrderService from '../services/sellerOrderService';
 
 const router = useRouter();
 const goToHome = () => router.push('/');
-// Khai báo để sử dụng $toast
 const { proxy } = getCurrentInstance();
 const $toast = proxy.$toast;
 
@@ -189,206 +181,141 @@ const tabs = [
   { id: 'refunded', name: 'Đã hoàn tiền' }
 ];
 
-// Danh mục (GIỮ NGUYÊN)
+// Danh mục
 const categories = [
   'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Thời trang', 'Đồ gia dụng', 'Sách'
 ];
 
-// --- HÀM MÔ PHỎNG CẬP NHẬT TRẠNG THÁI (DATABASE UPDATE DEMO) ---
-const updateOrderStatus = (order, newStatus) => {
-  console.log(`[DB DEMO] Cập nhật đơn hàng bán #${order.id} (${order.trackingCode}) từ '${order.statusId}' sang '${newStatus}'`);
-
-  order.statusId = newStatus;
-
-  order.lastUpdate = Date.now();
-  order.lastUpdateDisplay = formatDateTime(order.lastUpdate);
-
-  const statusMap = {
-    'pending': { label: 'CHỜ XÁC NHẬN', note: 'Đang chờ bạn chấp nhận' },
-    'processing': { label: 'ĐANG XỬ LÝ', note: 'Đang đóng gói và chuẩn bị giao vận' },
-    'shipping': { label: 'ĐANG VẬN CHUYỂN', note: 'Đã giao cho đơn vị vận chuyển' },
-    'completed': { label: 'HOÀN THÀNH', note: 'Đã nhận tiền thành công' },
-    'cancelled': { label: 'ĐÃ HỦY', note: 'Đơn hàng đã bị hủy' },
-    'return': { label: 'YÊU CẦU TRẢ HÀNG', note: 'Khách hàng đang yêu cầu trả hàng' },
-    'refunded': { label: 'ĐÃ HOÀN TIỀN', note: 'Hoàn tất quy trình hoàn tiền' }
+// --- TRANSFORM API DATA ---
+const transformOrder = (apiOrder) => {
+  const firstItem = apiOrder.items?.[0] || {};
+  return {
+    id: apiOrder.id,
+    statusId: apiOrder.status,
+    statusLabel: apiOrder.status_label,
+    trackingCode: apiOrder.tracking_code,
+    customerName: apiOrder.customer?.name || 'Khách hàng',
+    customerAvatar: apiOrder.customer?.avatar || null,
+    address: apiOrder.shipping_address?.full_address || 'N/A',
+    productId: firstItem.product_id,
+    productName: firstItem.product_name || 'Sản phẩm',
+    variant: firstItem.variant || 'Tiêu chuẩn',
+    image: firstItem.image || null,
+    price: firstItem.unit_price_formatted || '0 VNĐ',
+    totalPrice: apiOrder.total_amount_formatted || '0 VNĐ',
+    orderDateDisplay: apiOrder.order_date,
+    lastUpdateDisplay: apiOrder.updated_at,
+    items: apiOrder.items || []
   };
-  if (statusMap[newStatus]) {
-    order.statusLabel = statusMap[newStatus].label;
-    order.deliveryStatus = statusMap[newStatus].note;
-  }
 };
 
-
-// --- HÀM SINH DỮ LIỆU DEMO ---
-const generateDemoData = () => {
-  const demoList = [];
-  const statusList = [
-    { id: 'pending', label: 'CHỜ XÁC NHẬN', note: 'Đang chờ bạn chấp nhận' },
-    { id: 'processing', label: 'ĐANG XỬ LÝ', note: 'Đang đóng gói và chuẩn bị giao vận' },
-    { id: 'shipping', label: 'ĐANG VẬN CHUYỂN', note: 'Đã giao cho đơn vị vận chuyển' },
-    { id: 'completed', label: 'HOÀN THÀNH', note: 'Đã nhận tiền thành công' },
-    { id: 'cancelled', label: 'ĐÃ HỦY', note: 'Đơn hàng đã bị hủy' },
-    { id: 'return', label: 'YÊU CẦU TRẢ HÀNG', note: 'Khách hàng đang yêu cầu trả hàng' },
-    { id: 'refunded', label: 'ĐÃ HOÀN TIỀN', note: 'Hoàn tất quy trình hoàn tiền' }
-  ];
-
-  const products = [
-    { id: 1, name: 'Đắc Nhân Tâm - Dale Carnegie', price: 85000, img: 'https://salt.tikicdn.com/cache/w1200/ts/product/2e/26/89/3b9c73950f555b76e10086d4e5f4124e.jpg', cat: 'Sách' },
-    { id: 2, name: 'Điện thoại iPhone 15 Pro Max', price: 34990000, img: 'https://cdn.tgdd.vn/Products/Images/42/305658/iphone-15-pro-max-blue-titan-1-750x500.jpg', cat: 'Đồ điện tử' },
-    { id: 3, name: 'Áo Thun Nam Cotton', price: 150000, img: 'https://product.hstatic.net/1000306633/product/ao_thun_nam_basic_a79f5_753c83058928422797e8893967527636_master.jpg', cat: 'Thời trang' },
-    { id: 4, name: 'Tai nghe Bluetooth AirPods', price: 2500000, img: 'https://cdn.tgdd.vn/Products/Images/54/236016/bluetooth-airpods-2-apple-mv7n2-imei-ava-600x600.jpg', cat: 'Đồ điện tử' },
-    { id: 5, name: 'Nồi chiên không dầu', price: 1200000, img: 'https://cdn.tgdd.vn/Products/Images/1944/249870/noi-chien-khong-dau-ava-af40lht-4-lit-1-600x600.jpg', cat: 'Đồ gia dụng' }
-  ];
-
-  let idCounter = 200;
-  let prodIndex = 0;
-  let now = new Date();
-
-  statusList.forEach(status => {
-    for (let i = 1; i <= 5; i++) {
-      const randomProd = products[prodIndex % products.length];
-      idCounter++;
-      prodIndex++;
-
-      let orderDate = new Date(now.getTime());
-      orderDate.setDate(orderDate.getDate() - (idCounter % 15));
-
-      let lastUpdate = orderDate.getTime();
-
-      if (status.id !== 'pending') {
-        lastUpdate = now.getTime() - (idCounter * 10000);
-      }
-
-      demoList.push({
-        id: idCounter,
-        statusId: status.id,
-        statusLabel: status.label,
-        deliveryStatus: status.note,
-
-        customerName: `Khách hàng VIP ${idCounter}`,
-        address: `Đường số ${idCounter} Q.10, TP.HCM`,
-
-        shopName: `Shop Bán Lẻ ${randomProd.cat}`,
-        sellerId: 7,
-        sellerName: 'VietMarket',
-        sellerAvatar: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="10" text-anchor="middle" dy=".3em"%3EShop%3C/text%3E%3C/svg%3E',
-
-        productId: randomProd.id,
-        productName: randomProd.name,
-        variant: 'Tiêu chuẩn',
-        category: randomProd.cat,
-        image: randomProd.img,
-
-        trackingCode: `SALE-${idCounter}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
-        orderDate: orderDate.getTime(),
-        orderDateDisplay: formatDate(orderDate),
-
-        lastUpdate: lastUpdate,
-        lastUpdateDisplay: formatDateTime(lastUpdate),
-
-        price: formatCurrency(randomProd.price),
-        totalPrice: formatCurrency(randomProd.price + 30000)
-      });
-    }
-  });
-
-  return demoList;
-};
-
-// --- HÀM LOAD DỮ LIỆU ---
+// --- HÀM LOAD DỮ LIỆU TỪ API ---
 const fetchOrders = async () => {
   isLoading.value = true;
-  setTimeout(() => {
-    orders.value = generateDemoData();
+  try {
+    const response = await sellerOrderService.getSellerOrders(activeTab.value);
+    if (response.data?.status === 'success') {
+      orders.value = response.data.data.map(transformOrder);
+    } else {
+      orders.value = [];
+    }
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    $toast.error('Không thể tải danh sách đơn hàng');
+    orders.value = [];
+  } finally {
     isLoading.value = false;
-  }, 500);
-};
-
-// --- CÁC HÀM XỬ LÝ HÀNH ĐỘNG (ACTION) CỦA NGƯỜI BÁN ---
-
-const acceptOrder = (order) => {
-  // [SỬA ĐỔI] Dùng window.confirm để xác nhận hành động
-  if (window.confirm(`Xác nhận chấp nhận đơn hàng #${order.trackingCode}?`)) {
-    updateOrderStatus(order, 'processing');
-    $toast.success(`Đơn hàng #${order.trackingCode} đã được chấp nhận. Bắt đầu đóng gói.`);
   }
 };
 
-const cancelOrder = (order) => {
-  if (window.confirm(`Xác nhận HỦY đơn hàng #${order.trackingCode}?`)) {
-    updateOrderStatus(order, 'cancelled');
-    $toast.error(`Đã hủy đơn hàng #${order.trackingCode}.`);
+// --- CÁC HÀM XỬ LÝ HÀNH ĐỘNG ---
+const acceptOrder = async (order) => {
+  if (!window.confirm(`Xác nhận chấp nhận đơn hàng #${order.trackingCode}?`)) return;
+  
+  try {
+    await sellerOrderService.acceptOrder(order.id);
+    $toast.success(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
+    await fetchOrders();
+  } catch (error) {
+    console.error('Accept order error:', error);
+    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
   }
 };
 
-const shipOrder = (order) => {
-  if (window.confirm(`Xác nhận đơn hàng #${order.trackingCode} đã đóng gói xong và sẵn sàng giao vận?`)) {
-    updateOrderStatus(order, 'shipping');
-    $toast.info(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
+const cancelOrder = async (order) => {
+  if (!window.confirm(`Xác nhận HỦY đơn hàng #${order.trackingCode}?`)) return;
+  
+  try {
+    await sellerOrderService.cancelOrder(order.id);
+    $toast.success(`Đã hủy đơn hàng #${order.trackingCode}.`);
+    await fetchOrders();
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
   }
 };
 
-const refundOrder = (order) => {
-  if (window.confirm(`Xác nhận đã nhận hàng hoàn và hoàn tiền cho đơn #${order.trackingCode}?`)) {
-    updateOrderStatus(order, 'refunded');
+const shipOrder = async (order) => {
+  if (!window.confirm(`Xác nhận đơn hàng #${order.trackingCode} đã đóng gói xong và sẵn sàng giao vận?`)) return;
+  
+  try {
+    await sellerOrderService.shipOrder(order.id);
+    $toast.success(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
+    await fetchOrders();
+  } catch (error) {
+    console.error('Ship order error:', error);
+    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
+  }
+};
+
+const refundOrder = async (order) => {
+  if (!window.confirm(`Xác nhận đã nhận hàng hoàn và hoàn tiền cho đơn #${order.trackingCode}?`)) return;
+  
+  try {
+    await sellerOrderService.confirmReturn(order.id);
     $toast.success(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
+    await fetchOrders();
+  } catch (error) {
+    console.error('Refund order error:', error);
+    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
   }
 };
 
-const viewReturnDetails = (order) => {
-  const data = JSON.parse(localStorage.getItem(`return_info_${order.id}`) || '{}');
-
-  currentReturnDetails.trackingCode = order.trackingCode;
-  currentReturnDetails.customerName = order.customerName;
-  currentReturnDetails.reason = data.reason || 'Sản phẩm lỗi, sai mẫu.';
-  currentReturnDetails.pickupDate = data.date || 'Chưa cập nhật';
-  showReturnDetailsModal.value = true;
+const viewOrderDetails = (order) => {
+  router.push(`/orders/${order.id}`);
 };
+
 const closeReturnDetailsModal = () => showReturnDetailsModal.value = false;
 
-// --- CÁC HÀM ĐIỀU HƯỚNG / THÔNG BÁO (DÙNG TOAST) ---
-const contactCustomer = (order) => $toast.info(`[DEMO CHAT] Bắt đầu chat với KH: ${order.customerName}`);
-const viewCustomerDetail = (order) => $toast.info(`[DEMO KH] Xem chi tiết KH: ${order.customerName} - ${order.address}`, { duration: 4000 });
-const viewShippingLabel = (order) => { console.log(`[IN VẬN ĐƠN] Đơn #${order.trackingCode}`); $toast.success(`Đang in vận đơn #${order.trackingCode}...`); };
-const viewTracking = (order) => $toast.info(`[DEMO TRACKING] Đang theo dõi vận đơn #${order.trackingCode}`);
-const contactShipping = (order) => $toast.info(`[LIÊN HỆ VẬN CHUYỂN] Yêu cầu kiểm tra đơn hàng #${order.trackingCode}`);
-const viewReviews = (order) => $toast.info(`[DEMO ĐÁNH GIÁ] Mở trang xem tất cả đánh giá về sản phẩm ID ${order.productId}`);
-const viewOrderDetails = (order) => console.log(`[CHI TIẾT] Mở trang chi tiết đơn bán #${order.id}`);
-const viewCancelReason = (order) => $toast.warning(`[LÝ DO HỦY] Khách hàng hủy vì lý do: Thay đổi ý định.`);
-
-
 // --- HELPER FUNCTIONS ---
-function formatCurrency(val) { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val); }
-function formatDate(date) {
-  return new Date(date).toLocaleDateString('vi-VN');
-}
-function formatDateTime(timestamp) {
-  const date = new Date(timestamp);
-  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  const day = date.toLocaleDateString('vi-VN');
-  return `${time} ${day}`;
-}
 const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="12" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
 const FALLBACK_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="10" text-anchor="middle" dy=".3em"%3EUser%3C/text%3E%3C/svg%3E';
-const handleImageError = (e) => { e.target.src = FALLBACK_IMAGE; };
-const handleAvatarError = (e) => { e.target.src = FALLBACK_AVATAR; };
+const handleImageError = (e) => { if (!e.target.src.startsWith('data:')) e.target.src = FALLBACK_IMAGE; };
+const handleAvatarError = (e) => { if (!e.target.src.startsWith('data:')) e.target.src = FALLBACK_AVATAR; };
 
 onMounted(() => {
   fetchOrders();
 });
 
+// Khi đổi tab, fetch lại với filter
+const changeTab = (tabId) => {
+  activeTab.value = tabId;
+  visibleCount.value = 10;
+  fetchOrders();
+};
+
 const allFilteredOrders = computed(() => {
   return orders.value.filter(order => {
-    const matchTab = activeTab.value === 'all' || order.statusId === activeTab.value;
-    const matchCategory = selectedCategories.value.length === 0 || selectedCategories.value.includes(order.category);
-    return matchTab && matchCategory;
-  }).sort((a, b) => b.lastUpdate - a.lastUpdate);
+    const matchCategory = selectedCategories.value.length === 0 || selectedCategories.value.some(cat => 
+      order.items?.some(item => item.category === cat)
+    );
+    return matchCategory;
+  });
 });
 
 const visibleOrders = computed(() => allFilteredOrders.value.slice(0, visibleCount.value));
 const hasMoreOrders = computed(() => visibleCount.value < allFilteredOrders.value.length);
 const loadMore = () => visibleCount.value += 5;
-const changeTab = (tabId) => { activeTab.value = tabId; visibleCount.value = 10; };
 const toggleCategory = (cat) => {
   const index = selectedCategories.value.indexOf(cat);
   if (index === -1) selectedCategories.value.push(cat); else selectedCategories.value.splice(index, 1);
