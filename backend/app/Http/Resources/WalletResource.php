@@ -11,7 +11,7 @@ class WalletResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'balance' => number_format($this->balance) . ' VNĐ', // Format tiền đẹp
+            'balance' => (float) $this->balance, // Quan trọng: ép kiểu float
             'status' => $this->status,
             'user_id' => $this->user_id,
         ];
