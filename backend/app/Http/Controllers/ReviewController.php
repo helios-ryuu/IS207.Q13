@@ -14,9 +14,9 @@ class ReviewController extends Controller
     public function index($productId)
     {
         $reviews = Review::where('product_id', $productId)
-                         ->with('user:id,full_name,avatar') // Chỉ lấy tên và ảnh
-                         ->orderBy('created_at', 'desc')
-                         ->get();
+            ->with('user:id,full_name,avatar') // Chỉ lấy tên và ảnh
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return response()->json([
             'success' => true,
@@ -35,38 +35,35 @@ class ReviewController extends Controller
 
         $userId = Auth::id();
 
-        // 1. KIỂM TRA ĐÃ MUA HÀNG CHƯA 
-        // Tìm các đơn hàng của user -> đã hoàn thành (status = completed)
-        // -> và có chứa variant thuộc về product_id này
-        $hasPurchased = \App\Models\Order::where('user_id', $userId)
-            ->where('status', 'delivered') 
+        // 1. ĐẾM SỐ LẦN MUA HÀNG THÀNH CÔNG
+        // Đếm các đơn hàng đã hoàn thành có chứa sản phẩm này
+        $purchaseCount = \App\Models\Order::where('user_id', $userId)
+            ->whereIn('status', ['delivered', 'completed', 'suspended'])
             ->whereHas('orderDetails', function ($query) use ($productId) {
-                // Query vào bảng order_details, tiếp tục check quan hệ 'variant'
                 $query->whereHas('variant', function ($q) use ($productId) {
-                    // Check xem variant đó có thuộc product_id đang review không
                     $q->where('product_id', $productId);
                 });
             })
-            ->exists();
+            ->count();
 
-      //  KÍCH HOẠT CHẶN NGƯỜI CHƯA MUA
-        if (!$hasPurchased) {
-             return response()->json(['message' => 'Bạn cần mua và nhận hàng thành công sản phẩm này để đánh giá.'], 403);
-        }
-      
-
-        // 2. Kiểm tra đã đánh giá chưa
-        $exists = Review::where('user_id', $userId)->where('product_id', $productId)->exists();
-        if ($exists) {
-            return response()->json(['message' => 'Bạn đã đánh giá sản phẩm này rồi.'], 422);
+        if ($purchaseCount == 0) {
+            return response()->json(['message' => 'Bạn cần mua và nhận hàng thành công sản phẩm này để đánh giá.'], 403);
         }
 
-        // 3. Tạo review
+        // 2. ĐẾM SỐ LẦN ĐÃ ĐÁNH GIÁ
+        $reviewCount = Review::where('user_id', $userId)->where('product_id', $productId)->count();
+
+        // 3. SO SÁNH: Số đánh giá phải ít hơn số lần mua
+        if ($reviewCount >= $purchaseCount) {
+            return response()->json(['message' => 'Bạn đã đánh giá cho tất cả các đơn hàng mua sản phẩm này.'], 422);
+        }
+
+        // 4. Tạo review
         $review = Review::create([
             'user_id' => $userId,
             'product_id' => $productId,
-            'rating' => $request->rating,
-            'content' => $request->content,
+            'rating' => $request->input('rating'),
+            'content' => $request->input('content'),
             'review_date' => now(),
         ]);
 
@@ -85,7 +82,7 @@ class ReviewController extends Controller
             ->pluck('count', 'rating');
 
         $avg = Review::where('product_id', $productId)->avg('rating');
-        
+
         return response()->json([
             'success' => true,
             'average' => round($avg, 1),
@@ -98,8 +95,8 @@ class ReviewController extends Controller
     public function update(Request $request, $id)
     {
         $review = Review::where('id', $id)
-                        ->where('user_id', Auth::id()) // Chỉ chủ sở hữu mới được sửa
-                        ->first();
+            ->where('user_id', Auth::id()) // Chỉ chủ sở hữu mới được sửa
+            ->first();
 
         if (!$review) {
             return response()->json(['message' => 'Không tìm thấy đánh giá hoặc bạn không có quyền sửa.'], 404);
@@ -111,8 +108,8 @@ class ReviewController extends Controller
         ]);
 
         $review->update([
-            'rating' => $request->rating,
-            'content' => $request->content,
+            'rating' => $request->input('rating'),
+            'content' => $request->input('content'),
             'updated_at' => now() // Cập nhật thời gian sửa
         ]);
 
@@ -128,8 +125,8 @@ class ReviewController extends Controller
     public function destroy($id)
     {
         $review = Review::where('id', $id)
-                        ->where('user_id', Auth::id()) // Chỉ chủ sở hữu mới được xóa
-                        ->first();
+            ->where('user_id', Auth::id()) // Chỉ chủ sở hữu mới được xóa
+            ->first();
 
         if (!$review) {
             return response()->json(['message' => 'Không tìm thấy đánh giá hoặc bạn không có quyền xóa.'], 404);

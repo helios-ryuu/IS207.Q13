@@ -181,6 +181,44 @@ const viewMode = ref('root');
 const selectedCategory = ref(null);   
 const selectedArticle = ref(null);      
 
+import { onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
+
+const initFromQuery = () => {
+  const { role, article } = route.query;
+  
+  if (role && (role === 'buyer' || role === 'seller')) {
+    activeRole.value = role;
+  }
+
+  if (article) {
+    // Tìm article trong database của role hiện tại
+    const currentData = database[activeRole.value];
+    if (currentData) {
+      for (const cat of currentData) {
+        const foundArticle = cat.articles.find(a => a.id === article);
+        if (foundArticle) {
+          goToDetailLevel(foundArticle, cat);
+          return;
+        }
+      }
+    }
+  } else {
+    // Nếu không có article, về root
+    goToRootLevel();
+  }
+};
+
+onMounted(() => {
+  initFromQuery();
+});
+
+watch(() => route.query, () => {
+  initFromQuery();
+});      
+
 // =================================================================
 // 🟢 CƠ SỞ DỮ LIỆU HỖ TRỢ (Nội dung đầy đủ)
 // =================================================================
@@ -269,6 +307,53 @@ const database = reactive({
              { title: 'Kiểm tra kỹ', desc: 'Không thanh toán khi chưa cầm sản phẩm trên tay và test mọi chức năng.' },
              { title: 'Giữ bằng chứng', desc: 'Lưu lại tin nhắn cam kết, số điện thoại của người bán.' }
           ]
+        }
+      ]
+    },
+    {
+      id: 'general',
+      title: 'Về VietMarket & Chính sách',
+      isOpen: false,
+      articles: [
+        {
+          id: 'intro',
+          title: 'Giới thiệu về VietMarket',
+          content: '<p>VietMarket là nền tảng thương mại điện tử C2C hàng đầu, nơi kết nối hàng triệu người mua và người bán. Sứ mệnh của chúng tôi là tạo ra một môi trường mua bán an toàn, minh bạch và thuận tiện cho cộng đồng.</p>'
+        },
+        {
+          id: 'regulations',
+          title: 'Quy chế hoạt động sàn',
+          content: '<p>Quy chế này quy định các quyền và nghĩa vụ của người tham gia giao dịch trên sàn VietMarket. Tất cả thành viên phải tuân thủ nghiêm ngặt để đảm bảo quyền lợi chung.</p>'
+        },
+        {
+          id: 'privacy',
+          title: 'Chính sách bảo mật',
+          content: '<p>Chúng tôi cam kết bảo mật tuyệt đối thông tin cá nhân của khách hàng. Dữ liệu chỉ được sử dụng cho mục đích cung cấp dịch vụ và không được chia sẻ cho bên thứ ba trái phép.</p>'
+        },
+        {
+          id: 'dispute',
+          title: 'Giải quyết tranh chấp',
+          content: '<p>VietMarket khuyến khích thương lượng. Nếu không thành, chúng tôi sẽ đóng vai trò trung gian hòa giải dựa trên bằng chứng cung cấp.</p>'
+        },
+        {
+          id: 'contact_support',
+          title: 'Liên hệ hỗ trợ',
+          content: '<p>Email: hotro@vietmarket.vn<br>Hotline: 1900 1234<br>Thời gian làm việc: 8h00 - 17h30 (Thứ 2 - Thứ 7)</p>'
+        },
+        {
+            id: 'recruitment',
+            title: 'Tuyển dụng',
+            content: '<p>Hiện tại VietMarket chưa có đợt tuyển dụng mới. Vui lòng quay lại sau hoặc theo dõi fanpage của chúng tôi để cập nhật thông tin mới nhất.</p>'
+        },
+        {
+            id: 'media',
+            title: 'Truyền thông',
+            content: '<p>Liên hệ hợp tác truyền thông: media@vietmarket.vn</p>'
+        },
+        {
+             id: 'blog',
+             title: 'Blog VietMarket',
+             content: '<p>Khám phá các mẹo mua sắm, xu hướng thị trường và câu chuyện thành công tại Blog của chúng tôi.</p>'
         }
       ]
     }

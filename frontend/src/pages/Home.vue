@@ -82,7 +82,7 @@ const totalProducts = ref(0);
 
 // 1. Hàm helper xử lý ảnh (Giữ lại hàm này của bạn)
 const getImageUrl = (url) => {
-  if (!url) return 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image';
+  if (!url) return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="14" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
   // Nếu là link online (http/https) thì giữ nguyên
   if (url.startsWith('http')) return url;
   // Nếu là link local (/storage/...) thì nối thêm domain backend

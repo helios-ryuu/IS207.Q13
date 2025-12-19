@@ -25,12 +25,16 @@ class TransactionResource extends JsonResource
 
     private function determineType()
     {
-        // Nếu số tiền âm => Rút tiền
-        if ($this->amount < 0) return 'withdraw';
-        
-        // Nếu số tiền dương:
-        // - Có order_id => Bán hàng
-        // - Không có order_id => Nạp tiền
+        // 1. Số tiền âm:
+        if ($this->amount < 0) {
+            // Có đơn hàng => Thanh toán mua hàng (expense)
+            // Kông có đơn => Rút tiền (withdraw)
+            return $this->order_id ? 'expense' : 'withdraw';
+        }
+
+        // 2. Số tiền dương:
+        // Có đơn hàng => Bán hàng (income)
+        // Không có đơn => Nạp tiền (deposit)
         return $this->order_id ? 'income' : 'deposit';
     }
 }

@@ -15,10 +15,10 @@ export const useNotificationStore = defineStore('notification', {
 
             if (this.timer) clearInterval(this.timer);
 
-            // Poll mỗi 3s
+            // Poll mỗi 5s
             this.timer = setInterval(() => {
                 this.fetchUnreadCount();
-            }, 3000);
+            }, 5000);
         },
 
         stopPolling() {

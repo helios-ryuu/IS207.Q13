@@ -100,7 +100,7 @@
         </div>
         
         <div class="bottom-right-column">
-          <CommentSection :comments="product?.comments" />
+          <CommentSection :reviews="product?.reviews" :stats="product?.reviewStats" />
         </div>
       </div>
 
@@ -348,7 +348,6 @@ const mapProductCard = (item) => ({
 // Fetch Data
 const fetchProductDetail = async () => {
   loading.value = true;
-  // Reset product để tránh hiển thị thông tin cũ
   product.value = null; 
   
   const productId = route.params.id;
@@ -356,20 +355,67 @@ const fetchProductDetail = async () => {
     const response = await api.get(`/products/${productId}`);
     const data = response.data.data || response.data;
     
-    // Map dữ liệu
+    // Map dữ liệu product chính
     product.value = mapProductFromApi(data);
 
-    // Fetch Similar & Seller Products
+    // Fetch Reviews & Stats
+    try {
+        const [reviewsRes, statsRes] = await Promise.all([
+            api.get(`/products/${productId}/reviews`),
+            api.get(`/products/${productId}/reviews/stats`)
+        ]);
+        
+        if (reviewsRes.data.success) {
+            product.value.reviews = reviewsRes.data.data;
+        } else {
+            product.value.reviews = [];
+        }
+
+        if (statsRes.data.success) {
+            product.value.reviewStats = {
+                average: statsRes.data.average,
+                details: statsRes.data.details
+            };
+        }
+    } catch (e) {
+        console.warn("Reviews load failed", e);
+        product.value.reviews = [];
+        product.value.reviewStats = { average: 0, details: {} };
+    }
+
+    // Fetch Similar Products
     try {
       const similarRes = await api.get(`/products/${productId}/similar`);
-      if (similarRes.data.success) similarListings.value = similarRes.data.data.map(item => ({...item, imageUrl: getImageUrl(item.image), price: formatPrice(item.price) + ' đ'}));
+      if (similarRes.data.success) {
+          similarListings.value = similarRes.data.data.map(item => ({
+              id: item.id,
+              title: item.title,
+              price: formatPrice(item.price) + ' đ',
+              imageUrl: getImageUrl(item.image),
+              location: item.location,
+              sellerId: item.seller_id,
+              userAvatar: getImageUrl(item.seller_avatar) // Quan trọng: Đã thêm API seller_avatar
+          }));
+      }
     } catch (e) {}
     
+    // Fetch Seller's Other Listings
     if (data.seller?.id) {
        try {
          const sellerRes = await api.get(`/products/seller/${data.seller.id}`);
-         const sData = sellerRes.data.data || sellerRes.data;
-         sellerListings.value = (Array.isArray(sData) ? sData : sData.data || []).filter(p => p.id != productId).map(mapProductCard);
+         // Filter bỏ sản phẩm hiện tại
+         const sData = (sellerRes.data && sellerRes.data.data) ? sellerRes.data.data : [];
+         sellerListings.value = sData
+            .filter(p => p.id != productId)
+            .map(item => ({
+                 id: item.id,
+                 title: item.name, // Resource trả về 'name'
+                 price: formatPrice(item.price_range?.min || (item.variants && item.variants.length > 0 ? item.variants[0].price : 0)) + ' đ',
+                 imageUrl: getImageUrl(item.thumbnail || (item.images && item.images.length > 0 ? item.images[0].url : null)), 
+                 location: item.location || 'Toàn quốc',
+                 sellerId: data.seller.id,
+                 userAvatar: product.value.seller.avatar 
+            }));
        } catch (e) {}
     }
 

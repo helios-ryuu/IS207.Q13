@@ -21,8 +21,8 @@ export const shipOrder = (orderId) => {
 }
 
 // Seller hủy đơn
-export const cancelOrder = (orderId) => {
-    return api.put(`/seller/orders/${orderId}/cancel`)
+export const cancelOrder = (orderId, reason = '') => {
+    return api.put(`/seller/orders/${orderId}/cancel`, { reason })
 }
 
 // Xác nhận hoàn hàng (return -> refunded)

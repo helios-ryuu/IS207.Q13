@@ -99,7 +99,7 @@
             <div class="action-buttons">
               
               <template v-if="order.statusId === 'pending'">
-                <button class="btn btn-outline-danger" @click="cancelOrder(order.id)">Hủy Đơn</button>
+                <button class="btn btn-outline-danger" @click="openCancelModal(order)">Hủy Đơn</button>
               </template>
 
               <template v-else-if="order.statusId === 'shipping'">
@@ -114,7 +114,7 @@
                 </template>
               
               <template v-else-if="order.statusId === 'cancelled'">
-                 <span class="status-note">Đơn đã hủy</span>
+                 <button class="btn btn-default" @click="openViewCancelReasonModal(order)">Xem lý do hủy</button>
                  <button class="btn btn-default" @click="buyAgain(order)">Mua Lại</button>
               </template>
 
@@ -191,6 +191,51 @@
     </div>
   </div>
 
+  <!-- MODAL HỦY ĐƠN - NHẬP LÝ DO -->
+  <div v-if="showCancelModal" class="modal-overlay" @click.self="closeCancelModal">
+    <div class="modal-content fade-in">
+      <div class="modal-header">
+        <h3>Hủy đơn hàng</h3>
+        <button class="close-btn" @click="closeCancelModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="product-preview" v-if="cancelData.order">
+          <img :src="cancelData.order.image || FALLBACK_IMAGE" @error="handleImageError">
+          <div class="preview-info">
+            <p class="name">{{ cancelData.order.productName }}</p>
+            <p class="variant">Mã đơn: {{ cancelData.order.trackingCode }}</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Lý do hủy đơn <span class="required">*</span></label>
+          <textarea v-model="cancelData.reason" rows="4" placeholder="Nhập lý do hủy đơn hàng..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" @click="closeCancelModal">Đóng</button>
+        <button class="btn btn-outline-danger" @click="submitCancelOrder" :disabled="!cancelData.reason.trim()">Xác nhận hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL XEM LÝ DO HỦY -->
+  <div v-if="showViewCancelReasonModal" class="modal-overlay" @click.self="closeViewCancelReasonModal">
+    <div class="modal-content fade-in">
+      <div class="modal-header">
+        <h3>Lý do hủy đơn</h3>
+        <button class="close-btn" @click="closeViewCancelReasonModal">✕</button>
+      </div>
+      <div class="modal-body info-view">
+        <p><strong>Mã đơn hàng:</strong> {{ viewCancelReasonData.trackingCode }}</p>
+        <p><strong>Lý do hủy:</strong></p>
+        <div class="cancel-reason-box">{{ viewCancelReasonData.reason || 'Không có lý do' }}</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" @click="closeViewCancelReasonModal">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <Footer />
 </template>
 
@@ -230,6 +275,14 @@ const ratingData = reactive({ order: null, score: 5, comment: '' });
 // MODAL XÁC NHẬN ĐÃ NHẬN HÀNG
 const showConfirmReceivedModal = ref(false);
 const confirmReceivedData = reactive({ order: null });
+
+// MODAL HỦY ĐƠN
+const showCancelModal = ref(false);
+const cancelData = reactive({ order: null, reason: '' });
+
+// MODAL XEM LÝ DO HỦY
+const showViewCancelReasonModal = ref(false);
+const viewCancelReasonData = reactive({ trackingCode: '', reason: '' });
 
 const tabs = [
   { id: 'all', name: 'Tất cả' },
@@ -272,11 +325,8 @@ const fetchOrders = async () => {
       // Backend trả về key 'items' (dựa trên ảnh bạn cung cấp trước đó)
       const firstItem = (order.items && order.items.length > 0) ? order.items[0] : {}; 
       
-      // Xử lý giá tiền
-      let displayPrice = order.total_amount;
-      if (typeof displayPrice === 'number') {
-          displayPrice = formatPrice(displayPrice);
-      }
+      // Xử lý giá tiền - Sử dụng giá đã format từ API
+      const displayPrice = order.total_amount_formatted || formatPrice(order.total_amount);
 
       // Tên sản phẩm
       const displayName = firstItem.product_name || firstItem.variant || 'Sản phẩm đơn hàng';
@@ -295,12 +345,14 @@ const fetchOrders = async () => {
         statusLabel: getStatusLabel(order.status),
         deliveryStatus: getDeliveryStatusText(order.status),
         
-        price: displayPrice,      
+        price: firstItem.unit_price_formatted || displayPrice,      
         totalPrice: displayPrice, 
         
         image: firstItem.image || null,
         sellerAvatar: firstItem.seller_avatar || null,
-        sellerName: firstItem.seller_name || 'Người bán'
+        sellerName: firstItem.seller_name || 'Người bán',
+        notes: order.notes || '', // Lý do hủy đơn
+        cancelReason: order.notes || '' // Alias cho view reason modal
       };
     });
   } catch (error) {
@@ -310,19 +362,42 @@ const fetchOrders = async () => {
   }
 };
 
-// 2. Hủy đơn hàng (API Thật)
-// 2. Hủy đơn hàng (API Thật)
-const cancelOrder = async (orderId) => {
-  if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return;
+// 2. Hủy đơn hàng - Mở modal nhập lý do
+const openCancelModal = (order) => {
+  cancelData.order = order;
+  cancelData.reason = '';
+  showCancelModal.value = true;
+};
+const closeCancelModal = () => {
+  showCancelModal.value = false;
+  cancelData.order = null;
+  cancelData.reason = '';
+};
+
+const submitCancelOrder = async () => {
+  if (!cancelData.order || !cancelData.reason.trim()) return;
   
   try {
-    await api.post(`/orders/${orderId}/cancel`);
+    await api.post(`/orders/${cancelData.order.id}/cancel`, {
+      reason: cancelData.reason.trim()
+    });
     showSuccess('Đã hủy đơn hàng thành công');
-    await fetchOrders(); // Load lại danh sách
+    closeCancelModal();
+    await fetchOrders();
   } catch (error) {
     console.error("Lỗi hủy đơn:", error);
     showError(error.response?.data?.message || 'Không thể hủy đơn hàng này');
   }
+};
+
+// Xem lý do hủy
+const openViewCancelReasonModal = (order) => {
+  viewCancelReasonData.trackingCode = order.trackingCode;
+  viewCancelReasonData.reason = order.cancelReason || order.notes || 'Không có lý do';
+  showViewCancelReasonModal.value = true;
+};
+const closeViewCancelReasonModal = () => {
+  showViewCancelReasonModal.value = false;
 };
 
 // 3. Xác nhận đã nhận hàng (API Thật - Cần backend hỗ trợ PUT status)
@@ -353,7 +428,8 @@ const mapBackendStatus = (status) => {
     case 'processing': 
     case 'shipping': return 'shipping'; // Gộp vào tab Vận chuyển
     case 'shipped': 
-    case 'delivered': return 'completed'; // Đã giao -> Hoàn thành
+    case 'delivered': 
+    case 'suspended': return 'completed'; // Suspended vẫn coi như hoàn thành để cho đánh giá
     case 'cancelled': return 'cancelled';
     case 'refunded': return 'return';
     case 'completed': return 'completed';
@@ -421,10 +497,28 @@ const getRatingText = (score) => ['Tệ', 'Không hài lòng', 'Bình thường'
 
 const submitRating = async () => {
   if (!ratingData.order) return;
-  // TODO: Gọi API POST /reviews khi backend sẵn sàng
-  showSuccess('Gửi đánh giá thành công!');
-  ratedOrderIds.value.push(ratingData.order.id);
-  closeRatingModal();
+  
+  try {
+    await api.post(`/products/${ratingData.order.productId}/reviews`, {
+      rating: ratingData.score,
+      content: ratingData.comment
+    });
+    showSuccess('Gửi đánh giá thành công!');
+    ratedOrderIds.value.push(ratingData.order.id);
+    localStorage.setItem('rated_order_ids', JSON.stringify(ratedOrderIds.value));
+    closeRatingModal();
+  } catch (error) {
+    console.error("Lỗi gửi đánh giá:", error);
+    const msg = error.response?.data?.message || 'Không thể gửi đánh giá, vui lòng thử lại.';
+    
+    // Nếu backend báo đã đánh giá (422), đánh dấu order là đã rated
+    if (error.response?.status === 422 && msg.includes('đã đánh giá')) {
+      ratedOrderIds.value.push(ratingData.order.id);
+      localStorage.setItem('rated_order_ids', JSON.stringify(ratedOrderIds.value));
+      closeRatingModal();
+    }
+    showError(msg);
+  }
 };
 
 const openConfirmReceivedModal = (order) => { 
@@ -611,6 +705,12 @@ onMounted(() => {
 .confirm-message { text-align: center; color: #555; padding: 1rem 0; }
 .confirm-icon { font-size: 3rem; color: #0055aa; margin-bottom: 1rem; display: block; margin-left: auto; margin-right: auto; }
 .confirm-note { font-size: 0.9rem; color: #777; margin-top: 0.8rem; background: #f5f9ff; padding: 0.8rem; border-radius: 6px; }
+
+/* Cancel Reason Modal */
+.cancel-reason-box { background: #fff5f5; border: 1px solid #ffcccc; padding: 1rem; border-radius: 8px; color: #555; margin-top: 0.5rem; white-space: pre-wrap; }
+.required { color: #dc3545; }
+.form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; font-size: 0.95rem; resize: vertical; }
+.form-group textarea:focus { outline: none; border-color: #0055aa; box-shadow: 0 0 0 2px rgba(0,85,170,0.1); }
 
 .fade-in { animation: fadeIn 0.2s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }

@@ -5,9 +5,9 @@
       <div class="footer-column">
         <h3 class="footer-heading">Hỗ trợ khách hàng</h3>
         <ul class="footer-links">
-          <li><a href="#">Trung tâm trợ giúp</a></li>
-          <li><a href="#">An toàn mua bán</a></li>
-          <li><a href="#">Liên hệ hỗ trợ</a></li>
+          <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'contact_support' }}">Trung tâm trợ giúp</router-link></li>
+          <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'safe_tips' }}">An toàn mua bán</router-link></li>
+          <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'contact_support' }}">Liên hệ hỗ trợ</router-link></li>
         </ul>
       </div>
 
@@ -15,15 +15,15 @@
         <h3 class="footer-heading">Về VietMarket</h3>
         <div class="sub-columns">
           <ul class="footer-links">
-            <li><a href="#">Giới thiệu</a></li>
-            <li><a href="#">Quy chế hoạt động sàn</a></li>
-            <li><a href="#">Chính sách bảo mật</a></li>
-            <li><a href="#">Giải quyết tranh chấp</a></li>
+            <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'intro' }}">Giới thiệu</router-link></li>
+            <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'regulations' }}">Quy chế hoạt động sàn</router-link></li>
+            <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'privacy' }}">Chính sách bảo mật</router-link></li>
+            <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'dispute' }}">Giải quyết tranh chấp</router-link></li>
           </ul>
           <ul class="footer-links">
-            <li><a href="#">Tuyển dụng</a></li>
-            <li><a href="#">Truyền thông</a></li>
-            <li><a href="#">Blog</a></li>
+            <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'recruitment' }}">Tuyển dụng</router-link></li>
+            <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'media' }}">Truyền thông</router-link></li>
+            <li><router-link :to="{ path: '/support', query: { role: 'buyer', article: 'blog' }}">Blog</router-link></li>
           </ul>
         </div>
       </div>

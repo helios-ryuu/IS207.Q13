@@ -26,33 +26,34 @@
               <span>Tìm theo khu vực</span>
             </div>
             <div class="quick-select-buttons">
+              <!-- Sử dụng CODE chuẩn (HCM, HN, DN) -->
               <button 
-                :class="{ active: selectedCity === 'TP Hồ Chí Minh' }"
-                @click="selectQuickCity('TP Hồ Chí Minh')">
-                TP Hồ Chí Minh
+                :class="{ active: isCityActive('HCM') }"
+                @click="selectQuickCity('HCM')">
+                TP. Hồ Chí Minh
               </button>
               <button 
-                :class="{ active: selectedCity === 'Hà Nội' }"
-                @click="selectQuickCity('Hà Nội')">
+                :class="{ active: isCityActive('HN') }"
+                @click="selectQuickCity('HN')">
                 Hà Nội
               </button>
               <button 
-                :class="{ active: selectedCity === 'Đà Nẵng' }"
-                @click="selectQuickCity('Đà Nẵng')">
+                :class="{ active: isCityActive('DN') }"
+                @click="selectQuickCity('DN')">
                 Đà Nẵng
               </button>
             </div>
             <div class="select-group">
               <button class="select-box-button" @click="showCityView">
-                <span>{{ selectedCity || 'Chọn tỉnh thành' }}</span>
+                <span>{{ selectedCityLabel || 'Chọn tỉnh thành' }}</span>
                 <font-awesome-icon icon="chevron-right" class="arrow" />
               </button>
-              <button class="select-box-button" :disabled="!selectedCity" @click="showDistrictView">
-                <span>{{ selectedDistrict || 'Chọn quận huyện' }}</span>
+              <button class="select-box-button" :disabled="!selectedCityCode" @click="showDistrictView">
+                <span>{{ selectedDistrictLabel || 'Chọn quận huyện' }}</span>
                 <font-awesome-icon icon="chevron-right" class="arrow" />
               </button>
-              <button class="select-box-button" :disabled="!selectedDistrict" @click="showWardView">
-                <span>{{ selectedWard || 'Chọn phường xã' }}</span>
+              <button class="select-box-button" :disabled="!selectedDistrictCode" @click="showWardView">
+                <span>{{ selectedWardLabel || 'Chọn phường xã' }}</span>
                 <font-awesome-icon icon="chevron-right" class="arrow" />
               </button>
             </div>
@@ -68,7 +69,7 @@
         v-else-if="currentView === 'city'"
         title="Chọn tỉnh thành"
         :options="cityOptions"
-        :current-value="selectedCity"
+        :current-value="selectedCityCode"
         @select="handleCitySelect"
         @close="showMainView"
       />
@@ -77,7 +78,7 @@
         v-else-if="currentView === 'district'"
         title="Chọn quận huyện"
         :options="districtOptions"
-        :current-value="selectedDistrict"
+        :current-value="selectedDistrictCode"
         @select="handleDistrictSelect"
         @close="showMainView"
       />
@@ -86,7 +87,7 @@
         v-else-if="currentView === 'ward'"
         title="Chọn phường xã"
         :options="wardOptions"
-        :current-value="selectedWard"
+        :current-value="selectedWardName"
         @select="handleWardSelect"
         @close="showMainView"
       />
@@ -98,149 +99,140 @@
 <script setup>
 import { ref, computed } from 'vue';
 import LocationSubView from '../LocationSubView.vue';
+import { provinces, getDistrictsByProvince, getWardsByDistrict } from '../../data/vietnamLocations';
 
 const emit = defineEmits(['close', 'applyLocation']);
 
-// ===================================================================
-// --- 📍 CHÚ THÍCH: NƠI THÊM DỮ LIỆU ĐỊA ĐIỂM ---
-//
-// Trong một dự án thực tế, bạn sẽ gọi API để lấy dữ liệu này.
-// Hiện tại, chúng ta đang dùng dữ liệu giả lập (hard-code).
-// ===================================================================
+// --- DỮ LIỆU ---
+// City Options: [ { value: 'HN', label: 'Hà Nội' }, ... ]
+const cityOptions = computed(() => provinces.map(p => ({ value: p.code, label: p.name })));
 
-// --- BƯỚC 1: Thêm TỈNH THÀNH tại đây ---
-const allCities = [
-  { value: 'TP Hồ Chí Minh', label: 'TP Hồ Chí Minh' },
-  { value: 'Hà Nội', label: 'Hà Nội' },
-  { value: 'Đà Nẵng', label: 'Đà Nẵng' },
-  { value: 'Bình Dương', label: 'Bình Dương' },
-  { value: 'An Giang', label: 'An Giang' },
-  { value: 'Bà Rịa - Vũng Tàu', label: 'Bà Rịa - Vũng Tàu' },
-  { value: 'Bắc Giang', label: 'Bắc Giang' },
-  // ... (Thêm 63 tỉnh thành khác vào đây)
-];
+const districtOptions = ref([]); // [ { value: 'HN_BD', label: 'Quận Ba Đình' } ]
+const wardOptions = ref([]);     // [ { value: 'Phường Phúc Xá', label: 'Phường Phúc Xá' } ]
 
-// --- BƯỚC 2: Thêm QUẬN HUYỆN tại đây ---
-// Key (khóa) phải khớp chính xác với `value` của Tỉnh thành ở trên.
-const allDistricts = {
-  'TP Hồ Chí Minh': [ 
-    { value: 'Thành phố Thủ Đức', label: 'Thành phố Thủ Đức' }, 
-    { value: 'Quận 1', label: 'Quận 1' }, 
-    { value: 'Quận 3', label: 'Quận 3' }, 
-    { value: 'Quận 4', label: 'Quận 4' },
-    // ... (Thêm các quận huyện khác của TP.HCM)
-  ],
-  'Hà Nội': [ 
-    { value: 'Quận Ba Đình', label: 'Quận Ba Đình' }, 
-    { value: 'Quận Cầu Giấy', label: 'Quận Cầu Giấy' } 
-  ],
-  'Đà Nẵng': [ 
-    { value: 'Quận Hải Châu', label: 'Quận Hải Châu' }, 
-    { value: 'Quận Sơn Trà', label: 'Quận Sơn Trà' } 
-  ],
-  // ... (Thêm các cặp Tỉnh: [Quận/Huyện] khác)
-};
-
-// --- BƯỚC 3: Thêm PHƯỜNG XÃ tại đây ---
-// Key (khóa) phải khớp chính xác với `value` của Quận huyện ở trên.
-const allWards = {
-  'Quận 1': [ 
-    { value: 'Phường Bến Nghé', label: 'Phường Bến Nghé' }, 
-    { value: 'Phường Cầu Ông Lãnh', label: 'Phường Cầu Ông Lãnh' } 
-  ],
-  'Thành phố Thủ Đức': [ 
-    { value: 'Phường Linh Trung', label: 'Phường Linh Trung' }, 
-    { value: 'Phường Linh Chiểu', label: 'Phường Linh Chiểu' } 
-  ],
-  // ... (Thêm các cặp Quận: [Phường/Xã] khác)
-};
-// ------------------------------------
-
-// Trạng thái nội bộ
+// --- STATE (SCALAR VALUES) ---
 const currentView = ref('main'); // 'main', 'city', 'district', 'ward'
-const selectedCity = ref(null);
-const selectedDistrict = ref(null);
-const selectedWard = ref(null);
 
-// Danh sách động
-const cityOptions = ref(allCities);
-const districtOptions = ref([]);
-const wardOptions = ref([]);
+const selectedCityCode = ref(null);      // 'HN'
+const selectedDistrictCode = ref(null);  // 'HN_BD'
+const selectedWardName = ref(null);      // 'Phường Phúc Xá'
 
-// --- Hàm chuyển đổi View ---
+// --- COMPUTED DISPLAY LABELS ---
+const selectedCityLabel = computed(() => {
+  const found = cityOptions.value.find(o => o.value === selectedCityCode.value);
+  return found ? found.label : null;
+});
+
+const selectedDistrictLabel = computed(() => {
+  const found = districtOptions.value.find(o => o.value === selectedDistrictCode.value);
+  return found ? found.label : null;
+});
+
+const selectedWardLabel = computed(() => selectedWardName.value);
+
+
+// --- HELPERS LOAD DATA ---
+const loadDistricts = (cityCode) => {
+  const dists = getDistrictsByProvince(cityCode);
+  districtOptions.value = dists.map(d => ({ value: d.code, label: d.name }));
+};
+
+const loadWards = (districtCode) => {
+  const wds = getWardsByDistrict(districtCode);
+  // Ward không có code, dùng name làm value
+  wardOptions.value = wds.map(w => ({ value: w.name, label: w.name }));
+};
+
+// --- HANDLERS ---
+
+// 1. QUICK SELECT (Nút bấm nhanh)
+const selectQuickCity = (code) => {
+  if (selectedCityCode.value !== code) {
+    selectedCityCode.value = code;
+    // Reset cấp dưới
+    selectedDistrictCode.value = null;
+    selectedWardName.value = null;
+    wardOptions.value = [];
+    loadDistricts(code);
+  }
+};
+
+const isCityActive = (code) => selectedCityCode.value === code;
+
+// 2. VIEW SWITCHERS
 const showMainView = () => { currentView.value = 'main'; };
 const showCityView = () => { currentView.value = 'city'; };
 const showDistrictView = () => { currentView.value = 'district'; };
 const showWardView = () => { currentView.value = 'ward'; };
 
-// --- Hàm xử lý Data ---
-const loadDistricts = (city) => {
-  selectedDistrict.value = null;
-  selectedWard.value = null;
+
+// 3. SELECTION HANDLERS (Từ SubView remit value)
+
+// Chọn Tỉnh
+const handleCitySelect = (val) => {
+  // val là value (code) ví dụ 'HN' hoặc 'Toàn quốc'
+  if (!val || val === 'Toàn quốc') {
+    clearFilters(false);
+    return;
+  }
+  
+  selectedCityCode.value = val;
+  // Reset cấp dưới
+  selectedDistrictCode.value = null;
+  selectedWardName.value = null;
   wardOptions.value = [];
-  districtOptions.value = allDistricts[city] || [];
-};
-const loadWards = (district) => {
-  selectedWard.value = null;
-  wardOptions.value = allWards[district] || [];
+  
+  loadDistricts(val);
+  showMainView();
 };
 
-// --- Hàm xử lý sự kiện ---
-const selectQuickCity = (city) => {
-  selectedCity.value = city;
-  loadDistricts(city);
-};
-
-// Xử lý khi chọn xong ở SubView
-const handleCitySelect = (city) => {
-  if(city === 'Toàn quốc') {
-    clearFilters(false); 
-    return; 
-  }
-  selectedCity.value = city;
-  if(city === null) { 
-    selectedDistrict.value = null;
-    selectedWard.value = null;
-    districtOptions.value = [];
-    wardOptions.value = [];
+// Chọn Quận
+const handleDistrictSelect = (val) => {
+  selectedDistrictCode.value = val;
+  
+  // Reset cấp dưới
+  selectedWardName.value = null;
+  
+  if (val) {
+    loadWards(val);
   } else {
-    loadDistricts(city);
-  }
-  showMainView();
-};
-const handleDistrictSelect = (district) => {
-  selectedDistrict.value = district;
-  if(district === null) {
-    selectedWard.value = null;
     wardOptions.value = [];
-  } else {
-    loadWards(district);
   }
-  showMainView();
-};
-const handleWardSelect = (ward) => {
-  selectedWard.value = ward;
   showMainView();
 };
 
-// Xử lý nút Footer
+// Chọn Phường
+const handleWardSelect = (val) => {
+  selectedWardName.value = val;
+  showMainView();
+};
+
+
+// 4. FOOTER ACTIONS
 const clearFilters = (closeModal = true) => {
-  selectedCity.value = null;
-  selectedDistrict.value = null;
-  selectedWard.value = null;
+  selectedCityCode.value = null;
+  selectedDistrictCode.value = null;
+  selectedWardName.value = null;
   districtOptions.value = [];
   wardOptions.value = [];
+  
   emit('applyLocation', 'Toàn quốc');
   if(closeModal) emit('close');
 };
 
 const applyFilters = () => {
-  let locationText = 'Toàn quốc';
-  if (selectedWard.value) locationText = selectedWard.value;
-  else if (selectedDistrict.value) locationText = selectedDistrict.value;
-  else if (selectedCity.value) locationText = selectedCity.value;
+  // Lấy text hiển thị chi tiết nhất
+  let result = 'Toàn quốc';
   
-  emit('applyLocation', locationText);
+  if (selectedWardName.value) {
+    result = selectedWardName.value;
+  } else if (selectedDistrictLabel.value) {
+    result = selectedDistrictLabel.value;
+  } else if (selectedCityLabel.value) {
+    result = selectedCityLabel.value;
+  }
+  
+  emit('applyLocation', result);
   emit('close');
 };
 

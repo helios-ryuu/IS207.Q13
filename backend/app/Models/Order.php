@@ -19,6 +19,7 @@ class Order extends Model
         'tracking_code',
         'user_id',
         'address_id',
+        'total_amount', // [FIX] Cho phép mass assignment
     ];
 
     protected function casts(): array

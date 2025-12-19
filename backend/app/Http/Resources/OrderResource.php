@@ -9,8 +9,10 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // Lấy tổng tiền từ bảng transactions
-        $totalAmount = $this->transactions->sum('amount');
+        // [FIX] Lấy tổng tiền từ cột total_amount trong DB, fallback về tính từ order details
+        $totalAmount = $this->total_amount > 0
+            ? $this->total_amount
+            : $this->orderDetails->sum(fn($d) => $d->quantity * $d->unit_price) + $this->shipping_fee;
 
         // Status labels tiếng Việt cho seller view
         $statusLabels = [

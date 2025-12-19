@@ -294,28 +294,47 @@ const formatter = new Intl.NumberFormat('vi-VN');
 
 // Helper URL ảnh
 const getImageUrl = (url) => {
-  if (!url) return 'https://via.placeholder.com/200/eeeeee/cccccc?text=No+Image';
+  if (!url) return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="14" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
   if (url.startsWith('http')) return url;
   return `http://localhost:8000${url}`;
 };
 
+// Helper: Format giá tiền
+const formatPrice = (price) => {
+  if (!price) return '0 đ';
+  const numberPrice = parseFloat(price); 
+  return new Intl.NumberFormat('vi-VN').format(numberPrice) + ' đ';
+};
+
 // --- HÀM MAP DỮ LIỆU (QUAN TRỌNG) ---
 const mapProduct = (item) => {
-  // 1. Xử lý ảnh
+  // 1. Xử lý ảnh thumbnail
   let rawUrl = '';
-  if (item.images && item.images.length > 0) rawUrl = item.images[0].url;
-  else if (item.thumbnail) rawUrl = item.thumbnail;
+  // Ưu tiên 1: Lấy từ mảng images (Cấu trúc mới Backend trả về)
+  if (item.images && item.images.length > 0) {
+    rawUrl = item.images[0].url; 
+  } 
+  // Ưu tiên 2: Lấy từ thumbnail
+  else if (item.thumbnail) {
+    rawUrl = item.thumbnail;
+  }
+  // Ưu tiên 3: Lấy từ variants (Cấu trúc cũ)
   else if (item.variants?.[0]?.images?.[0]) {
      const img = item.variants[0].images[0];
+     // Xử lý trường hợp ảnh trong variant là string hoặc object
      rawUrl = typeof img === 'string' ? img : img.url;
   }
   
   // 2. Xử lý giá
   const priceVal = item.price_range?.min || item.variants?.[0]?.price || 0;
   
-  // 3. Xử lý địa chỉ (Lấy từ Description)
-  let locationDisplay = 'Toàn quốc';
-  if (item.description) {
+  // 3. Xử lý địa chỉ
+  // Ưu tiên 1: Lấy từ product.location (trường mới trong DB)
+  // Ưu tiên 2: Lấy từ seller.address
+  // Ưu tiên 3: Trích xuất từ description (fallback)
+  let locationDisplay = item.location || item.seller?.address || 'Toàn quốc';
+  
+  if (locationDisplay === 'Toàn quốc' && item.description) {
     // Tìm dòng có chữ "Khu vực:"
     const match = item.description.match(/Khu vực:\s*(.*?)(\n|$)/);
     if (match && match[1]) {
@@ -326,10 +345,14 @@ const mapProduct = (item) => {
   return {
     id: item.id,
     title: item.name,
-    price: formatter.format(priceVal) + ' đ',
-    seller: item.seller?.name || 'Shop',
+    price: formatPrice(priceVal),
+    originalPrice: '',
+    seller: item.seller?.name || 'Shop VietMarket', // API trả về seller.name
+    sellerId: item.seller?.id, // ID thực của seller từ API
+    userAvatar: getImageUrl(item.seller?.avatar), // Avatar của seller
     location: locationDisplay, // Hiển thị địa chỉ thật
     imageUrl: getImageUrl(rawUrl),
+    username: 'seller',
     is_favorited: item.is_favorited, 
   };
 };

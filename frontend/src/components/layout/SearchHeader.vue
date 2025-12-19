@@ -161,20 +161,32 @@ const route = useRoute(); // Lấy thông tin URL hiện tại
 
 // --- LOGIC TÌM KIẾM ---
 const keyword = ref('');
+const selectedLocation = ref('Toàn quốc');
+const isLocationPickerOpen = ref(false); // Move related ref up as well
 
-// Đồng bộ ô input với URL (nếu user gõ URL trực tiếp hoặc back lại)
-watch(() => route.query.q, (newQ) => {
-  keyword.value = newQ || '';
+// Đồng bộ ô input và location với URL
+watch(() => route.query, (newQuery) => {
+  keyword.value = newQuery.q || '';
+  // Nếu có location trên URL thì lấy, nếu không thì mặc định là Toàn quốc
+  selectedLocation.value = newQuery.location || 'Toàn quốc';
 }, { immediate: true });
 
 const handleSearch = () => {
-  // Logic: Giữ lại các filter cũ (category, sort...), chỉ thay đổi 'q'
+  // Logic: Giữ lại các filter cũ (category, sort...)
   const query = { ...route.query };
   
+  // 1. Keyword
   if (keyword.value.trim()) {
     query.q = keyword.value.trim();
   } else {
-    delete query.q; // Xóa nếu rỗng
+    delete query.q;
+  }
+
+  // 2. Location
+  if (selectedLocation.value && selectedLocation.value !== 'Toàn quốc') {
+    query.location = selectedLocation.value;
+  } else {
+    delete query.location; // Xóa nếu là Toàn quốc
   }
 
   // Chuyển hướng
@@ -187,8 +199,8 @@ const headerRef = ref(null);
 const { isLoggedIn, user, logout } = useAuth();
 const { cartCount } = useCart();
 const isUserMenuOpen = ref(false);
-const isLocationPickerOpen = ref(false);
-const selectedLocation = ref('Toàn quốc');
+// const isLocationPickerOpen = ref(false); // MOVED TO TOP
+// const selectedLocation = ref('Toàn quốc'); // MOVED TO TOP
 
 // Notification Store
 const notifStore = useNotificationStore();
