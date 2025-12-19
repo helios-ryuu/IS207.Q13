@@ -14,14 +14,14 @@ class CreateOrderRequest extends FormRequest
     public function rules()
     {
         return [
-            // Validate thông tin địa chỉ (Bắt buộc vì nhập trực tiếp)
+            // Validate thông tin địa chỉ (province bắt buộc, district/ward có thể trống)
             'receiver_name' => 'required|string|max:100',
             'phone_number' => 'required|string|max:15',
             'street_address' => 'required|string|max:255',
             'province' => 'required|string|max:100',
-            'district' => 'required|string|max:100',
-            'ward' => 'required|string|max:100',
-            
+            'district' => 'nullable|string|max:100',
+            'ward' => 'nullable|string|max:100',
+
             // Validate đơn hàng
             'payment_method' => 'required|string|in:cash,bank_transfer,wallet,credit_card',
             'notes' => 'nullable|string',

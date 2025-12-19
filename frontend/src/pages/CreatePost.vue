@@ -1,9 +1,10 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../utils/useAuth'
 import api from '../utils/api'
 import { useToast } from '../utils/useToast'
+import { provinces, getDistrictsByProvince, getWardsByDistrict } from '../data/vietnamLocations'
 import HeaderOther from '../components/layout/SearchHeader.vue'
 import Footer from '../components/layout/AppFooter.vue'
 import CascadingCategoryModal from '../components/modals/CascadingCategoryModal.vue'
@@ -24,9 +25,38 @@ const brand = ref('')
 const color = ref('')
 const size = ref('')
 
-// Address - cascading
-const city = ref('')
-const district = ref('')
+// Address - cascading (đã cập nhật dùng vietnamLocations)
+const provinceCode = ref('')
+const districtCode = ref('')
+const ward = ref('')
+
+// Danh sách địa chỉ động
+const availableProvinces = provinces
+const availableDistricts = computed(() => {
+  return getDistrictsByProvince(provinceCode.value)
+})
+const availableWards = computed(() => {
+  return getWardsByDistrict(districtCode.value)
+})
+
+// Lấy tên hiển thị từ code
+const getProvinceName = () => {
+  const prov = provinces.find(p => p.code === provinceCode.value)
+  return prov ? prov.name : ''
+}
+const getDistrictName = () => {
+  const dist = availableDistricts.value.find(d => d.code === districtCode.value)
+  return dist ? dist.name : ''
+}
+
+// Watch để reset khi thay đổi tỉnh/quận
+watch(provinceCode, () => { 
+  districtCode.value = ''
+  ward.value = ''
+})
+watch(districtCode, () => {
+  ward.value = ''
+})
 
 // Validation & Loading
 const formErrors = ref({})
@@ -37,43 +67,6 @@ const categories = ref([])
 const photos = ref([])
 const photoURLs = ref([]) // Cached URLs
 const photoInput = ref(null)
-
-// Address data (Giữ nguyên logic cũ của bạn vì Backend chưa có API địa chỉ)
-const cities = [
-  { value: 'hcm', label: 'TP. Hồ Chí Minh' },
-  { value: 'hanoi', label: 'Hà Nội' },
-  { value: 'danang', label: 'Đà Nẵng' },
-  { value: 'cantho', label: 'Cần Thơ' },
-  { value: 'haiphong', label: 'Hải Phòng' },
-  { value: 'binhduong', label: 'Bình Dương' },
-  { value: 'dongnai', label: 'Đồng Nai' },
-]
-
-const districtsByCity = {
-  hcm: [
-    { value: 'q1', label: 'Quận 1' },
-    { value: 'q3', label: 'Quận 3' },
-    { value: 'q7', label: 'Quận 7' },
-    { value: 'bthanh', label: 'Bình Thạnh' },
-    { value: 'govap', label: 'Gò Vấp' },
-    { value: 'thuduc', label: 'TP. Thủ Đức' },
-  ],
-  hanoi: [
-    { value: 'hoankiem', label: 'Hoàn Kiếm' },
-    { value: 'badinh', label: 'Ba Đình' },
-    { value: 'caugiay', label: 'Cầu Giấy' },
-  ],
-  danang: [{ value: 'haichau', label: 'Hải Châu' }],
-  cantho: [{ value: 'ninhkieu', label: 'Ninh Kiều' }],
-  haiphong: [{ value: 'lechan', label: 'Lê Chân' }],
-  binhduong: [{ value: 'thudaumot', label: 'Thủ Dầu Một' }],
-  dongnai: [{ value: 'bienhoa', label: 'Biên Hòa' }],
-}
-
-const getDistricts = () => districtsByCity[city.value] || []
-
-watch(city, () => { district.value = '' })
-
 // 1. Fetch Categories từ API
 onMounted(async () => {
   if (!isLoggedIn.value) {
@@ -176,10 +169,16 @@ const handleSubmit = async () => {
     // Chuyển giá từ string "5.000.000" về số int 5000000
     const rawPrice = parseInt(price.value.replace(/\./g, '').replace(/,/g, ''));
 
-    // Ghép địa chỉ từ city và district đã chọn
-    const cityLabel = cities.find(c => c.value === city.value)?.label || '';
-    const districtLabel = getDistricts().find(d => d.value === district.value)?.label || '';
-    const locationStr = districtLabel ? `${districtLabel}, ${cityLabel}` : cityLabel;
+    // Ghép địa chỉ từ province và district đã chọn
+    const provinceName = getProvinceName();
+    const districtName = getDistrictName();
+    const wardName = ward.value || '';
+    // Tạo chuỗi location: "Phường X, Quận Y, Tỉnh Z"
+    let locationParts = [];
+    if (wardName) locationParts.push(wardName);
+    if (districtName) locationParts.push(districtName);
+    if (provinceName) locationParts.push(provinceName);
+    const locationStr = locationParts.join(', ');
 
     const payload = {
       name: title.value,
@@ -316,14 +315,19 @@ const handleSubmit = async () => {
                 <button :class="{ active: sellerType === 'business' }" @click="sellerType = 'business'" type="button">Bán chuyên</button>
               </div>
               
-              <select v-model="city" :class="{ error: formErrors.city }">
-                <option value="" disabled>Thành phố *</option>
-                <option v-for="c in cities" :key="c.value" :value="c.value">{{ c.label }}</option>
+              <select v-model="provinceCode" :class="{ error: formErrors.province }">
+                <option value="" disabled>Tỉnh/Thành phố *</option>
+                <option v-for="p in availableProvinces" :key="p.code" :value="p.code">{{ p.name }}</option>
               </select>
               
-              <select v-if="city" v-model="district" :class="{ error: formErrors.district }">
+              <select v-if="availableDistricts.length > 0" v-model="districtCode" :class="{ error: formErrors.district }">
                 <option value="" disabled>Quận/Huyện *</option>
-                <option v-for="d in getDistricts()" :key="d.value" :value="d.value">{{ d.label }}</option>
+                <option v-for="d in availableDistricts" :key="d.code" :value="d.code">{{ d.name }}</option>
+              </select>
+
+              <select v-if="availableWards.length > 0" v-model="ward" :class="{ error: formErrors.ward }">
+                <option value="" disabled>Phường/Xã</option>
+                <option v-for="w in availableWards" :key="w.name" :value="w.name">{{ w.name }}</option>
               </select>
             </section>
           </template>

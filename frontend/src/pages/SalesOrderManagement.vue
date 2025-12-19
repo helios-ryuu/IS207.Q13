@@ -12,6 +12,15 @@
 
       <div class="filter-section">
         <div class="filter-row">
+          <div class="search-box">
+            <font-awesome-icon icon="search" class="search-icon" />
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Tìm theo mã đơn hàng..." 
+              class="search-input"
+            />
+          </div>
           <span class="label">Lọc theo:</span>
           <div class="dropdown-wrapper">
             <button class="btn-dropdown" @click="isDropdownOpen = !isDropdownOpen">
@@ -146,16 +155,16 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 import * as sellerOrderService from '../services/sellerOrderService';
+import { useToast } from '../utils/useToast';
 
 const router = useRouter();
 const goToHome = () => router.push('/');
-const { proxy } = getCurrentInstance();
-const $toast = proxy.$toast;
+const { showSuccess, showError } = useToast();
 
 // --- DATA STATE ---
 const activeTab = ref('all');
@@ -164,6 +173,7 @@ const selectedCategories = ref([]);
 const visibleCount = ref(10);
 const isLoading = ref(false);
 const orders = ref([]);
+const searchQuery = ref(''); // Tìm kiếm theo mã đơn
 
 // --- MODAL STATE ---
 const showReturnDetailsModal = ref(false);
@@ -221,7 +231,7 @@ const fetchOrders = async () => {
     }
   } catch (error) {
     console.error('Error fetching orders:', error);
-    $toast.error('Không thể tải danh sách đơn hàng');
+    showError('Không thể tải danh sách đơn hàng');
     orders.value = [];
   } finally {
     isLoading.value = false;
@@ -234,12 +244,12 @@ const acceptOrder = async (order) => {
   
   try {
     await sellerOrderService.acceptOrder(order.id);
-    $toast.success(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
+    showSuccess(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
     await fetchOrders();
   } catch (error) {
     console.error('Accept order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    $toast.error(errorMsg);
+    showError(errorMsg);
   }
 };
 
@@ -248,12 +258,12 @@ const cancelOrder = async (order) => {
   
   try {
     await sellerOrderService.cancelOrder(order.id);
-    $toast.success(`Đã hủy đơn hàng #${order.trackingCode}.`);
+    showSuccess(`Đã hủy đơn hàng #${order.trackingCode}.`);
     await fetchOrders();
   } catch (error) {
     console.error('Cancel order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    $toast.error(errorMsg);
+    showError(errorMsg);
   }
 };
 
@@ -262,12 +272,12 @@ const shipOrder = async (order) => {
   
   try {
     await sellerOrderService.shipOrder(order.id);
-    $toast.success(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
+    showSuccess(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
     await fetchOrders();
   } catch (error) {
     console.error('Ship order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    $toast.error(errorMsg);
+    showError(errorMsg);
   }
 };
 
@@ -276,12 +286,12 @@ const refundOrder = async (order) => {
   
   try {
     await sellerOrderService.confirmReturn(order.id);
-    $toast.success(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
+    showSuccess(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
     await fetchOrders();
   } catch (error) {
     console.error('Refund order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    $toast.error(errorMsg);
+    showError(errorMsg);
   }
 };
 
@@ -313,7 +323,12 @@ const allFilteredOrders = computed(() => {
     const matchCategory = selectedCategories.value.length === 0 || selectedCategories.value.some(cat => 
       order.items?.some(item => item.category === cat)
     );
-    return matchCategory;
+    // Lọc theo mã đơn hàng
+    const searchLower = searchQuery.value.toLowerCase().trim();
+    const matchSearch = !searchLower || 
+      (order.trackingCode && order.trackingCode.toLowerCase().includes(searchLower)) ||
+      (order.id && order.id.toString().includes(searchLower));
+    return matchCategory && matchSearch;
   });
 });
 
@@ -348,6 +363,13 @@ const clearAllCategories = () => { selectedCategories.value = []; };
 .filter-section { background: #fff; padding: 1.2rem; border-bottom: 1px solid #f2f2f2; border-radius: 8px 8px 0 0; }
 .filter-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .label { font-weight: 600; color: #555; }
+
+/* Search Box */
+.search-box { position: relative; display: flex; align-items: center; }
+.search-icon { position: absolute; left: 12px; color: #999; font-size: 0.9rem; }
+.search-input { padding: 0.6rem 1rem 0.6rem 2.2rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; width: 220px; transition: all 0.2s; }
+.search-input:focus { outline: none; border-color: #0055aa; box-shadow: 0 0 0 2px rgba(0,85,170,0.1); }
+.search-input::placeholder { color: #aaa; }
 
 .dropdown-wrapper { position: relative; }
 .btn-dropdown { background: #fff; border: 1px solid #ddd; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; color: #333; transition: all 0.2s; }

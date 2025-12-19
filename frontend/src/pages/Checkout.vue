@@ -59,31 +59,33 @@
             <div class="form-row">
               <div class="form-group">
                 <label>Tỉnh/Thành phố <span class="required">*</span></label>
-                <select v-model="shippingInfo.province" class="form-control">
+                <select v-model="shippingInfo.provinceCode" class="form-control">
                   <option value="">Chọn Tỉnh/Thành phố</option>
-                  <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                  <option value="Hà Nội">Hà Nội</option>
-                  <option value="Đà Nẵng">Đà Nẵng</option>
-                  <option value="Cần Thơ">Cần Thơ</option>
+                  <option v-for="prov in availableProvinces" :key="prov.code" :value="prov.code">
+                    {{ prov.name }}
+                  </option>
                 </select>
               </div>
 
-              <div class="form-group">
+              <!-- Chỉ hiển Quận/Huyện nếu có dữ liệu -->
+              <div class="form-group" v-if="availableDistricts.length > 0">
                 <label>Quận/Huyện <span class="required">*</span></label>
-                <select v-model="shippingInfo.district" class="form-control">
+                <select v-model="shippingInfo.districtCode" class="form-control">
                   <option value="">Chọn Quận/Huyện</option>
-                  <option value="Quận 1">Quận 1</option>
-                  <option value="Quận 2">Quận 2</option>
-                  <option value="Quận 3">Quận 3</option>
+                  <option v-for="dist in availableDistricts" :key="dist.code" :value="dist.code">
+                    {{ dist.name }}
+                  </option>
                 </select>
               </div>
 
-              <div class="form-group">
+              <!-- Chỉ hiển Phường/Xã nếu có dữ liệu -->
+              <div class="form-group" v-if="availableWards.length > 0">
                 <label>Phường/Xã <span class="required">*</span></label>
                 <select v-model="shippingInfo.ward" class="form-control">
                   <option value="">Chọn Phường/Xã</option>
-                  <option value="Phường Bến Nghé">Phường Bến Nghé</option>
-                  <option value="Phường Bến Thành">Phường Bến Thành</option>
+                  <option v-for="ward in availableWards" :key="ward.name" :value="ward.name">
+                    {{ ward.name }}
+                  </option>
                 </select>
               </div>
             </div>
@@ -223,6 +225,7 @@ import { useCart } from '../stores/cart'; // Đảm bảo đường dẫn đúng
 import api from '../utils/api';
 import { getImageUrl } from '../utils/imageUrl';
 import { useToast } from '../utils/useToast';
+import { provinces, getDistrictsByProvince, getWardsByDistrict } from '../data/vietnamLocations';
 import Header from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 
@@ -239,13 +242,42 @@ const shippingInfo = ref({
   phone: '',
   email: '',
   address: '',
-  province: '',
-  district: '',
+  provinceCode: '', // Code tỉnh để lookup
+  province: '',     // Tên tỉnh hiển thị
+  districtCode: '', // Code quận để lookup
+  district: '',     // Tên quận hiển thị
   ward: '',
   note: ''
 });
 
 const paymentMethod = ref('cod');
+
+// Danh sách địa chỉ động
+const availableProvinces = provinces;
+const availableDistricts = computed(() => {
+  return getDistrictsByProvince(shippingInfo.value.provinceCode);
+});
+const availableWards = computed(() => {
+  return getWardsByDistrict(shippingInfo.value.districtCode);
+});
+
+// Watch provinceCode để reset district và ward khi đổi tỉnh
+watch(() => shippingInfo.value.provinceCode, (newVal) => {
+  shippingInfo.value.districtCode = '';
+  shippingInfo.value.district = '';
+  shippingInfo.value.ward = '';
+  // Set tên tỉnh
+  const prov = provinces.find(p => p.code === newVal);
+  shippingInfo.value.province = prov ? prov.name : '';
+});
+
+// Watch districtCode để reset ward khi đổi quận
+watch(() => shippingInfo.value.districtCode, (newVal) => {
+  shippingInfo.value.ward = '';
+  // Set tên quận
+  const dist = availableDistricts.value.find(d => d.code === newVal);
+  shippingInfo.value.district = dist ? dist.name : '';
+});
 
 // === 1. LOGIC LẤY SẢN PHẨM CHECKOUT ===
 
@@ -332,15 +364,25 @@ const handleImageError = (e) => {
   e.target.src = "https://via.placeholder.com/80?text=No+Img";
 };
 
-// Validate form
+// Validate form - linh hoạt theo dữ liệu có sẵn
 const isFormValid = computed(() => {
-  return shippingInfo.value.fullName && 
-         shippingInfo.value.phone && 
-         shippingInfo.value.address &&
-         shippingInfo.value.province &&
-         shippingInfo.value.district &&
-         shippingInfo.value.ward &&
-         paymentMethod.value;
+  // Các trường bắt buộc
+  if (!shippingInfo.value.fullName || !shippingInfo.value.phone || 
+      !shippingInfo.value.address || !shippingInfo.value.province || !paymentMethod.value) {
+    return false;
+  }
+  
+  // Nếu có danh sách Quận/Huyện thì phải chọn
+  if (availableDistricts.value.length > 0 && !shippingInfo.value.district) {
+    return false;
+  }
+  
+  // Nếu có danh sách Phường/Xã thì phải chọn
+  if (availableWards.value.length > 0 && !shippingInfo.value.ward) {
+    return false;
+  }
+  
+  return true;
 });
 
 
@@ -361,13 +403,14 @@ const handlePlaceOrder = async () => {
     };
 
     // Chuẩn bị payload gửi lên server
+    // Đảm bảo district và ward là chuỗi trống nếu không có dữ liệu
     const orderPayload = {
       receiver_name: shippingInfo.value.fullName,
       phone_number: shippingInfo.value.phone,
       street_address: shippingInfo.value.address,
-      province: shippingInfo.value.province,
-      district: shippingInfo.value.district,
-      ward: shippingInfo.value.ward,
+      province: shippingInfo.value.province || '',
+      district: shippingInfo.value.district || '',
+      ward: shippingInfo.value.ward || '',
       payment_method: paymentMethodMap[paymentMethod.value] || 'cash',
       notes: shippingInfo.value.note || '',
       

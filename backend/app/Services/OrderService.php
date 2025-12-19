@@ -32,8 +32,8 @@ class OrderService
                 'phone_number' => $data['phone_number'],
                 'street_address' => $data['street_address'],
                 'province' => $data['province'],
-                'district' => $data['district'],
-                'ward' => $data['ward'],
+                'district' => $data['district'] ?? '',
+                'ward' => $data['ward'] ?? '',
                 'is_default' => false, // Mặc định không set default để tránh conflict
                 'status' => 'active'
             ]);
@@ -44,11 +44,7 @@ class OrderService
                 if (!$item->variant)
                     continue;
 
-                // Check tồn kho
-                if ($item->variant->quantity < $item->quantity) {
-                    throw new Exception("Sản phẩm {$item->variant->product->product_name} không đủ hàng.");
-                }
-
+                // Bỏ qua kiểm tra tồn kho theo yêu cầu
                 $subtotal += $item->quantity * $item->variant->price;
             }
 

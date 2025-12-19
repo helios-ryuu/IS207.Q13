@@ -12,6 +12,15 @@
 
       <div class="filter-section">
         <div class="filter-row">
+          <div class="search-box">
+            <font-awesome-icon icon="search" class="search-icon" />
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Tìm theo mã đơn hàng..." 
+              class="search-input"
+            />
+          </div>
           <span class="label">Lọc theo:</span>
           <div class="dropdown-wrapper">
             <button class="btn-dropdown" @click="isDropdownOpen = !isDropdownOpen">
@@ -183,6 +192,7 @@ const visibleCount = ref(5);
 const ratedOrderIds = ref([]);
 const isLoading = ref(false);
 const orders = ref([]); // Mảng chứa dữ liệu thật
+const searchQuery = ref(''); // Tìm kiếm theo mã đơn
 
 // --- RETURN MODAL STATE (Giữ UI từ Main) ---
 const showReturnModal = ref(false);
@@ -383,7 +393,12 @@ const allFilteredOrders = computed(() => {
   return orders.value.filter(order => {
     const matchTab = activeTab.value === 'all' || order.statusId === activeTab.value;
     const matchCategory = selectedCategories.value.length === 0 || selectedCategories.value.includes(order.category);
-    return matchTab && matchCategory;
+    // Lọc theo mã đơn hàng
+    const searchLower = searchQuery.value.toLowerCase().trim();
+    const matchSearch = !searchLower || 
+      (order.trackingCode && order.trackingCode.toLowerCase().includes(searchLower)) ||
+      (order.id && order.id.toString().includes(searchLower));
+    return matchTab && matchCategory && matchSearch;
   });
 });
 
@@ -425,6 +440,13 @@ onMounted(() => {
 .filter-section { background: #fff; padding: 1.2rem; border-bottom: 1px solid #f2f2f2; border-radius: 8px 8px 0 0; }
 .filter-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .label { font-weight: 600; color: #555; }
+
+/* Search Box */
+.search-box { position: relative; display: flex; align-items: center; }
+.search-icon { position: absolute; left: 12px; color: #999; font-size: 0.9rem; }
+.search-input { padding: 0.6rem 1rem 0.6rem 2.2rem; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; width: 220px; transition: all 0.2s; }
+.search-input:focus { outline: none; border-color: #0055aa; box-shadow: 0 0 0 2px rgba(0,85,170,0.1); }
+.search-input::placeholder { color: #aaa; }
 
 .dropdown-wrapper { position: relative; }
 .btn-dropdown { background: #fff; border: 1px solid #ddd; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; color: #333; transition: all 0.2s; }
