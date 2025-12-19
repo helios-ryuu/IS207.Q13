@@ -58,10 +58,10 @@ class ProductController extends Controller
         }
 
         // 4. Lọc theo Khu vực (Location) - QUAN TRỌNG
-        // (Tìm chuỗi địa chỉ trong mô tả sản phẩm)
+        // (Tìm chuỗi địa chỉ trong cột location)
         if ($request->filled('location') && $request->location != 'Toàn quốc' && $request->location != 'Gần tôi') {
             $location = $request->location;
-            $query->where('description', 'like', '%' . $location . '%');
+            $query->where('location', 'like', '%' . $location . '%');
         }
 
         // 5. Lọc theo Giá
@@ -81,16 +81,11 @@ class ProductController extends Controller
             if ($request->sort == 'oldest')
                 $query->oldest();
             elseif ($request->sort == 'price_asc') {
-                // Sắp xếp đơn giản theo variant đầu tiên (hoặc join bảng nếu cần chính xác)
-                $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
-                    ->orderBy('product_variants.price', 'asc')
-                    ->select('products.*')
-                    ->distinct();
+                $query->withMin('variants', 'price')
+                    ->orderBy('variants_min_price', 'asc');
             } elseif ($request->sort == 'price_desc') {
-                $query->join('product_variants', 'products.id', '=', 'product_variants.product_id')
-                    ->orderBy('product_variants.price', 'desc')
-                    ->select('products.*')
-                    ->distinct();
+                $query->withMax('variants', 'price')
+                    ->orderBy('variants_max_price', 'desc');
             } else
                 $query->latest();
         } else {
@@ -247,9 +242,11 @@ class ProductController extends Controller
                     'id' => $p->id,
                     'title' => $p->name,
                     'price' => $variant?->price ?? 0,
-                    'image' => $variant?->images->first()?->full_image_url ?? null,
-                    'location' => $p->seller?->address ?? 'Chưa xác định',
-                    'seller' => $p->seller?->full_name ?? 'Người bán',
+                    'image' => $variant?->images->first()?->full_image_url ?? $p->thumbnail,
+                    'location' => $p->location ?? $p->seller?->address ?? 'Toàn quốc',
+                    'seller' => $p->seller?->full_name ?? $p->seller?->name ?? 'Người bán',
+                    'seller_id' => $p->seller_id,
+                    'seller_avatar' => $p->seller?->avatar_url, // Sử dụng accessor avatar_url
                     'category' => $p->categories->first()?->name ?? 'Chưa phân loại',
                 ];
             }),
@@ -281,15 +278,18 @@ class ProductController extends Controller
             'success' => true,
             'data' => $listings->map(function ($p) {
                 $variant = $p->variants->first();
+                // Logic fallback ảnh giống index/similar
+                $image = $variant?->images->first()?->full_image_url ?? $p->thumbnail;
+
                 return [
                     'id' => $p->id,
                     'title' => $p->name,
                     'description' => $p->description,
                     'price' => $variant?->price ?? 0,
-                    'image' => $variant?->images->first()?->full_image_url ?? null,
+                    'image' => $image,
                     'status' => $p->status,
                     'category' => $p->categories->first()?->name ?? 'Chưa phân loại',
-                    'views' => 0, // TODO: implement view tracking
+                    'views' => 0,
                     'created_at' => $p->created_at->format('Y-m-d'),
                     'updated_at' => $p->updated_at->format('Y-m-d'),
                 ];

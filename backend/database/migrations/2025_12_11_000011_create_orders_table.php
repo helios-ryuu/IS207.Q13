@@ -12,6 +12,7 @@ return new class extends Migration {
             $table->dateTime('order_date')->useCurrent();
             $table->dateTime('delivery_date')->nullable();
             $table->decimal('shipping_fee', 15, 2)->default(0.00);
+            $table->decimal('total_amount', 15, 2)->default(0.00); // [FIX] Tổng tiền đơn hàng
             $table->enum('status', ['pending', 'confirmed', 'processing', 'shipping', 'shipped', 'delivered', 'completed', 'cancelled', 'return', 'refunded'])->default('pending');
             $table->text('notes')->nullable();
             $table->enum('payment_method', ['cash', 'bank_transfer', 'wallet', 'credit_card']);

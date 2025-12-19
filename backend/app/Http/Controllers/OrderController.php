@@ -75,17 +75,18 @@ class OrderController extends Controller
     }
 
     // 4. PUT /api/orders/{id}/cancel (Hủy đơn mua)
-    public function cancel($id)
+    public function cancel(Request $request, $id)
     {
         try {
             $userId = Auth::id();
-            $order = $this->orderService->cancelOrder($userId, $id);
+            $reason = $request->input('reason', '');
+            $order = $this->orderService->cancelOrder($userId, $id, $reason);
 
             // Notify Seller
             $firstDetail = $order->orderDetails->first();
             $sellerId = $firstDetail?->variant?->product?->user_id;
             if ($sellerId) {
-                $this->notificationService->create($sellerId, 'Hủy đơn hàng', "Đơn hàng #{$order->tracking_code} đã bị khách hàng hủy.", 'order');
+                $this->notificationService->create($sellerId, 'Hủy đơn hàng', "Đơn hàng #{$order->tracking_code} đã bị khách hàng hủy. Lý do: {$reason}", 'order');
             }
 
             return response()->json(['status' => 'success', 'message' => 'Đã hủy đơn hàng']);
@@ -215,14 +216,15 @@ class OrderController extends Controller
     }
 
     // 9. PUT /api/seller/orders/{id}/cancel - Seller hủy đơn
-    public function sellerCancelOrder($id)
+    public function sellerCancelOrder(Request $request, $id)
     {
         try {
             $sellerId = Auth::id();
-            $order = $this->orderService->sellerCancelOrder($sellerId, $id);
+            $reason = $request->input('reason', '');
+            $order = $this->orderService->sellerCancelOrder($sellerId, $id, $reason);
 
             // Notify Buyer
-            $this->notificationService->create($order->user_id, 'Đơn hàng bị hủy', "Đơn hàng #{$order->tracking_code} đã bị người bán hủy.", 'order');
+            $this->notificationService->create($order->user_id, 'Đơn hàng bị hủy', "Đơn hàng #{$order->tracking_code} đã bị người bán hủy. Lý do: {$reason}", 'order');
 
             return response()->json([
                 'status' => 'success',

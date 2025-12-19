@@ -20,8 +20,8 @@
         <div class="balance-wrapper">
           <div class="balance-pill">
             <div class="coin-icon"></div>
-            <span class="balance-text">Số dư: 0</span>
-            <button class="add-btn">+</button>
+            <span class="balance-text">Số dư: {{ formatCurrency(walletBalance) }}</span>
+            <button class="add-btn" @click="goToWallet">+</button>
           </div>
         </div>
       </div>
@@ -125,6 +125,8 @@ const isLoading = ref(false);
 const searchKeyword = ref('');
 const sortOption = ref('newest');
 
+const walletBalance = ref(0);
+
 // Helper xử lý ảnh - sử dụng data URI để tránh lỗi network
 const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="150" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="12" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
 const getImageUrl = (url) => {
@@ -133,12 +135,16 @@ const getImageUrl = (url) => {
   return `http://localhost:8000${url}`;
 };
 
+const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+const goToWallet = () => router.push('/wallet');
+
 // Fetch Listings
 const fetchListings = async () => {
   if (!isLoggedIn.value || !user.value?.id) return;
   
   isLoading.value = true;
   try {
+    // 1. Fetch Listings
     const response = await api.get(`/products/seller/${user.value.id}`);
     const rawData = response.data.data || response.data || [];
     
@@ -147,18 +153,19 @@ const fetchListings = async () => {
       status: item.status || 'active', 
       title: item.name,
       condition: 'Đã sử dụng', 
-      // Format giá để hiển thị
       price: new Intl.NumberFormat('vi-VN').format(item.price_range?.min || 0) + ' đ',
-      // Lưu giá gốc để sắp xếp (QUAN TRỌNG)
       rawPrice: item.price_range?.min || 0,
       imageUrl: getImageUrl(item.thumbnail),
-      // Lưu ngày gốc để sắp xếp
       createdAt: item.created_at,
       location: item.location || 'Toàn quốc'
     }));
 
+    // 2. Fetch Wallet Balance (NEW)
+    const walletRes = await api.get('/wallet');
+    walletBalance.value = walletRes.data.data ? walletRes.data.data.balance : 0;
+
   } catch (err) {
-    console.error('Failed to fetch listings:', err);
+    console.error('Failed to fetch data:', err);
   } finally {
     isLoading.value = false;
   }

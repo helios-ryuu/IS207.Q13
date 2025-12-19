@@ -89,24 +89,12 @@
             <div class="action-buttons">
 
               <template v-if="order.statusId === 'pending'">
-                <button class="btn btn-outline-danger" @click="cancelOrder(order)">Hủy Đơn</button>
+                <button class="btn btn-outline-danger" @click="openCancelModal(order)">Hủy Đơn</button>
                 <button class="btn btn-primary" @click="acceptOrder(order)">Chấp nhận Đơn</button>
               </template>
 
               <template v-else-if="order.statusId === 'processing'">
                 <button class="btn btn-primary" @click="shipOrder(order)">Đóng gói xong, giao vận</button>
-              </template>
-
-              <template v-else-if="order.statusId === 'shipping'">
-                <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
-              </template>
-
-              <template v-else-if="order.statusId === 'completed'">
-                <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
-              </template>
-
-              <template v-else-if="order.statusId === 'cancelled'">
-                <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
               </template>
 
               <template v-else-if="order.statusId === 'return'">
@@ -117,9 +105,7 @@
                 <button class="btn btn-disabled" disabled>Đã Hoàn Tiền</button>
               </template>
 
-              <template v-else>
-                <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
-              </template>
+
 
             </div>
           </div>
@@ -152,6 +138,52 @@
     </div>
   </div>
 
+  <!-- MODAL HỦY ĐƠN - NHẬP LÝ DO (Seller) -->
+  <div v-if="showCancelModal" class="modal-overlay" @click.self="closeCancelModal">
+    <div class="modal-content fade-in">
+      <div class="modal-header">
+        <h3>Hủy đơn hàng</h3>
+        <button class="close-btn" @click="closeCancelModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="product-preview" v-if="cancelData.order">
+          <img :src="cancelData.order.image || FALLBACK_IMAGE" @error="handleImageError">
+          <div class="preview-info">
+            <p class="name">{{ cancelData.order.productName }}</p>
+            <p class="variant">Mã đơn: {{ cancelData.order.trackingCode }}</p>
+            <p class="variant">Khách hàng: {{ cancelData.order.customerName }}</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Lý do hủy đơn <span class="required">*</span></label>
+          <textarea v-model="cancelData.reason" rows="4" placeholder="Nhập lý do hủy đơn hàng..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" @click="closeCancelModal">Đóng</button>
+        <button class="btn btn-outline-danger" @click="submitCancelOrder" :disabled="!cancelData.reason.trim()">Xác nhận hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL XEM LÝ DO HỦY -->
+  <div v-if="showViewCancelReasonModal" class="modal-overlay" @click.self="closeViewCancelReasonModal">
+    <div class="modal-content fade-in">
+      <div class="modal-header">
+        <h3>Lý do hủy đơn</h3>
+        <button class="close-btn" @click="closeViewCancelReasonModal">✕</button>
+      </div>
+      <div class="modal-body info-view">
+        <p><strong>Mã đơn hàng:</strong> {{ viewCancelReasonData.trackingCode }}</p>
+        <p><strong>Lý do hủy:</strong></p>
+        <div class="cancel-reason-box">{{ viewCancelReasonData.reason || 'Không có lý do' }}</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" @click="closeViewCancelReasonModal">Đóng</button>
+      </div>
+    </div>
+  </div>
+
   <Footer />
 </template>
 
@@ -179,6 +211,14 @@ const searchQuery = ref(''); // Tìm kiếm theo mã đơn
 // --- MODAL STATE ---
 const showReturnDetailsModal = ref(false);
 const currentReturnDetails = reactive({ trackingCode: '', customerName: '', reason: '', pickupDate: '' });
+
+// MODAL HỦY ĐƠN (Seller)
+const showCancelModal = ref(false);
+const cancelData = reactive({ order: null, reason: '' });
+
+// MODAL XEM LÝ DO HỦY
+const showViewCancelReasonModal = ref(false);
+const viewCancelReasonData = reactive({ trackingCode: '', reason: '' });
 
 // Các tab trạng thái (ĐƠN BÁN)
 const tabs = [
@@ -224,7 +264,9 @@ const transformOrder = (apiOrder) => {
     totalPrice: apiOrder.total_amount_formatted || '0 VNĐ',
     orderDateDisplay: apiOrder.order_date,
     lastUpdateDisplay: apiOrder.updated_at,
-    items: apiOrder.items || []
+    items: apiOrder.items || [],
+    notes: apiOrder.notes || '',
+    cancelReason: apiOrder.notes || '' // Alias cho view reason modal
   };
 };
 
@@ -262,18 +304,41 @@ const acceptOrder = async (order) => {
   }
 };
 
-const cancelOrder = async (order) => {
-  if (!window.confirm(`Xác nhận HỦY đơn hàng #${order.trackingCode}?`)) return;
+// Hủy đơn - Mở modal nhập lý do (Seller)
+const openCancelModal = (order) => {
+  cancelData.order = order;
+  cancelData.reason = '';
+  showCancelModal.value = true;
+};
+const closeCancelModal = () => {
+  showCancelModal.value = false;
+  cancelData.order = null;
+  cancelData.reason = '';
+};
+
+const submitCancelOrder = async () => {
+  if (!cancelData.order || !cancelData.reason.trim()) return;
   
   try {
-    await sellerOrderService.cancelOrder(order.id);
-    showSuccess(`Đã hủy đơn hàng #${order.trackingCode}.`);
+    await sellerOrderService.cancelOrder(cancelData.order.id, cancelData.reason.trim());
+    showSuccess(`Đã hủy đơn hàng #${cancelData.order.trackingCode}.`);
+    closeCancelModal();
     await fetchOrders();
   } catch (error) {
     console.error('Cancel order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
     showError(errorMsg);
   }
+};
+
+// Xem lý do hủy
+const openViewCancelReasonModal = (order) => {
+  viewCancelReasonData.trackingCode = order.trackingCode;
+  viewCancelReasonData.reason = order.cancelReason || order.notes || 'Không có lý do';
+  showViewCancelReasonModal.value = true;
+};
+const closeViewCancelReasonModal = () => {
+  showViewCancelReasonModal.value = false;
 };
 
 const shipOrder = async (order) => {
@@ -494,6 +559,15 @@ const clearAllCategories = () => { selectedCategories.value = []; };
 .rating-comment textarea { width: 100%; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; resize: vertical; outline: none; font-family: inherit; font-size: 0.95rem; }
 .rating-comment textarea:focus { border-color: #0055aa; }
 .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 1rem; background: #f9f9f9; }
+
+/* Cancel Reason Modal */
+.cancel-reason-box { background: #fff5f5; border: 1px solid #ffcccc; padding: 1rem; border-radius: 8px; color: #555; margin-top: 0.5rem; white-space: pre-wrap; }
+.required { color: #dc3545; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333; }
+.form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; font-size: 0.95rem; resize: vertical; }
+.form-group textarea:focus { outline: none; border-color: #0055aa; box-shadow: 0 0 0 2px rgba(0,85,170,0.1); }
+.info-view p { margin-bottom: 0.8rem; }
+
 .fade-in { animation: fadeIn 0.2s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 </style>

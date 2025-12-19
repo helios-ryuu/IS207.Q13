@@ -52,6 +52,10 @@
                 <div v-else-if="t.type === 'income' || (!t.type && Number(t.amount) > 0 && t.order_id)" class="income-type">
                   Doanh thu đơn hàng
                 </div>
+                <!-- [MỚI] Expense Type -->
+                <div v-else-if="t.type === 'expense' || (!t.type && Number(t.amount) < 0 && t.order_id)" class="expense-type">
+                   Thanh toán đơn hàng
+                </div>
                 <div v-else class="expense-type">
                   Rút tiền về ngân hàng
                 </div>

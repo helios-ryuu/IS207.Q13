@@ -116,7 +116,112 @@
         </div>
       </div>
     </div>
+
+    <!-- MOBILE SIDEBAR TRIGGER (hiển thị trên mobile) -->
+    <button class="mobile-menu-btn" @click="toggleMobileSidebar">
+      <font-awesome-icon icon="bars" />
+    </button>
   </header>
+
+  <!-- MOBILE SIDEBAR OVERLAY -->
+  <div v-if="isMobileSidebarOpen" class="mobile-sidebar-overlay" @click="closeMobileSidebar">
+    <div class="mobile-sidebar" @click.stop>
+      <div class="sidebar-header">
+        <button class="close-sidebar-btn" @click="closeMobileSidebar">
+          <font-awesome-icon icon="times" />
+        </button>
+      </div>
+
+      <!-- User Info -->
+      <div class="sidebar-user">
+        <template v-if="isLoggedIn">
+          <div class="user-avatar-large">
+            <div v-if="!user?.avatar_url" class="avatar-letter-large">
+              {{ user?.name ? user.name.charAt(0).toUpperCase() : 'U' }}
+            </div>
+            <img v-else :src="user.avatar_url" alt="Avatar" class="avatar-img-large">
+          </div>
+          <p class="user-name">{{ user?.name || 'Người dùng' }}</p>
+        </template>
+        <template v-else>
+          <div class="guest-actions">
+            <router-link to="/login" class="sidebar-auth-btn login" @click="closeMobileSidebar">Đăng nhập</router-link>
+            <router-link to="/register" class="sidebar-auth-btn register" @click="closeMobileSidebar">Đăng ký</router-link>
+          </div>
+        </template>
+      </div>
+
+      <!-- Sidebar Menu -->
+      <nav class="sidebar-menu">
+        <template v-if="isLoggedIn">
+          <router-link to="/profile" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="user" /> Trang cá nhân
+          </router-link>
+          <router-link to="/wallet" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="wallet" /> Ví của tôi
+          </router-link>
+          <router-link to="/favorites" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="heart" /> Yêu thích
+          </router-link>
+          <router-link to="/cart" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="shopping-cart" /> Giỏ hàng
+            <span v-if="cartCount > 0" class="sidebar-badge">{{ cartCount }}</span>
+          </router-link>
+          <router-link to="/chat" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="comment" /> Trò chuyện
+          </router-link>
+          <button class="sidebar-item" @click="closeMobileSidebar(); toggleNotifications();">
+            <font-awesome-icon icon="bell" /> Thông báo
+            <span v-if="unreadCount > 0" class="sidebar-badge">{{ unreadCount }}</span>
+          </button>
+          <router-link to="/purchase-orders" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="box" /> Đơn mua
+          </router-link>
+          <router-link to="/sales-orders" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="store" /> Đơn bán
+          </router-link>
+          
+          <div class="sidebar-divider"></div>
+          
+          <router-link to="/products" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="shopping-bag" /> Mua sắm ngay
+          </router-link>
+          <router-link to="/support" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="headset" /> Liên hệ hỗ trợ
+          </router-link>
+          <router-link to="/post" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="plus-circle" /> Đăng tin
+          </router-link>
+          <router-link to="/manage-posts" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="clipboard-list" /> Quản lý tin
+          </router-link>
+          
+          <div class="sidebar-divider"></div>
+          
+          <button class="sidebar-item logout bold" @click="handleMobileLogout">
+            <font-awesome-icon icon="sign-out-alt" /> Đăng xuất
+          </button>
+        </template>
+        
+        <template v-else>
+          <router-link to="/favorites" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="heart" /> Yêu thích
+          </router-link>
+          <router-link to="/cart" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="shopping-cart" /> Giỏ hàng
+            <span v-if="cartCount > 0" class="sidebar-badge">{{ cartCount }}</span>
+          </router-link>
+          <div class="sidebar-divider"></div>
+          <router-link to="/products" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="shopping-bag" /> Mua sắm ngay
+          </router-link>
+          <router-link to="/support" class="sidebar-item" @click="closeMobileSidebar">
+            <font-awesome-icon icon="headset" /> Liên hệ hỗ trợ
+          </router-link>
+        </template>
+      </nav>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -151,6 +256,17 @@ const formatTimeAgo = (dateStr) => {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours} giờ trước`;
   return `${Math.floor(hours / 24)} ngày trước`;
+};
+
+// Mobile Sidebar State
+const isMobileSidebarOpen = ref(false);
+const toggleMobileSidebar = () => { isMobileSidebarOpen.value = !isMobileSidebarOpen.value; };
+const closeMobileSidebar = () => { isMobileSidebarOpen.value = false; };
+const handleMobileLogout = () => {
+  closeMobileSidebar();
+  notifStore.stopPolling();
+  logout();
+  router.push('/home');
 };
 
 // const isLoginModalOpen = ref(false); // <-- ĐÃ XÓA
@@ -688,5 +804,238 @@ watch(() => isLoggedIn.value, (newVal) => {
 .notification-footer button:hover {
   background: #f3f4f6;
   border-color: #d1d5db;
+}
+
+/* ===== MOBILE SIDEBAR ===== */
+.mobile-menu-btn {
+  display: none;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #333;
+  cursor: pointer;
+  padding: 8px;
+  z-index: 10;
+}
+
+.mobile-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  animation: fadeIn 0.2s ease;
+}
+
+.mobile-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  max-width: 85%;
+  height: 100%;
+  background: #fff;
+  z-index: 9999;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+  animation: slideIn 0.3s ease;
+  overflow-y: auto;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.close-sidebar-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #666;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.sidebar-user {
+  padding: 24px 20px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #f8f9fa, #fff);
+}
+
+.user-avatar-large {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 12px;
+}
+
+.avatar-letter-large {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0055aa, #0077cc);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-img-large {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #0055aa;
+}
+
+.user-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.guest-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.sidebar-auth-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.sidebar-auth-btn.login {
+  background: #0055aa;
+  color: #fff;
+}
+
+.sidebar-auth-btn.register {
+  background: #ffc107;
+  color: #333;
+}
+
+.sidebar-menu {
+  padding: 12px 0;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  color: #333;
+  text-decoration: none;
+  font-size: 15px;
+  transition: all 0.2s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-item:hover {
+  background: #f3f4f6;
+  color: #0055aa;
+}
+
+.sidebar-item.logout {
+  color: #dc3545;
+}
+
+.sidebar-item.logout.bold {
+  font-weight: 700;
+}
+
+.sidebar-item.logout:hover {
+  background: #fff5f5;
+}
+
+.sidebar-item svg {
+  width: 18px;
+  color: #666;
+}
+
+.sidebar-badge {
+  margin-left: auto;
+  background: #dc3545;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: #eee;
+  margin: 10px 20px;
+}
+
+/* ===== RESPONSIVE MOBILE ===== */
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: block;
+  }
+
+  .app-header .container {
+    justify-content: center;
+  }
+
+  .app-header .left-section .menu-btn {
+    display: none;
+  }
+
+  .app-header .center-section {
+    display: none;
+  }
+
+  .app-header .right-section .action-icons {
+    display: none;
+  }
+
+  .app-header .right-section .post-btn {
+    display: none;
+  }
+
+  .app-header .right-section .user-actions {
+    display: none;
+  }
+
+  .app-header .logo img {
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-sidebar {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 </style>

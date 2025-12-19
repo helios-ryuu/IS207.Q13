@@ -3,9 +3,10 @@
 
     <!-- 1. CATEGORY PICKER -->
     <div class="category-picker-wrapper">
-      <button class="category-dropdown" @click="toggleCategoryModal">
-        <span v-html="categoryButtonText"></span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <button class="category-dropdown" :class="{ active: selectedCategory }" @click="toggleCategoryModal">
+        <font-awesome-icon icon="th-large" class="mobile-icon" />
+        <span class="btn-text" v-html="categoryButtonText"></span>
+        <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </button>
 
       <div v-if="isCategoryModalOpen" class="category-modal">
@@ -46,35 +47,18 @@
 
     <!-- 3. LOCATION PICKER -->
     <div class="location-picker-wrapper">
-      <button class="location-picker" @click="toggleLocationModal">
-        <span>{{ selectedLocationText }}</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      <button class="location-picker" :class="{ active: savedLocationText && savedLocationText !== 'Toàn quốc' }" @click="toggleLocationModal">
+        <font-awesome-icon icon="map-marker-alt" class="mobile-icon" />
+        <span class="btn-text">{{ selectedLocationText }}</span>
+        <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </button>
 
-      <div v-if="isLocationModalOpen" class="location-modal">
-        <h3 class="modal-title">Khu vực</h3>
-        <div class="form-group">
-          <label for="city">Chọn tỉnh thành*</label>
-          <select id="city" class="modal-select" v-model="selectedProvince" @change="handleProvinceChange">
-            <option :value="null" disabled>Chọn tỉnh thành</option>
-            <option v-for="province in provinces" :key="province.id" :value="province.id">
-              {{ province.name }}
-            </option>
-          </select>
-          <div v-if="provinces.length === 0" class="loading-text">Đang tải tỉnh thành...</div>
-        </div>
-        <div class="form-group">
-          <label for="district">Chọn quận huyện*</label>
-          <select id="district" class="modal-select" v-model="selectedDistrict" :disabled="districts.length === 0">
-            <option :value="null" disabled>Chọn quận huyện</option>
-            <option v-for="district in districts" :key="district.id" :value="district.id">
-              {{ district.name }}
-            </option>
-          </select>
-          <div v-if="districts.length === 0 && selectedProvince" class="loading-text">Đang tải quận huyện...</div>
-        </div>
-        <button class="modal-apply-btn" @click="applyLocation">Áp dụng</button>
-      </div>
+      <!-- Sử dụng Component Modal Mới -->
+      <LocationPickerModal
+        v-if="isLocationPickerOpen"
+        @close="isLocationPickerOpen = false"
+        @applyLocation="handleLocationApply"
+      />
     </div>
 
     <!-- 4. SEARCH BUTTON (Đã thêm @click) -->
@@ -85,41 +69,45 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router'; // 1. Import Router
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router'; 
+import LocationPickerModal from './modals/LocationPickerModal.vue';
 
-const router = useRouter(); // 2. Khởi tạo Router
+const router = useRouter();
+const route = useRoute(); // Để sync URL
 
 // --- STATE TÌM KIẾM ---
-const keyword = ref(''); // Biến lưu từ khóa
+const keyword = ref(''); 
+// --- QUẢN LÝ MODAL KHU VỰC (SỬ DỤNG SHARED COMPONENT) ---
+const isLocationPickerOpen = ref(false);
+const savedLocationText = ref('Toàn quốc');
+
+// Đồng bộ URL -> Input & Location
+watch(() => route.query, (newQuery) => {
+  keyword.value = newQuery.q || '';
+  if(newQuery.location) savedLocationText.value = newQuery.location;
+}, { immediate: true });
 
 // --- XỬ LÝ TÌM KIẾM (CHUYỂN TRANG) ---
 const handleSearch = () => {
-  // Tạo object query params
   const query = {};
 
-  // 1. Thêm từ khóa
+  // 1. Keyword
   if (keyword.value.trim()) {
     query.q = keyword.value.trim();
   }
 
-  // 2. Thêm danh mục (Lưu ý: phải xóa thẻ <br> trong tên danh mục nếu có)
+  // 2. Danh mục
   if (selectedCategory.value) {
     query.category = selectedCategory.value.name.replace(/<br>/g, ' ');
   }
 
-  // 3. Thêm khu vực
-  if (savedLocationText.value) {
-    // Chỉ lấy tên Tỉnh/Thành phố (phần sau dấu phẩy) để tìm kiếm rộng hơn
-    // Ví dụ: "Quận 1, Tp Hồ Chí Minh" -> lấy "Tp Hồ Chí Minh"
-    // Hoặc lấy cả chuỗi tùy logic backend của bạn. Ở đây mình lấy cả chuỗi.
-    query.location = savedLocationText.value.split(', ').pop(); // Lấy phần cuối (Tỉnh/TP)
+  // 3. Khu vực (Nếu có)
+  if (savedLocationText.value && savedLocationText.value !== 'Toàn quốc') {
+    query.location = savedLocationText.value;
   }
 
   console.log("Navigating to products with:", query);
-
-  // 4. Chuyển hướng sang trang ProductCatalog (giả sử path là /products)
-  // Nếu path trong router.js của bạn khác (vd: /catalog), hãy sửa lại dòng dưới
   router.push({ path: '/products', query: query });
 };
 
@@ -132,7 +120,7 @@ const selectedCategory = ref(null);
 
 const toggleCategoryModal = () => {
   isCategoryModalOpen.value = !isCategoryModalOpen.value;
-  isLocationModalOpen.value = false;
+  // isLocationModalOpen.value = false; // LocationPick giờ là Modal riêng
 };
 
 const selectCategory = (category) => {
@@ -169,16 +157,12 @@ const categories = ref([
   { id: 16, name: 'Tất cả danh mục', image: 'tat-ca-danh-muc.webp' },
 ]);
 
-// --- QUẢN LÝ MODAL KHU VỰC ---
-const isLocationModalOpen = ref(false);
-const provinces = ref([]);
-const districts = ref([]);
-const selectedProvince = ref(null);
-const selectedDistrict = ref(null);
-const savedLocationText = ref(null);
+// --- QUẢN LÝ MODAL KHU VỰC (SỬ DỤNG SHARED COMPONENT) ---
+// const isLocationPickerOpen = ref(false); // MOVED TO TOP
+// const savedLocationText = ref('Toàn quốc'); // MOVED TO TOP
 
 const toggleLocationModal = () => {
-  isLocationModalOpen.value = !isLocationModalOpen.value;
+  isLocationPickerOpen.value = !isLocationPickerOpen.value;
   isCategoryModalOpen.value = false;
 };
 
@@ -186,51 +170,10 @@ const selectedLocationText = computed(() => {
   return savedLocationText.value || "Chọn khu vực";
 });
 
-const fetchProvinces = async () => {
-  try {
-    await new Promise(r => setTimeout(r, 500));
-    provinces.value = [
-      { id: 'hcm', name: 'Tp Hồ Chí Minh' },
-      { id: 'hn', name: 'Hà Nội' },
-      { id: 'dn', name: 'Đà Nẵng' },
-    ];
-    selectedProvince.value = null;
-  } catch (error) { console.error("Lỗi:", error); }
+const handleLocationApply = (location) => {
+  savedLocationText.value = location;
+  isLocationPickerOpen.value = false;
 };
-
-const fetchDistricts = async (provinceId) => {
-  if (!provinceId) return;
-  districts.value = [];
-  selectedDistrict.value = null;
-  try {
-    await new Promise(r => setTimeout(r, 500));
-    if (provinceId === 'hcm') {
-      districts.value = [{ id: 'q1', name: 'Quận 1' }, { id: 'q3', name: 'Quận 3' }];
-    } else if (provinceId === 'hn') {
-      districts.value = [{ id: 'hk', name: 'Quận Hoàn Kiếm' }, { id: 'bđ', name: 'Quận Ba Đình' }];
-    } else {
-      districts.value = [{ id: 'other', name: 'Quận/Huyện khác' }];
-    }
-    selectedDistrict.value = null;
-  } catch (error) { console.error("Lỗi khi tải quận huyện:", error); }
-};
-
-const handleProvinceChange = () => {
-  fetchDistricts(selectedProvince.value);
-};
-
-const applyLocation = () => {
-  const provinceName = provinces.value.find(p => p.id === selectedProvince.value)?.name;
-  const districtName = districts.value.find(d => d.id === selectedDistrict.value)?.name;
-  if (provinceName && districtName) {
-    savedLocationText.value = `${districtName}, ${provinceName}`;
-  }
-  isLocationModalOpen.value = false;
-};
-
-onMounted(() => {
-  fetchProvinces();
-});
 </script>
 
 <style scoped>
@@ -249,9 +192,14 @@ onMounted(() => {
 .category-picker-wrapper { position: relative; }
 .category-dropdown {
   display: flex; align-items: center; justify-content: space-between;
-  background: #ffffff; border: 2px solid #333; border-radius: 6px;
+  background: #f5f5f5; border: none; border-radius: 6px;
   cursor: pointer; font-size: 16px; font-weight: 500;
-  gap: 8px; padding: 8px 12px; white-space: nowrap; width: 200px;
+  gap: 8px; padding: 10px 14px; white-space: nowrap; min-width: 120px;
+}
+.category-dropdown.active,
+.location-picker.active {
+  background-color: #ffd60a;
+  color: #333;
 }
 .category-dropdown span { overflow: hidden; text-overflow: ellipsis; }
 .category-modal {
@@ -307,5 +255,125 @@ onMounted(() => {
   width: 100%; padding: 12px; font-size: 16px; font-weight: bold;
   color: #333; background-color: #ffd60a; border: none; border-radius: 6px;
   cursor: pointer; margin-top: 10px;
+}
+
+/* ===== RESPONSIVE MOBILE ===== */
+@media (max-width: 768px) {
+  .search-filter-bar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  /* Row 1: Category + Location + Search Input */
+  .category-picker-wrapper {
+    flex: 0 0 auto;
+    min-width: auto;
+  }
+
+  .category-dropdown {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-width: auto;
+  }
+
+  .category-dropdown span {
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .location-picker-wrapper {
+    flex: 0 0 auto;
+  }
+
+  .location-picker {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-width: auto;
+  }
+
+  .location-picker span {
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-input-wrapper {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .search-input-wrapper > svg {
+    display: none;
+  }
+
+  .search-input-wrapper input {
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+
+  /* Row 2: Search Button */
+  .search-button {
+    flex: 0 0 100%;
+    order: 5;
+    margin-top: 0;
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  /* Hide dropdown arrows on mobile */
+  .category-dropdown svg,
+  .location-picker svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Modal adjustments */
+  .category-modal {
+    width: 280px;
+    max-height: 60vh;
+  }
+
+  .location-modal {
+    width: 280px;
+  }
+}
+
+/* Hide icon on desktop, show on mobile */
+.mobile-icon {
+  display: none;
+  font-size: 16px;
+}
+
+@media (max-width: 480px) {
+  /* Show icon, hide text and chevron */
+  .mobile-icon {
+    display: inline-block;
+  }
+
+  .category-dropdown .btn-text,
+  .location-picker .btn-text {
+    display: none;
+  }
+
+  .category-dropdown .chevron-icon,
+  .location-picker .chevron-icon {
+    display: none;
+  }
+
+  .category-dropdown,
+  .location-picker {
+    padding: 10px;
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+  }
 }
 </style>

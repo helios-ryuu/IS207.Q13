@@ -7,6 +7,7 @@ use App\Models\OrderDetail;
 use App\Models\Transaction;
 use App\Models\CartItem;
 use App\Models\ShippingAddress;
+use App\Models\Wallet;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Illuminate\Support\Str;
@@ -67,6 +68,7 @@ class OrderService
                 'notes' => $data['notes'] ?? null,
                 'payment_method' => $data['payment_method'] ?? 'cash',
                 'tracking_code' => 'ORD-' . strtoupper(Str::random(10)),
+                'total_amount' => $totalAmount, // [FIX] Lưu tổng tiền vào DB
             ]);
 
             // E. Lưu chi tiết đơn hàng & Trừ kho
@@ -83,17 +85,33 @@ class OrderService
                 $item->variant->decrement('quantity', $item->quantity);
             }
 
-            // F. TẠO TRANSACTION
-            Transaction::create([
-                'user_id' => $userId,
-                'order_id' => $order->id,
-                'amount' => $totalAmount,
-                'payment_method' => $order->payment_method,
-                'status' => 'pending',
-                'transaction_code' => 'TRX-' . strtoupper(Str::random(10)),
-                'transaction_date' => now(),
-                'payment_gateway' => 'system'
-            ]);
+            // F. TẠO TRANSACTION & TRỪ VÍ (Nếu thanh toán qua Ví)
+            if ($order->payment_method === 'wallet') {
+                $wallet = Wallet::firstOrCreate(
+                    ['user_id' => $userId],
+                    ['balance' => 0, 'status' => 'active']
+                );
+
+                // Kiểm tra số dư
+                if ($wallet->balance < $totalAmount) {
+                    throw new Exception('Số dư ví không đủ để thanh toán.');
+                }
+
+                // Trừ tiền
+                $wallet->decrement('balance', $totalAmount);
+
+                // Tạo lịch sử giao dịch (Số âm)
+                Transaction::create([
+                    'user_id' => $userId,
+                    'order_id' => $order->id,
+                    'amount' => -$totalAmount, // Lưu số âm cho khoản chi
+                    'payment_method' => 'wallet',
+                    'status' => 'completed',   // Trạng thái hoàn thành ngay
+                    'transaction_code' => 'PAY-' . strtoupper(Str::random(10)), // Code khác biệt
+                    'transaction_date' => now(),
+                    'payment_gateway' => 'system'
+                ]);
+            }
 
             // G. Xóa giỏ hàng
             CartItem::where('user_id', $userId)->delete();
@@ -122,7 +140,7 @@ class OrderService
     }
 
     // 4. HỦY ĐƠN
-    public function cancelOrder($userId, $orderId)
+    public function cancelOrder($userId, $orderId, $reason = '')
     {
         $order = Order::where('user_id', $userId)->where('id', $orderId)->firstOrFail();
 
@@ -131,6 +149,7 @@ class OrderService
         }
 
         $order->status = 'cancelled';
+        $order->notes = $reason ?: $order->notes; // Lưu lý do hủy vào notes
         $order->save();
 
         return $order;
@@ -208,7 +227,7 @@ class OrderService
     }
 
     // 9. SELLER HỦY ĐƠN
-    public function sellerCancelOrder($sellerId, $orderId)
+    public function sellerCancelOrder($sellerId, $orderId, $reason = '')
     {
         $order = $this->getSellerOrderOrFail($sellerId, $orderId);
 
@@ -217,6 +236,7 @@ class OrderService
         }
 
         $order->status = 'cancelled';
+        $order->notes = $reason ?: $order->notes; // Lưu lý do hủy vào notes
         $order->save();
 
         // TODO: Hoàn tiền nếu đã thanh toán
