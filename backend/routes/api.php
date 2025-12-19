@@ -153,6 +153,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders', [OrderController::class, 'getSellerOrders']);           // Danh sách đơn bán
         Route::put('/orders/{id}/accept', [OrderController::class, 'acceptOrder']);   // Chấp nhận đơn
         Route::put('/orders/{id}/ship', [OrderController::class, 'shipOrder']);       // Giao cho vận chuyển
+        Route::put('/orders/{id}/complete', [OrderController::class, 'completeOrder']); // Hoàn tất vận chuyển
         Route::put('/orders/{id}/cancel', [OrderController::class, 'sellerCancelOrder']); // Seller hủy đơn
         Route::put('/orders/{id}/confirm-return', [OrderController::class, 'confirmReturn']); // Xác nhận hoàn hàng
     });

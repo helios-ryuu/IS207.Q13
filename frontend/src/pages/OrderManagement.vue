@@ -171,18 +171,17 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, getCurrentInstance } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeaderOther from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 import api from '../utils/api'; // Sử dụng API thật
 import { getImageUrl } from '../utils/imageUrl';
-
-const { proxy } = getCurrentInstance();
-const $toast = proxy.$toast;
+import { useToast } from '../utils/useToast';
 
 const router = useRouter();
 const goToHome = () => router.push('/');
+const { showSuccess, showError } = useToast();
 
 // --- DATA STATE ---
 const activeTab = ref('all');
@@ -214,8 +213,18 @@ const tabs = [
   { id: 'return', name: 'Trả hàng / Hoàn tiền' }
 ];
 
+// Danh mục - khớp với backend CategorySeeder
 const categories = [
-  'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Thời trang', 'Đồ gia dụng'
+  'Đồ điện tử',
+  'Xe cộ',
+  'Đồ gia dụng, Nội thất, Cây cảnh',
+  'Tủ lạnh, Máy lạnh, Máy giặt',
+  'Thời trang, Đồ dùng cá nhân',
+  'Giải trí, Thể thao, Sở thích',
+  'Thú cưng',
+  'Đồ dùng văn phòng, Công nông nghiệp',
+  'Đồ ăn, Thực phẩm và các loại khác',
+  'Khác'
 ];
 
 // --- API CALLS (LOGIC THẬT TỪ NHÁNH HEAD) ---
@@ -254,7 +263,7 @@ const fetchOrders = async () => {
         productId: firstItem.product_id,
         productName: firstItem.product_name || displayName,
         variant: firstItem.variant || '',
-        category: 'Tổng hợp',
+        category: firstItem.category || 'Khác',
         
         statusId: mapBackendStatus(order.status),
         statusLabel: getStatusLabel(order.status),
@@ -282,11 +291,11 @@ const cancelOrder = async (orderId) => {
   
   try {
     await api.post(`/orders/${orderId}/cancel`);
-    $toast.success('Đã hủy đơn hàng thành công');
+    showSuccess('Đã hủy đơn hàng thành công');
     await fetchOrders(); // Load lại danh sách
   } catch (error) {
     console.error("Lỗi hủy đơn:", error);
-    $toast.error(error.response?.data?.message || 'Không thể hủy đơn hàng này');
+    showError(error.response?.data?.message || 'Không thể hủy đơn hàng này');
   }
 };
 
@@ -298,11 +307,11 @@ const confirmReceived = async (orderId) => {
     // Gọi API update status thành completed (Nếu backend cho phép User update)
     // Nếu backend chưa có, bạn cần báo backend mở quyền này cho user
     await api.put(`/orders/${orderId}/status`, { status: 'completed' });
-    $toast.success('Cảm ơn bạn đã mua hàng!');
+    showSuccess('Cảm ơn bạn đã mua hàng!');
     await fetchOrders();
   } catch (error) {
     console.error("Lỗi xác nhận:", error);
-    $toast.error('Có lỗi xảy ra, vui lòng thử lại sau.');
+    showError('Có lỗi xảy ra, vui lòng thử lại sau.');
   }
 };
 
@@ -315,11 +324,13 @@ const mapBackendStatus = (status) => {
   switch(status) {
     case 'pending': return 'pending';
     case 'confirmed': 
-    case 'processing': return 'shipping'; // Gộp vào vận chuyển
-    case 'shipped': return 'delivering'; // Shipped -> Chờ giao hàng
-    case 'delivered': return 'completed';
+    case 'processing': 
+    case 'shipping': return 'shipping'; // Gộp vào tab Vận chuyển
+    case 'shipped': 
+    case 'delivered': return 'completed'; // Đã giao -> Hoàn thành
     case 'cancelled': return 'cancelled';
     case 'refunded': return 'return';
+    case 'completed': return 'completed';
     default: return 'all';
   }
 };
@@ -341,9 +352,11 @@ const getDeliveryStatusText = (status) => {
   const map = {
     pending: 'Đang chờ người bán xác nhận',
     confirmed: 'Đơn hàng đang được đóng gói',
-    processing: 'Đơn hàng đang được vận chuyển kho',
+    processing: 'Đơn hàng đang được xử lý',
+    shipping: 'Đơn hàng đang vận chuyển',
     shipped: 'Shipper đang giao hàng đến bạn',
     delivered: 'Giao hàng thành công',
+    completed: 'Giao hàng thành công',
     cancelled: 'Đơn hàng đã bị hủy',
     refunded: 'Đã hoàn tiền thành công'
   };
@@ -355,14 +368,14 @@ const visitShop = (order) => {
   if (order.shopId) {
     router.push({ name: 'SellerProfile', params: { id: order.shopId } });
   } else {
-    $toast.error('Không tìm thấy thông tin người bán');
+    showError('Không tìm thấy thông tin người bán');
   }
 };
 const buyAgain = (order) => {
   if (order.productId) {
     router.push({ path: `/product/${order.productId}` });
   } else {
-    $toast.error('Không tìm thấy sản phẩm');
+    showError('Không tìm thấy sản phẩm');
   }
 };
 
@@ -383,7 +396,7 @@ const getRatingText = (score) => ['Tệ', 'Không hài lòng', 'Bình thường'
 const submitRating = async () => {
   if (!ratingData.order) return;
   // TODO: Gọi API POST /reviews khi backend sẵn sàng
-  $toast.success('Gửi đánh giá thành công!');
+  showSuccess('Gửi đánh giá thành công!');
   ratedOrderIds.value.push(ratingData.order.id);
   closeRatingModal();
 };

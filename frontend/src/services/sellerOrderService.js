@@ -30,10 +30,16 @@ export const confirmReturn = (orderId) => {
     return api.put(`/seller/orders/${orderId}/confirm-return`)
 }
 
+// Hoàn tất vận chuyển (shipping -> completed)
+export const completeOrder = (orderId) => {
+    return api.put(`/seller/orders/${orderId}/complete`)
+}
+
 export default {
     getSellerOrders,
     acceptOrder,
     shipOrder,
     cancelOrder,
-    confirmReturn
+    confirmReturn,
+    completeOrder
 }

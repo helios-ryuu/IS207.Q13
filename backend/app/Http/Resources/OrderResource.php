@@ -67,6 +67,9 @@ class OrderResource extends JsonResource
                 $variantImage = $item->variant?->images?->first();
                 $imageUrl = $variantImage?->full_image_url ?? null;
 
+                // Lấy category name đầu tiên từ product
+                $categoryName = $product?->categories?->first()?->name ?? 'Khác';
+
                 return [
                     'variant_id' => $item->variant_id,
                     'product_id' => $product?->id,
@@ -76,7 +79,8 @@ class OrderResource extends JsonResource
                     'unit_price' => $item->unit_price ?? 0,
                     'unit_price_formatted' => number_format($item->unit_price ?? 0) . ' VNĐ',
                     'image' => $imageUrl,
-
+                    'category' => $categoryName, // Thêm category cho frontend filter
+    
                     // Thêm seller info
                     'seller_id' => $seller?->id,
                     'seller_name' => $seller?->full_name ?? $seller?->name ?? 'Người bán',

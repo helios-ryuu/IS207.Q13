@@ -105,8 +105,8 @@ class OrderService
     // 2. LẤY DANH SÁCH ĐƠN
     public function getUserOrders($userId)
     {
-        // Load kèm transactions để lấy số tiền hiển thị
-        return Order::with(['transactions', 'orderDetails.variant.product', 'shippingAddress'])
+        // Load kèm transactions để lấy số tiền hiển thị, thêm categories để filter
+        return Order::with(['transactions', 'orderDetails.variant.product.categories', 'shippingAddress'])
             ->where('user_id', $userId)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -115,7 +115,7 @@ class OrderService
     // 3. CHI TIẾT ĐƠN
     public function getOrderDetail($userId, $orderId)
     {
-        return Order::with(['transactions', 'orderDetails.variant.product', 'shippingAddress'])
+        return Order::with(['transactions', 'orderDetails.variant.product.categories', 'shippingAddress'])
             ->where('user_id', $userId)
             ->where('id', $orderId)
             ->firstOrFail();
@@ -162,7 +162,8 @@ class OrderService
                         $q->where('seller_id', $sellerId);
                     })->with([
                                 'variant.images',           // Load variant images
-                                'variant.product.seller'    // Load seller info
+                                'variant.product.seller',   // Load seller info
+                                'variant.product.categories' // Load categories cho filter
                             ]);
                 }
             ]);
@@ -232,6 +233,20 @@ class OrderService
         $order->save();
 
         // TODO: Xử lý hoàn tiền thực tế
+        return $order;
+    }
+
+    // 11. HOÀN TẤT VẬN CHUYỂN (shipping -> completed)
+    public function completeOrder($sellerId, $orderId)
+    {
+        $order = $this->getSellerOrderOrFail($sellerId, $orderId);
+
+        if ($order->status !== 'shipping') {
+            throw new Exception("Chỉ có thể hoàn tất đơn hàng đang vận chuyển.");
+        }
+
+        $order->status = 'completed';
+        $order->save();
         return $order;
     }
 

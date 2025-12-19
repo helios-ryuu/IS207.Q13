@@ -70,7 +70,8 @@
             <div class="product-info">
               <h3 class="product-name">{{ order.productName }}</h3>
               <p class="product-variant">Phân loại: {{ order.variant }}</p>
-              <p class="product-category-label">Địa chỉ: {{ order.address }}</p>
+              <p class="product-category-label">Danh mục: {{ order.category || 'Khác' }}</p>
+              <p class="product-address">Địa chỉ: {{ order.address }}</p>
               <div class="order-meta">
                 <span class="meta-item">Mã Đơn hàng: <strong>{{ order.trackingCode }}</strong></span>
                 <span class="meta-item">Ngày Đặt: <strong>{{ order.orderDateDisplay }}</strong></span>
@@ -96,7 +97,8 @@
                 <button class="btn btn-primary" @click="shipOrder(order)">Đóng gói xong, giao vận</button>
               </template>
 
-              <template v-else-if="order.statusId === 'shipping' || order.statusId === 'delivering'">
+              <template v-else-if="order.statusId === 'shipping'">
+                <button class="btn btn-primary" @click="completeOrder(order)">Hoàn tất vận chuyển</button>
                 <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
               </template>
 
@@ -191,9 +193,18 @@ const tabs = [
   { id: 'refunded', name: 'Đã hoàn tiền' }
 ];
 
-// Danh mục
+// Danh mục - khớp với backend CategorySeeder
 const categories = [
-  'Xe cộ', 'Đồ điện tử', 'Thú cưng', 'Thời trang', 'Đồ gia dụng', 'Sách'
+  'Đồ điện tử',
+  'Xe cộ',
+  'Đồ gia dụng, Nội thất, Cây cảnh',
+  'Tủ lạnh, Máy lạnh, Máy giặt',
+  'Thời trang, Đồ dùng cá nhân',
+  'Giải trí, Thể thao, Sở thích',
+  'Thú cưng',
+  'Đồ dùng văn phòng, Công nông nghiệp',
+  'Đồ ăn, Thực phẩm và các loại khác',
+  'Khác'
 ];
 
 // --- TRANSFORM API DATA ---
@@ -210,6 +221,7 @@ const transformOrder = (apiOrder) => {
     productId: firstItem.product_id,
     productName: firstItem.product_name || 'Sản phẩm',
     variant: firstItem.variant || 'Tiêu chuẩn',
+    category: firstItem.category || 'Khác',
     image: firstItem.image || null,
     price: firstItem.unit_price_formatted || '0 VNĐ',
     totalPrice: apiOrder.total_amount_formatted || '0 VNĐ',
@@ -276,6 +288,20 @@ const shipOrder = async (order) => {
     await fetchOrders();
   } catch (error) {
     console.error('Ship order error:', error);
+    const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
+    showError(errorMsg);
+  }
+};
+
+const completeOrder = async (order) => {
+  if (!window.confirm(`Xác nhận đơn hàng #${order.trackingCode} đã giao thành công?`)) return;
+  
+  try {
+    await sellerOrderService.completeOrder(order.id);
+    showSuccess(`Đơn hàng #${order.trackingCode} đã hoàn thành.`);
+    await fetchOrders();
+  } catch (error) {
+    console.error('Complete order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
     showError(errorMsg);
   }
@@ -412,7 +438,8 @@ const clearAllCategories = () => { selectedCategories.value = []; };
 .product-info { flex: 1; }
 .product-name { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.4rem; color: #333; }
 .product-variant { font-size: 0.9rem; color: #777; margin-bottom: 0.4rem; }
-.product-category-label { font-size: 0.85rem; color: #999; font-style: italic; }
+.product-category-label { font-size: 0.85rem; color: #0055aa; margin-bottom: 0.3rem; }
+.product-address { font-size: 0.85rem; color: #999; font-style: italic; margin-bottom: 0.3rem; }
 /* Meta Info: Tracking/Date/Update */
 .order-meta { display: flex; gap: 1.5rem; margin-bottom: 0.5rem; font-size: 0.85rem; color: #777; flex-wrap: wrap; }
 .order-meta strong { font-weight: 600; color: #333; }

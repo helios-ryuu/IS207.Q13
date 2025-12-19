@@ -28,7 +28,7 @@ class OrderController extends Controller
         try {
             $userId = Auth::id();
             $order = $this->orderService->createOrder($userId, $request->validated());
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đặt hàng thành công!',
@@ -90,8 +90,8 @@ class OrderController extends Controller
 
             // 2. LOGIC VÍ: Cộng tiền cho Seller khi đơn hoàn tất
             if ($newStatus === 'completed' && $oldStatus !== 'completed') {
-                
-                $firstDetail = $order->details->first(); 
+
+                $firstDetail = $order->details->first();
                 $sellerId = $firstDetail ? $firstDetail->product->user_id : null;
 
                 if ($sellerId) {
@@ -100,7 +100,7 @@ class OrderController extends Controller
                         ['balance' => 0, 'status' => 'active']
                     );
 
-                    $income = $order->total_amount; 
+                    $income = $order->total_amount;
                     $wallet->balance += $income;
                     $wallet->save();
 
@@ -134,7 +134,7 @@ class OrderController extends Controller
             $orders = $this->orderService->getSellerOrders($sellerId, $status);
 
             return response()->json([
-                'status' => 'success', 
+                'status' => 'success',
                 'data' => OrderResource::collection($orders)
             ]);
         } catch (Exception $e) {
@@ -203,6 +203,22 @@ class OrderController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đã xác nhận hoàn hàng và hoàn tiền',
+                'data' => new OrderResource($order)
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
+        }
+    }
+
+    // 11. PUT /api/seller/orders/{id}/complete - Hoàn tất vận chuyển
+    public function completeOrder($id)
+    {
+        try {
+            $sellerId = Auth::id();
+            $order = $this->orderService->completeOrder($sellerId, $id);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đơn hàng đã hoàn thành',
                 'data' => new OrderResource($order)
             ]);
         } catch (Exception $e) {
