@@ -72,7 +72,7 @@ class UserProfileController extends Controller
     {
         try {
             $request->validate([
-                'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // Max 2MB
+                'avatar' => 'required|image|mimes:jpeg,png,jpg,gif,webp,bmp,svg,heic,heif,tiff,tif|max:10240', // Max 10MB
             ]);
 
             $user = $request->user();
@@ -116,7 +116,7 @@ class UserProfileController extends Controller
     {
         try {
             $request->validate([
-                'cover' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240', // Max 10MB
+                'cover' => 'required|image|mimes:jpeg,png,jpg,gif,webp,bmp,svg,heic,heif,tiff,tif|max:10240', // Max 10MB
             ]);
 
             $user = $request->user();

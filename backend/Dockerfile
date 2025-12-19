@@ -12,7 +12,7 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-d
 FROM php:8.5-alpine3.23 AS production
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies + GD for image processing
 RUN set -eux; \
     apk add --no-cache \
         bash \
@@ -22,11 +22,21 @@ RUN set -eux; \
         mysql-client \
         icu-dev \
         icu-libs \
+        # GD dependencies for image processing
+        freetype-dev \
+        libjpeg-turbo-dev \
+        libpng-dev \
+        libwebp-dev \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
     && docker-php-ext-install \
         pdo_mysql \
         bcmath \
         zip \
-        intl
+        intl \
+        gd
 
 # Configure PHP upload limits
 RUN echo "upload_max_filesize = 10M" >> /usr/local/etc/php/conf.d/uploads.ini && \

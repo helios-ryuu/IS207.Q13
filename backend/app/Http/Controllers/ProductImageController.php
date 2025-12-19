@@ -22,7 +22,7 @@ class ProductImageController extends Controller
     public function storeProductImage(Request $request, $productId)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:10240',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp,bmp,svg,heic,heif,tiff,tif|max:10240',
             'variant_id' => 'nullable|exists:product_variants,id'
         ]);
 
@@ -85,7 +85,7 @@ class ProductImageController extends Controller
     // 8. POST /api/upload/image (General upload)
     public function uploadGeneral(Request $request)
     {
-        $request->validate(['image' => 'required|image|max:2048']);
+        $request->validate(['image' => 'required|image|mimes:jpeg,png,jpg,gif,webp,bmp,svg,heic,heif,tiff,tif|max:10240']);
         $url = $this->imageService->upload($request->file('image'), 'general');
         return response()->json(['url' => $url]);
     }
