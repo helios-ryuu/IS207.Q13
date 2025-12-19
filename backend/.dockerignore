@@ -42,3 +42,21 @@ docker-compose*.yml
 
 # Temporary files
 product_response*.json
+*.bak
+*.tmp
+
+# Docker files
+Dockerfile*
+.dockerignore
+
+# Bootstrap cache (regenerated)
+bootstrap/cache/*
+
+# Editor config
+.editorconfig
+
+# Windows
+Thumbs.db
+
+# Vite
+public/hot
