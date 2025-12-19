@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\NotificationService;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -10,6 +11,13 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Register a new user
      */
@@ -65,6 +73,13 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        $this->notificationService->create(
+            $user->id,
+            'Đăng nhập mới',
+            'Đã phát hiện đăng nhập mới vào tài khoản của bạn.',
+            'system'
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Đăng nhập thành công',
@@ -72,7 +87,7 @@ class AuthController extends Controller
                 'user' => new UserResource($user),
                 'token' => $token,
             ],
-        ]);
+        ], 200);
     }
 
     /**

@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
                 // OrderSeeder::class,
                 // ReviewSeeder::class,
                 // MessageSeeder::class,
-            NotificationSeeder::class,
+                // NotificationSeeder::class,
 
             // 5. Junction tables - DISABLED (depends on orders)
             // AppliedPromotionSeeder::class,

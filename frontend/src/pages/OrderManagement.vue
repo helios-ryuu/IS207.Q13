@@ -234,10 +234,9 @@ const confirmReceivedData = reactive({ order: null });
 const tabs = [
   { id: 'all', name: 'Tất cả' },
   { id: 'pending', name: 'Chờ xác nhận' },
-  { id: 'shipping', name: 'Vận chuyển' },
+  { id: 'shipping', name: 'Đang vận chuyển' },
   { id: 'completed', name: 'Hoàn thành' },
-  { id: 'cancelled', name: 'Đã hủy' },
-  { id: 'return', name: 'Trả hàng / Hoàn tiền' }
+  { id: 'cancelled', name: 'Đã hủy' }
 ];
 
 // Danh mục - khớp với backend CategorySeeder
@@ -366,7 +365,7 @@ const getStatusLabel = (status) => {
   const map = {
     pending: 'CHỜ XÁC NHẬN',
     confirmed: 'ĐÃ XÁC NHẬN',
-    processing: 'ĐANG XỬ LÝ',
+    processing: 'ĐANG VẬN CHUYỂN',
     shipped: 'ĐANG GIAO',
     delivered: 'HOÀN THÀNH',
     cancelled: 'ĐÃ HỦY',
@@ -379,7 +378,7 @@ const getDeliveryStatusText = (status) => {
   const map = {
     pending: 'Đang chờ người bán xác nhận',
     confirmed: 'Đơn hàng đang được đóng gói',
-    processing: 'Đơn hàng đang được xử lý',
+    processing: 'Đơn hàng đang vận chuyển',
     shipping: 'Đơn hàng đang vận chuyển',
     shipped: 'Shipper đang giao hàng đến bạn',
     delivered: 'Giao hàng thành công',

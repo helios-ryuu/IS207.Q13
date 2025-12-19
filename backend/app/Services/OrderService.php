@@ -176,7 +176,7 @@ class OrderService
         return $query->orderBy('created_at', 'desc')->get();
     }
 
-    // 7. CHẤP NHẬN ĐƠN HÀNG (pending -> processing)
+    // 7. CHẤP NHẬN ĐƠN HÀNG (pending -> shipping)
     public function acceptOrder($sellerId, $orderId)
     {
         $order = $this->getSellerOrderOrFail($sellerId, $orderId);
@@ -185,18 +185,21 @@ class OrderService
             throw new Exception("Chỉ có thể chấp nhận đơn hàng đang chờ xác nhận.");
         }
 
-        $order->status = 'processing';
+        $order->status = 'shipping'; // Chuyển thẳng sang vận chuyển
         $order->save();
         return $order;
     }
 
-    // 8. GIAO CHO VẬN CHUYỂN (processing -> shipping)
+    // 8. GIAO CHO VẬN CHUYỂN (Legacy support or manual override)
     public function shipOrder($sellerId, $orderId)
     {
         $order = $this->getSellerOrderOrFail($sellerId, $orderId);
 
-        if ($order->status !== 'processing') {
-            throw new Exception("Chỉ có thể giao vận chuyển đơn hàng đang xử lý.");
+        if ($order->status === 'shipping')
+            return $order; // Idempotent
+
+        if ($order->status !== 'processing' && $order->status !== 'pending') {
+            throw new Exception("Chỉ có thể giao vận chuyển đơn hàng đang xử lý hoặc chờ.");
         }
 
         $order->status = 'shipping';

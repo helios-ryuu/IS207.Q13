@@ -184,12 +184,10 @@ const currentReturnDetails = reactive({ trackingCode: '', customerName: '', reas
 const tabs = [
   { id: 'all', name: 'Tất cả' },
   { id: 'pending', name: 'Chờ xác nhận' },
-  { id: 'processing', name: 'Đang xử lý' },
+  // { id: 'processing', name: 'Đang xử lý' }, // Đã bỏ theo yêu cầu
   { id: 'shipping', name: 'Đang vận chuyển' },
   { id: 'completed', name: 'Hoàn thành' },
-  { id: 'cancelled', name: 'Đã hủy' },
-  { id: 'return', name: 'Yêu cầu trả hàng' },
-  { id: 'refunded', name: 'Đã hoàn tiền' }
+  { id: 'cancelled', name: 'Đã hủy' }
 ];
 
 // Danh mục - khớp với backend CategorySeeder
@@ -255,7 +253,7 @@ const acceptOrder = async (order) => {
   
   try {
     await sellerOrderService.acceptOrder(order.id);
-    showSuccess(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
+    showSuccess(`Đơn hàng #${order.trackingCode} đã được xác nhận và chuyển sang vận chuyển.`);
     await fetchOrders();
   } catch (error) {
     console.error('Accept order error:', error);

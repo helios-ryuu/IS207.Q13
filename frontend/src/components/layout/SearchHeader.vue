@@ -84,18 +84,18 @@
                   v-for="notif in notifications" 
                   :key="notif.id" 
                   class="notification-item"
-                  :class="{ unread: !notif.read }"
+                  :class="{ unread: !notif.is_read }"
                   @click="handleNotificationClick(notif)"
                 >
                   <div class="notif-icon" :class="notif.type">
-                    {{ getNotificationIcon(notif.type) }}
+                    <font-awesome-icon :icon="getNotificationIcon(notif.type)" />
                   </div>
                   <div class="notif-content">
                     <p class="notif-title">{{ notif.title }}</p>
-                    <p class="notif-message">{{ notif.message }}</p>
-                    <span class="notif-time">{{ notif.time }}</span>
+                    <p class="notif-message">{{ notif.message || notif.content }}</p>
+                    <span class="notif-time">{{ formatTimeAgo(notif.created_at) }}</span>
                   </div>
-                  <div v-if="!notif.read" class="unread-dot"></div>
+                  <div v-if="!notif.is_read" class="unread-dot"></div>
                 </div>
               </div>
               <div v-if="notifications.length > 0" class="notification-footer">
@@ -152,6 +152,8 @@ import LocationPickerModal from '../modals/LocationPickerModal.vue';
 import { useAuth } from '../../utils/useAuth';
 import { useCart } from '../../stores/cart';
 import api from '../../utils/api';
+import { useNotificationStore } from '../../stores/notification';
+import { storeToRefs } from 'pinia';
 
 
 const router = useRouter();
@@ -187,41 +189,11 @@ const { cartCount } = useCart();
 const isUserMenuOpen = ref(false);
 const isLocationPickerOpen = ref(false);
 const selectedLocation = ref('Toàn quốc');
+
+// Notification Store
+const notifStore = useNotificationStore();
+const { notifications, unreadCount } = storeToRefs(notifStore);
 const isNotificationOpen = ref(false);
-const notifications = ref([]);
-
-// Fetch notifications từ API
-const fetchNotifications = async () => {
-  if (!isLoggedIn.value) return;
-  try {
-    const res = await api.get('/notifications');
-    const rawData = res.data.data || res.data || [];
-    notifications.value = rawData.map(n => ({
-      id: n.id,
-      type: n.type || 'system',
-      title: n.title || 'Thông báo',
-      message: n.content || n.message || '',
-      time: formatTimeAgo(n.created_at),
-      read: !!n.read_at,
-      link: n.link || null
-    }));
-  } catch (e) {
-    console.error('Failed to fetch notifications:', e);
-  }
-};
-
-// Helper format time
-const formatTimeAgo = (dateStr) => {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins} phút trước`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  return `${Math.floor(hours / 24)} ngày trước`;
-};
-
-const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
 
 const handleLocationApply = (locationName) => {
   selectedLocation.value = locationName;
@@ -234,6 +206,7 @@ const handleChatClick = () => {
 };
 
 const handleLogout = () => { 
+  notifStore.stopPolling();
   logout(); 
   isUserMenuOpen.value = false;
   router.push('/home');
@@ -241,35 +214,56 @@ const handleLogout = () => {
 
 const toggleUserMenu = () => { isUserMenuOpen.value = !isUserMenuOpen.value; };
 const toggleCategoryMenu = () => { isCategoryMenuOpen.value = !isCategoryMenuOpen.value; };
+
 const toggleNotifications = () => { 
   isNotificationOpen.value = !isNotificationOpen.value;
-  if (isNotificationOpen.value) fetchNotifications(); // Refresh khi mở
-};
-
-const markAllAsRead = async () => {
-  try {
-    await api.put('/notifications/read-all');
-    notifications.value.forEach(n => n.read = true);
-  } catch (e) {
-    console.error('Failed to mark all as read:', e);
+  if (isNotificationOpen.value) {
+    notifStore.fetchNotifications();
   }
 };
 
+const markAllAsRead = async () => {
+  await notifStore.markAllRead();
+};
+
 const handleNotificationClick = (notif) => {
-  notif.read = true;
-  if (notif.link) router.push(notif.link);
+  if (!notif.is_read) notifStore.markAsRead(notif.id);
+  
+  if (notif.link) {
+    router.push(notif.link);
+  } else if (notif.type === 'order') {
+     if (user.value?.role === 'buyer') router.push('/purchase-orders');
+     else if (user.value?.role === 'seller') router.push('/sales-orders');
+  }
   isNotificationOpen.value = false;
 };
 
 const viewAllNotifications = () => { isNotificationOpen.value = false; };
 
+// Helper format time
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+};
+
 const getNotificationIcon = (type) => {
-  const icons = { order: '📦', message: '💬', like: '❤️', system: '🔔' };
-  return icons[type] || '🔔';
+  const icons = {
+    order: 'box',
+    message: 'comment',
+    like: 'heart',
+    shopping: 'shopping-cart',
+    account: 'user',
+    system: 'bell'
+  };
+  return icons[type] || 'bell';
 };
 
 const selectCategory = (categoryName) => {
-  // SỬA: Chuyển sang /products và kèm params category
   router.push({ 
     path: '/products', 
     query: { category: categoryName } 
@@ -283,8 +277,20 @@ const handleClickOutside = (event) => {
   if (isNotificationOpen.value && headerRef.value && !headerRef.value.contains(event.target)) isNotificationOpen.value = false;
 };
 
-onMounted(() => { document.addEventListener('click', handleClickOutside); });
-onBeforeUnmount(() => { document.removeEventListener('click', handleClickOutside); });
+onMounted(() => { 
+  document.addEventListener('click', handleClickOutside);
+  if (isLoggedIn.value) notifStore.startPolling();
+});
+
+onBeforeUnmount(() => { 
+  document.removeEventListener('click', handleClickOutside);
+  notifStore.stopPolling();
+});
+
+watch(() => isLoggedIn.value, (newVal) => {
+    if (newVal) notifStore.startPolling();
+    else notifStore.stopPolling();
+});
 </script>
 
 <style scoped>

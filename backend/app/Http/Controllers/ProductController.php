@@ -19,10 +19,12 @@ use App\Models\ProductImage;   // <--- CÓ THỂ THIẾU DÒNG NÀY
 class ProductController extends Controller
 {
     protected $searchService;
+    protected $notificationService;
 
-    public function __construct(ProductSearchService $searchService)
+    public function __construct(ProductSearchService $searchService, \App\Services\NotificationService $notificationService)
     {
         $this->searchService = $searchService;
+        $this->notificationService = $notificationService;
     }
 
     // 1. GET /api/products
@@ -135,6 +137,8 @@ class ProductController extends Controller
 
             DB::commit();
 
+            $this->notificationService->create($product->seller_id, 'Đăng tin thành công', "Bài đăng '{$product->name}' đã được đăng thành công.", 'system');
+
             return new ProductResource($product->load('variants'));
 
         } catch (\Exception $e) {
@@ -180,6 +184,8 @@ class ProductController extends Controller
             $product->categories()->sync($request->category_ids);
         }
 
+        $this->notificationService->create($product->seller_id, 'Cập nhật tin đăng', "Bài đăng '{$product->name}' đã được cập nhật.", 'system');
+
         return new ProductResource($product->load('variants'));
     }
 
@@ -193,6 +199,8 @@ class ProductController extends Controller
         }
 
         $product->delete(); // Soft delete do Model có trait SoftDeletes
+
+        $this->notificationService->create($product->seller_id, 'Xóa tin đăng', "Bài đăng '{$product->name}' đã được xóa.", 'system');
 
         return response()->json(['message' => 'Product deleted successfully']);
     }

@@ -7,9 +7,17 @@ use App\Models\Product;
 use App\Http\Resources\ProductResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\NotificationService;
 
 class FavoriteController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Lấy danh sách sản phẩm yêu thích của user
      * GET /api/user/favorites
@@ -80,6 +88,8 @@ class FavoriteController extends Controller
             'user_id' => $userId,
             'product_id' => $productId,
         ]);
+
+        $this->notificationService->create($userId, 'Yêu thích', "Bạn đã thêm '{$product->name}' vào danh sách yêu thích.", 'system');
 
         return response()->json([
             'success' => true,
@@ -154,6 +164,9 @@ class FavoriteController extends Controller
                 'user_id' => $userId,
                 'product_id' => $productId,
             ]);
+
+            $this->notificationService->create($userId, 'Yêu thích', "Bạn đã thêm '{$product->name}' vào danh sách yêu thích.", 'system');
+
             return response()->json([
                 'success' => true,
                 'is_favorited' => true,

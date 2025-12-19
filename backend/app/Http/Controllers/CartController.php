@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\NotificationService;
+use App\Models\ProductVariant;
 use App\Services\CartService;
 use App\Http\Resources\CartResource;
 use Illuminate\Http\Request;
@@ -11,10 +13,12 @@ use Exception;
 class CartController extends Controller
 {
     protected $cartService;
+    protected $notificationService;
 
-    public function __construct(CartService $cartService)
+    public function __construct(CartService $cartService, NotificationService $notificationService)
     {
         $this->cartService = $cartService;
+        $this->notificationService = $notificationService;
     }
 
     public function index()
@@ -23,7 +27,7 @@ class CartController extends Controller
             $userId = Auth::id();
             $cartItems = $this->cartService->getCart($userId);
 
-            $totalAmount = $cartItems->sum(function($item) {
+            $totalAmount = $cartItems->sum(function ($item) {
                 $price = $item->variant ? $item->variant->price : 0;
                 return $item->quantity * $price;
             });
@@ -48,6 +52,18 @@ class CartController extends Controller
         try {
             $userId = Auth::id();
             $this->cartService->addToCart($userId, $request->all());
+
+            // Notification logic
+            $variant = ProductVariant::with('product')->find($request->variant_id);
+            if ($variant && $variant->product) {
+                $this->notificationService->create(
+                    $userId,
+                    'Giỏ hàng',
+                    'Đã thêm "' . $variant->product->name . '" vào giỏ hàng.',
+                    'system'
+                );
+            }
+
             return response()->json(['status' => 'success', 'message' => 'Đã thêm vào giỏ hàng'], 201);
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);

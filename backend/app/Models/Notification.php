@@ -14,19 +14,27 @@ class Notification extends Model
         'type',
         'title',
         'content',
-        'is_read',
+        'read_at',
         'link',
         'expired_date',
     ];
 
+    protected $appends = ['is_read'];
+
     protected function casts(): array
     {
         return [
-            'is_read' => 'boolean',
+            'read_at' => 'datetime',
             'expired_date' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    // Accessor: is_read
+    public function getIsReadAttribute()
+    {
+        return !is_null($this->read_at);
     }
 
     // Relationships

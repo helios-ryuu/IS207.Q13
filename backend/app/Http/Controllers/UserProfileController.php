@@ -7,6 +7,7 @@ use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Services\ImageUploadService;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,10 +16,12 @@ use Illuminate\Support\Facades\Hash;
 class UserProfileController extends Controller
 {
     protected ImageUploadService $imageService;
+    protected NotificationService $notificationService;
 
-    public function __construct(ImageUploadService $imageService)
+    public function __construct(ImageUploadService $imageService, NotificationService $notificationService)
     {
         $this->imageService = $imageService;
+        $this->notificationService = $notificationService;
     }
 
     // 1. Xem Profile
@@ -35,6 +38,13 @@ class UserProfileController extends Controller
     {
         $user = $request->user();
         $user->update($request->validated());
+
+        $this->notificationService->create(
+            $user->id,
+            'Cập nhật hồ sơ',
+            'Hồ sơ của bạn đã được cập nhật thành công.',
+            'system'
+        );
 
         return response()->json([
             'success' => true,

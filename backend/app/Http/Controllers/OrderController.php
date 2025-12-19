@@ -13,13 +13,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
+use App\Services\NotificationService;
+
 class OrderController extends Controller
 {
     protected $orderService;
+    protected $notificationService;
 
-    public function __construct(OrderService $orderService)
+    public function __construct(OrderService $orderService, NotificationService $notificationService)
     {
         $this->orderService = $orderService;
+        $this->notificationService = $notificationService;
     }
 
     // 1. POST /api/orders (Tạo đơn)
@@ -28,6 +32,16 @@ class OrderController extends Controller
         try {
             $userId = Auth::id();
             $order = $this->orderService->createOrder($userId, $request->validated());
+
+            // Notify User
+            $this->notificationService->create($userId, 'Đơn hàng mới', "Bạn đã đặt đơn hàng #{$order->tracking_code} thành công.", 'order');
+
+            // Notify Seller
+            $firstDetail = $order->orderDetails->first();
+            $sellerId = $firstDetail?->variant?->product?->user_id;
+            if ($sellerId) {
+                $this->notificationService->create($sellerId, 'Đơn hàng mới', "Bạn có đơn hàng mới #{$order->tracking_code}.", 'order');
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -65,7 +79,15 @@ class OrderController extends Controller
     {
         try {
             $userId = Auth::id();
-            $this->orderService->cancelOrder($userId, $id);
+            $order = $this->orderService->cancelOrder($userId, $id);
+
+            // Notify Seller
+            $firstDetail = $order->orderDetails->first();
+            $sellerId = $firstDetail?->variant?->product?->user_id;
+            if ($sellerId) {
+                $this->notificationService->create($sellerId, 'Hủy đơn hàng', "Đơn hàng #{$order->tracking_code} đã bị khách hàng hủy.", 'order');
+            }
+
             return response()->json(['status' => 'success', 'message' => 'Đã hủy đơn hàng']);
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
@@ -114,7 +136,13 @@ class OrderController extends Controller
                         'transaction_date' => now(),
                         'response_data' => json_encode(['note' => 'Doanh thu bán hàng']),
                     ]);
+
+                    // Notify Seller
+                    $this->notificationService->create($sellerId, 'Đơn hàng hoàn tất', "Đơn hàng #{$order->tracking_code} đã hoàn tất. Tiền đã được cộng vào ví.", 'order');
                 }
+
+                // Notify Buyer
+                $this->notificationService->create($order->user_id, 'Đơn hàng hoàn tất', "Đơn hàng #{$order->tracking_code} đã hoàn tất. Cảm ơn bạn đã xác nhận nhận hàng.", 'order');
             }
 
             DB::commit();
@@ -150,9 +178,13 @@ class OrderController extends Controller
         try {
             $sellerId = Auth::id();
             $order = $this->orderService->acceptOrder($sellerId, $id);
+
+            // Notify Buyer
+            $this->notificationService->create($order->user_id, 'Đơn hàng đang vận chuyển', "Đơn hàng #{$order->tracking_code} của bạn đã được xác nhận và đang được vận chuyển.", 'order');
+
             return response()->json([
                 'status' => 'success',
-                'message' => 'Đã chấp nhận đơn hàng',
+                'message' => 'Đã xác nhận và chuyển sang vận chuyển',
                 'data' => new OrderResource($order)
             ]);
         } catch (Exception $e) {
@@ -167,6 +199,10 @@ class OrderController extends Controller
             \Log::info("Ship order request received for ID: $id");
             $sellerId = Auth::id();
             $order = $this->orderService->shipOrder($sellerId, $id);
+
+            // Notify Buyer
+            $this->notificationService->create($order->user_id, 'Đơn hàng đang vận chuyển', "Đơn hàng #{$order->tracking_code} đã được đóng gói và đang vận chuyển.", 'order');
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đã chuyển đơn hàng sang vận chuyển',
@@ -184,6 +220,10 @@ class OrderController extends Controller
         try {
             $sellerId = Auth::id();
             $order = $this->orderService->sellerCancelOrder($sellerId, $id);
+
+            // Notify Buyer
+            $this->notificationService->create($order->user_id, 'Đơn hàng bị hủy', "Đơn hàng #{$order->tracking_code} đã bị người bán hủy.", 'order');
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đã hủy đơn hàng',
@@ -214,14 +254,60 @@ class OrderController extends Controller
     public function completeOrder($id)
     {
         try {
+            DB::beginTransaction();
+            \Log::info("CompleteOrder API called for ID: $id");
             $sellerId = Auth::id();
+            \Log::info("Auth Seller ID: $sellerId");
+
             $order = $this->orderService->completeOrder($sellerId, $id);
+            \Log::info("Order retrieved. Buyer ID: " . $order->user_id);
+
+            // LOGIC VÍ: Cộng tiền cho Seller
+            $firstDetail = $order->orderDetails->first(); // Note: $order from service might not have relations loaded if not requested. Service returns findOrFail result.
+            // OrderService completeOrder returns $order (fresh?).
+            // Let's reload to be safe or rely on lazy loading
+
+            $checkSellerId = $firstDetail?->variant?->product?->user_id;
+            \Log::info("Derived Seller ID from Product: " . ($checkSellerId ?? 'NULL'));
+
+            // Logic giống updateStatus
+            if ($checkSellerId) {
+                $wallet = Wallet::firstOrCreate(
+                    ['user_id' => $checkSellerId],
+                    ['balance' => 0, 'status' => 'active']
+                );
+
+                $income = $order->total_amount;
+                $wallet->balance += $income;
+                $wallet->save();
+
+                Transaction::create([
+                    'user_id' => $checkSellerId,
+                    'order_id' => $order->id,
+                    'amount' => $income,
+                    'payment_method' => 'wallet',
+                    'status' => 'completed',
+                    'transaction_code' => 'INC_' . $order->id . '_' . time(),
+                    'transaction_date' => now(),
+                    'response_data' => json_encode(['note' => 'Doanh thu bán hàng']),
+                ]);
+
+                // Notify Seller
+                $this->notificationService->create($checkSellerId, 'Đơn hàng hoàn tất', "Đơn hàng #{$order->tracking_code} đã hoàn tất. Tiền đã được cộng vào ví.", 'order');
+            }
+
+            // Notify Buyer
+            $this->notificationService->create($order->user_id, 'Đơn hàng hoàn tất', "Đơn hàng #{$order->tracking_code} đã được giao thành công.", 'order');
+
+            DB::commit();
+
             return response()->json([
                 'status' => 'success',
-                'message' => 'Đơn hàng đã hoàn thành',
+                'message' => 'Đơn hàng đã hoàn thành và đã cộng doanh thu',
                 'data' => new OrderResource($order)
             ]);
         } catch (Exception $e) {
+            DB::rollBack();
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
     }

@@ -3,20 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\SellerReview; 
+use App\Models\SellerReview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\NotificationService;
 
 class SellerReviewController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     // Xem review của người bán
     public function index($sellerId)
     {
         $reviews = SellerReview::where('seller_id', $sellerId)
-                         ->with('user:id,full_name,avatar')
-                         ->orderBy('created_at', 'desc')
-                         ->get();
+            ->with('user:id,full_name,avatar')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return response()->json([
             'success' => true,
@@ -50,7 +58,7 @@ class SellerReviewController extends Controller
 
         // Nếu không tìm thấy đơn nào -> Chặn
         if (!$order) {
-             return response()->json(['message' => 'Bạn chưa có giao dịch hoàn thành nào với shop này.'], 403);
+            return response()->json(['message' => 'Bạn chưa có giao dịch hoàn thành nào với shop này.'], 403);
         }
 
         // 2. Check duplicate (Giữ nguyên)
@@ -64,10 +72,17 @@ class SellerReviewController extends Controller
             'user_id' => $userId,
             'seller_id' => $sellerId,
             'order_id' => $order->id, // 👈 FIX LỖI 1364 Ở ĐÂY
-            'rating' => $request->rating,
-            'content' => $request->content,
+            'rating' => $request->input('rating'),
+            'content' => $request->input('content'),
             'review_date' => now()
         ]);
+
+        $this->notificationService->create(
+            $sellerId,
+            'Đánh giá mới',
+            "Bạn nhận được đánh giá {$request->input('rating')} sao từ khách hàng.",
+            'review'
+        );
 
         return response()->json([
             'success' => true,
@@ -82,8 +97,8 @@ class SellerReviewController extends Controller
     {
         // Lưu ý: Dùng Model SellerReview
         $review = SellerReview::where('id', $id)
-                              ->where('user_id', Auth::id()) // Chỉ chủ sở hữu được sửa
-                              ->first();
+            ->where('user_id', Auth::id()) // Chỉ chủ sở hữu được sửa
+            ->first();
 
         if (!$review) {
             return response()->json(['message' => 'Không tìm thấy đánh giá hoặc bạn không có quyền sửa.'], 404);
@@ -95,8 +110,8 @@ class SellerReviewController extends Controller
         ]);
 
         $review->update([
-            'rating' => $request->rating,
-            'content' => $request->content
+            'rating' => $request->input('rating'),
+            'content' => $request->input('content')
         ]);
 
         return response()->json([

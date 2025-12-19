@@ -154,8 +154,12 @@ const validateForm = () => {
   if (!price.value) { formErrors.value.price = true; showError('Vui lòng nhập giá'); return false }
   if (!title.value) { formErrors.value.title = true; showError('Vui lòng nhập tiêu đề'); return false }
   if (!description.value) { formErrors.value.description = true; showError('Vui lòng nhập mô tả'); return false }
-  if (!city.value) { formErrors.value.city = true; showError('Vui lòng chọn thành phố'); return false }
-  // District là optional trong logic cũ của bạn, có thể bỏ qua check
+  
+  if (!provinceCode.value) { formErrors.value.province = true; showError('Vui lòng chọn Tỉnh/Thành phố'); return false }
+  if (availableDistricts.value.length > 0 && !districtCode.value) { formErrors.value.district = true; showError('Vui lòng chọn Quận/Huyện'); return false }
+  // Ward is optional or required depending on business rule, let's make it consistent with checkout
+  // if (availableWards.value.length > 0 && !ward.value) { formErrors.value.ward = true; showError('Vui lòng chọn Phường/Xã'); return false }
+
   return true
 }
 
