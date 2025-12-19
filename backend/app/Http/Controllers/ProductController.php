@@ -120,6 +120,7 @@ class ProductController extends Controller
             $product = Product::create([
                 'name' => $request->name,
                 'description' => $request->description,
+                'location' => $request->location, // Địa chỉ sản phẩm
                 'status' => 'active',
                 'seller_id' => auth()->id(),
             ]);

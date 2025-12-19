@@ -176,9 +176,15 @@ const handleSubmit = async () => {
     // Chuyển giá từ string "5.000.000" về số int 5000000
     const rawPrice = parseInt(price.value.replace(/\./g, '').replace(/,/g, ''));
 
+    // Ghép địa chỉ từ city và district đã chọn
+    const cityLabel = cities.find(c => c.value === city.value)?.label || '';
+    const districtLabel = getDistricts().find(d => d.value === district.value)?.label || '';
+    const locationStr = districtLabel ? `${districtLabel}, ${cityLabel}` : cityLabel;
+
     const payload = {
       name: title.value,
       description: description.value, // Chỉ lưu mô tả thuần túy
+      location: locationStr, // Địa chỉ sản phẩm
       category_ids: [getCategoryId(category.value)], // Backend nhận mảng ID
       status: 'active', // Mặc định hiển thị luôn
       

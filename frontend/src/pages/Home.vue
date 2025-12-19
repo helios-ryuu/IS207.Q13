@@ -123,10 +123,12 @@ const mapProduct = (item) => {
   // 2. Xử lý giá
   const priceVal = item.price_range?.min || item.variants?.[0]?.price || 0;
 
-  // --- Xử lý Địa chỉ (Trích xuất từ Description) ---
-  let locationDisplay = 'Toàn quốc';
-  if (item.description) {
-    // Regex tìm dòng "Khu vực: ..."
+  // --- Xử lý Địa chỉ ---
+  // Ưu tiên 1: Lấy từ product.location (trường mới trong DB)
+  // Ưu tiên 2: Lấy từ seller.address
+  // Ưu tiên 3: Trích xuất từ description (fallback)
+  let locationDisplay = item.location || item.seller?.address || 'Toàn quốc';
+  if (locationDisplay === 'Toàn quốc' && item.description) {
     const match = item.description.match(/Khu vực:\s*(.*?)(\n|$)/);
     if (match && match[1]) {
       locationDisplay = match[1].trim();
@@ -140,6 +142,7 @@ const mapProduct = (item) => {
     originalPrice: '',
     seller: item.seller?.name || 'Shop VietMarket', // API trả về seller.name
     sellerId: item.seller?.id, // ID thực của seller từ API
+    userAvatar: getImageUrl(item.seller?.avatar), // Avatar của seller
     location: locationDisplay, // <--- Hiển thị địa chỉ thật
     imageUrl: getImageUrl(rawUrl), // <--- Fix link ảnh localhost
     username: 'seller',

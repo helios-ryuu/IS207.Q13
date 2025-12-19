@@ -48,6 +48,7 @@ class ProductResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
+            'location' => $this->location, // Địa chỉ sản phẩm
             'status' => $this->status ?? 'active',
             'price_range' => [
                 'min' => $minPrice,
@@ -74,6 +75,7 @@ class ProductResource extends JsonResource
                 'name' => $this->seller->full_name ?? $this->seller->name ?? 'Unknown',
                 'username' => $this->seller->username ?? null,
                 'avatar' => $this->seller->avatar_url ?? null, // Sử dụng accessor để lấy URL đầy đủ
+                'address' => $this->seller->address ?? null, // Địa chỉ của seller
             ],
 
             'categories' => CategoryResource::collection($this->whenLoaded('categories')),
