@@ -38,7 +38,7 @@ const isMine = computed(() => {
 function toggleFollow() { isFollowing.value = !isFollowing.value }
 function goTab(name) { tab.value = name }
 function editProfile() { router.push('/profile/edit') }
-function doLogout() { logout(); router.push('/login') }
+function doLogout() { logout(); router.push('/home') }
 
 async function fetchProfile() {
   try {

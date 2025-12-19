@@ -11,7 +11,7 @@ class CartSeeder extends Seeder
 {
     public function run(): void
     {
-        $customers = User::where('role', 'customer')->get();
+        $customers = User::where('role', 'seller')->get();
         $variants = ProductVariant::where('status', 'active')
             ->where('quantity', '>', 0)
             ->get();

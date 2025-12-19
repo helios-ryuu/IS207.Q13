@@ -12,7 +12,7 @@ class OrderSeeder extends Seeder
 {
     public function run(): void
     {
-        $customers = User::where('role', 'customer')->get();
+        $customers = User::where('role', 'seller')->get();
         $variants = ProductVariant::with('product')->where('status', 'active')->get();
 
         if ($customers->isEmpty() || $variants->isEmpty())

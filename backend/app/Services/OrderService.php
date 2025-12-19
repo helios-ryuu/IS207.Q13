@@ -89,6 +89,7 @@ class OrderService
 
             // F. TẠO TRANSACTION
             Transaction::create([
+                'user_id' => $userId,
                 'order_id' => $order->id,
                 'amount' => $totalAmount,
                 'payment_method' => $order->payment_method,

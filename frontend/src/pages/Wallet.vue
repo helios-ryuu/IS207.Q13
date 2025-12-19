@@ -16,12 +16,10 @@
         
         <div class="balance-actions">
           <button class="btn-action btn-deposit" @click="showDepositModal = true">
-            <span class="icon">💰</span> 
-            <span>Nạp tiền</span>
+            <span>+ Nạp tiền</span>
           </button>
           
           <button class="btn-action btn-withdraw" @click="showWithdrawModal = true">
-            <span class="icon">🏦</span>
             <span>Rút tiền</span>
           </button>
         </div>
@@ -49,13 +47,13 @@
               
               <td class="description">
                 <div v-if="t.type === 'deposit' || (!t.type && Number(t.amount) > 0 && !t.order_id)" class="deposit-type">
-                  <span class="icon">📥</span> Nạp tiền vào ví
+                  Nạp tiền vào ví
                 </div>
                 <div v-else-if="t.type === 'income' || (!t.type && Number(t.amount) > 0 && t.order_id)" class="income-type">
-                  <span class="icon">🛒</span> Doanh thu đơn hàng
+                  Doanh thu đơn hàng
                 </div>
                 <div v-else class="expense-type">
-                  <span class="icon">📤</span> Rút tiền về ngân hàng
+                  Rút tiền về ngân hàng
                 </div>
               </td>
 
@@ -278,7 +276,7 @@ onMounted(() => fetchWalletData());
 </script>
 
 <style scoped>
-.wallet-page { background: #f5f7fa; min-height: 100vh; font-family: sans-serif; }
+.wallet-page { background: #f5f7fa; min-height: 100vh; }
 .wallet-container { max-width: 1000px; margin: 0 auto; padding: 30px 20px; }
 
 .page-header { margin-bottom: 25px; }

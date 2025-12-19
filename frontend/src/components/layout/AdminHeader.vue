@@ -9,7 +9,7 @@ const isMenuOpen = ref(false)
 
 function handleLogout() {
   logout()
-  router.push('/login')
+  router.push('/home')
   isMenuOpen.value = false
 }
 
@@ -38,7 +38,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
       <div class="user-menu">
         <button class="avatar-btn" @click.stop="toggleMenu">
           <img 
-            :src="user?.avatar_url || '/avatar.jpg'" 
+            :src="user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || user?.name || 'A')}&background=6366f1&color=fff&size=128`" 
             alt="Avatar" 
             class="avatar"
           />

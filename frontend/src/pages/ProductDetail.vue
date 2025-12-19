@@ -385,7 +385,7 @@ onMounted(() => { fetchProductDetail(); });
 
 <style scoped>
 /* CSS GIỮ NGUYÊN */
-.product-detail-page { background-color: #f8f9fa; padding-bottom: 40px; font-family: 'Inter', sans-serif; }
+.product-detail-page { background-color: #f8f9fa; padding-bottom: 40px; }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 
 /* Breadcrumbs */

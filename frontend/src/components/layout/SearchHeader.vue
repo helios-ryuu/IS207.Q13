@@ -235,7 +235,8 @@ const handleChatClick = () => {
 
 const handleLogout = () => { 
   logout(); 
-  isUserMenuOpen.value = false; 
+  isUserMenuOpen.value = false;
+  router.push('/home');
 };
 
 const toggleUserMenu = () => { isUserMenuOpen.value = !isUserMenuOpen.value; };
