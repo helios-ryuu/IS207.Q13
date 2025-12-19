@@ -139,6 +139,7 @@ const mapProduct = (item) => {
     price: formatPrice(priceVal),
     originalPrice: '',
     seller: item.seller?.name || 'Shop VietMarket', // API trả về seller.name
+    sellerId: item.seller?.id, // ID thực của seller từ API
     location: locationDisplay, // <--- Hiển thị địa chỉ thật
     imageUrl: getImageUrl(rawUrl), // <--- Fix link ảnh localhost
     username: 'seller',
