@@ -58,12 +58,7 @@ class Order extends Model
         return $this->hasMany(Refund::class);
     }
 
-    public function promotions()
-    {
-        return $this->belongsToMany(Promotion::class, 'applied_promotions')
-            ->withPivot('discounted_amount')
-            ->withTimestamps();
-    }
+
 
     public function sellerReviews()
     {

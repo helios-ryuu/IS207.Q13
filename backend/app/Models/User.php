@@ -160,11 +160,6 @@ class User extends Authenticatable
         return $this->hasMany(Notification::class);
     }
 
-    public function servicePayments()
-    {
-        return $this->hasMany(ServicePayment::class, 'seller_id');
-    }
-
     public function inventoryHistories()
     {
         return $this->hasMany(InventoryHistory::class, 'created_by');

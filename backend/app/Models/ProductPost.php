@@ -46,8 +46,5 @@ class ProductPost extends Model
         return $this->belongsTo(User::class, 'seller_id');
     }
 
-    public function services()
-    {
-        return $this->belongsToMany(Service::class, 'applied_services', 'post_id', 'service_id');
-    }
+
 }

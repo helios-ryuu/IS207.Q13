@@ -154,7 +154,7 @@ const fetchListings = async () => {
       imageUrl: getImageUrl(item.thumbnail),
       // Lưu ngày gốc để sắp xếp
       createdAt: item.created_at,
-      location: 'Toàn quốc'
+      location: item.location || 'Toàn quốc'
     }));
 
   } catch (err) {
