@@ -9,7 +9,7 @@ COPY routes routes
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
 # ---------- Production Image ----------
-FROM php:8.5-alpine3.22 AS production
+FROM php:8.5-alpine3.23 AS production
 WORKDIR /app
 
 # Install dependencies
