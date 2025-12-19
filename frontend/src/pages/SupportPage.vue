@@ -20,9 +20,9 @@
             Tôi là người mua
           </span>
         </div>
-        <div class="support-search">
-          <font-awesome-icon icon="search" class="search-icon" />
-          <input type="text" placeholder="Nhập từ khóa tìm kiếm..." />
+        <div class="support-contact-info">
+          <span><font-awesome-icon icon="phone" /> Hotline: 1900 1234</span>
+          <span><font-awesome-icon icon="envelope" /> support@vietmarket.vn</span>
         </div>
       </div>
     </div>
@@ -33,10 +33,10 @@
         <h3 class="sidebar-title">Danh mục hỗ trợ</h3>
         <ul class="menu-list">
           <li 
-            v-for="(menu, index) in currentRoleData.sidebarMenu" 
+            v-for="(menu, index) in currentRoleData" 
             :key="index" 
             class="menu-item"
-            :class="{ 'is-active-category': selectedCategory?.title === menu.title, 'is-open': menu.isOpen }"
+            :class="{ 'is-active-category': selectedCategory?.id === menu.id, 'is-open': menu.isOpen }"
           >
             <div class="menu-label" @click="toggleSidebarMenu(index)">
               <span>{{ menu.title }}</span>
@@ -45,12 +45,12 @@
 
             <ul class="submenu" v-show="menu.isOpen">
               <li 
-                v-for="(subItem, subIndex) in menu.items" 
+                v-for="(article, subIndex) in menu.articles" 
                 :key="subIndex"
-                :class="{ active: isArticleActive(subItem) }"
-                @click="goToDetailLevel(subItem, menu)"
+                :class="{ active: isArticleActive(article) }"
+                @click="goToDetailLevel(article, menu)"
               >
-                {{ subItem }}
+                {{ article.title }}
               </li>
             </ul>
           </li>
@@ -67,7 +67,7 @@
             :class="{ current: viewMode === 'root' }"
             @click="goToRootLevel"
           >
-            {{ activeRole === 'buyer' ? 'Tôi là người mua' : 'Tôi là người bán' }}
+            {{ activeRole === 'buyer' ? 'Người Mua' : 'Người Bán' }}
           </span>
           
           <template v-if="viewMode !== 'root'">
@@ -82,29 +82,40 @@
           </template>
 
           <template v-if="viewMode === 'detail'">
-             > <span class="current">{{ selectedArticle }}</span>
+             > <span class="current">{{ selectedArticle?.title }}</span>
           </template>
         </div>
 
+        <!-- VIEW 1: DASHBOARD -->
         <div v-if="viewMode === 'root'" class="view-section fade-in">
-          <h1 class="page-title">Xin chào, bạn cần hỗ trợ về vấn đề gì?</h1>
+          <h1 class="page-title">Xin chào, chúng tôi có thể giúp gì cho bạn?</h1>
           
           <div class="categories-grid">
             <div 
-              v-for="(cat, index) in currentRoleData.sidebarMenu" 
+              v-for="(cat, index) in currentRoleData" 
               :key="index" 
               class="category-card simple-card"
               @click="goToListLevel(cat)"
             >
               <div class="cat-info">
                 <h3>{{ cat.title }}</h3>
-                <p>{{ cat.items.length }} bài viết</p>
+                <p>{{ cat.articles.length }} chủ đề</p>
               </div>
               <font-awesome-icon icon="arrow-right" class="go-icon" />
             </div>
           </div>
+
+          <div class="quick-links">
+             <h3>Câu hỏi thường gặp</h3>
+             <ul>
+               <li @click="quickAccess('policy_return')">Chính sách trả hàng & hoàn tiền?</li>
+               <li @click="quickAccess('safe_tips')">Làm sao để mua hàng an toàn?</li>
+               <li @click="quickAccess('forgot_pass')">Tôi quên mật khẩu?</li>
+             </ul>
+          </div>
         </div>
 
+        <!-- VIEW 2: LIST ARTICLES -->
         <div v-else-if="viewMode === 'list'" class="view-section fade-in">
           <h2 class="category-heading">
             <font-awesome-icon icon="folder-open" /> {{ selectedCategory?.title }}
@@ -112,41 +123,42 @@
           
           <div class="article-list-container">
             <div 
-              v-for="(item, index) in selectedCategory?.items" 
+              v-for="(article, index) in selectedCategory?.articles" 
               :key="index"
               class="article-item-card"
-              @click="goToDetailLevel(item, selectedCategory)"
+              @click="goToDetailLevel(article, selectedCategory)"
             >
               <font-awesome-icon icon="file-alt" class="file-icon" />
-              <span>{{ item }}</span>
+              <span>{{ article.title }}</span>
             </div>
           </div>
         </div>
 
+        <!-- VIEW 3: DETAIL ARTICLE -->
         <div v-else class="view-section fade-in">
-          <h1 class="article-title">{{ selectedArticle }}</h1>
+          <h1 class="article-title">{{ selectedArticle?.title }}</h1>
+          <div class="article-meta">Cập nhật lần cuối: Hôm nay</div>
           
           <div class="article-body">
-            <p><strong>VietMarket</strong> hướng dẫn chi tiết về: <em>{{ selectedArticle }}</em>.</p>
-            <p>{{ currentRoleData.introSafety }}</p>
+            <!-- Render HTML Content -->
+            <div class="content-html" v-html="selectedArticle?.content"></div>
 
-            <div class="banner-box">
-              <div class="banner-text">
-                <span class="small-text">HƯỚNG DẪN</span>
-                <span class="big-text">{{ selectedCategory?.title.toUpperCase() }}</span>
-              </div>
-              <div class="banner-decor"></div>
-            </div>
-
-            <div class="step-box" v-for="(step, index) in currentRoleData.steps" :key="index" :class="{ 'blue-theme': index % 2 !== 0 }">
-              <div class="step-number">0{{ index + 1 }}</div>
-              <div class="step-content">
-                <h3>{{ step.title }}</h3>
-                <ul>
-                  <li v-for="(point, pIndex) in step.points" :key="pIndex">{{ point }}</li>
-                </ul>
+            <!-- Optional Steps Visualization -->
+            <div v-if="selectedArticle?.steps" class="steps-container">
+              <div class="step-box" v-for="(step, index) in selectedArticle.steps" :key="index" :class="{ 'blue-theme': index % 2 !== 0 }">
+                <div class="step-number">{{ index + 1 }}</div>
+                <div class="step-content">
+                  <h3>{{ step.title }}</h3>
+                  <p>{{ step.desc }}</p>
+                </div>
               </div>
             </div>
+          </div>
+          
+          <div class="feedback-section">
+            <p>Bài viết này có hữu ích không?</p>
+            <button class="btn-feedback">👍 Có</button>
+            <button class="btn-feedback">👎 Không</button>
           </div>
         </div>
 
@@ -167,117 +179,151 @@ import AppFooter from '../components/layout/AppFooter.vue';
 const activeRole = ref('buyer');      
 const viewMode = ref('root');         
 const selectedCategory = ref(null);   
-const selectedArticle = ref('');      
+const selectedArticle = ref(null);      
 
 // =================================================================
-// 🟢 KHU VỰC CHỈNH SỬA NỘI DUNG (DATABASE)
+// 🟢 CƠ SỞ DỮ LIỆU HỖ TRỢ (Nội dung đầy đủ)
 // =================================================================
 const database = reactive({
-  
-  // 1. DỮ LIỆU CHO NGƯỜI MUA
-  buyer: {
-    // --- [EDIT 1] Nội dung giới thiệu chung (hiện ở đầu bài viết) ---
-    introSafety: 'Dưới đây là các thông tin chi tiết giúp bạn mua sắm an toàn và hiệu quả trên VietMarket.',
-    
-    // --- [EDIT 2] Danh sách Menu bên trái ---
-    sidebarMenu: [
-      {
-        title: 'Mẹo mua hàng', // <-- Tên danh mục lớn 1
-        isOpen: true,
-        items: [ // <-- Danh sách bài viết con của mục này
-          'Mẹo mua hàng an toàn', 
-          'Mẹo khi mua đồ điện tử', 
-          'Các trường hợp lừa đảo cần tránh'
-        ]
-      },
-      {
-        title: 'Tài khoản & Hồ sơ', // <-- Tên danh mục lớn 2
-        isOpen: false,
-        items: [ // <-- Danh sách bài viết con
-          'Cách đăng ký tài khoản', 
-          'Quên mật khẩu', 
-          'Thay đổi số điện thoại', 
-          'Xóa tài khoản'
-        ]
-      },
-      {
-        title: 'Thanh toán & Nạp Đồng', // <-- Tên danh mục lớn 3
-        isOpen: false,
-        items: [
-          'Phương thức thanh toán', 
-          'Hướng dẫn nạp Đồng Tốt', 
-          'Lịch sử giao dịch', 
-          'Yêu cầu hoàn tiền'
-        ]
-      },
-      {
-        title: 'Khiếu nại & Báo cáo', // <-- Tên danh mục lớn 4
-        isOpen: false,
-        items: [
-          'Báo cáo tin đăng vi phạm', 
-          'Tố cáo người bán lừa đảo', 
-          'Quy trình giải quyết tranh chấp'
-        ]
-      }
-    ],
+  buyer: [
+    {
+      id: 'shopping_tips',
+      title: 'Mẹo mua hàng an toàn',
+      isOpen: true,
+      articles: [
+        {
+          id: 'safe_tips',
+          title: 'Hướng dẫn mua hàng an toàn',
+          content: `
+            <p>VietMarket là sàn thương mại điện tử C2C kết nối trực tiếp người mua và người bán. Để giao dịch an toàn, hãy tuân thủ <strong>"Quy tắc 3 KHÔNG"</strong>:</p>
+            <ul>
+              <li><strong>KHÔNG chuyển khoản trước:</strong> Tuyệt đối không cọc tiền, chuyển khoản trước khi nhận hàng. 99% các vụ lừa đảo bắt đầu bằng việc yêu cầu cọc.</li>
+              <li><strong>KHÔNG giao dịch một mình nơi vắng vẻ:</strong> Hẹn gặp tại nơi công cộng, quán cafe, sảnh chung cư có camera hoặc bảo vệ. Đi cùng bạn bè, người thân nếu có thể.</li>
+              <li><strong>KHÔNG ngại kiểm tra kỹ:</strong> 
+                <ul>
+                  <li>So sánh IMEI/Serial trên máy và vỏ hộp.</li>
+                  <li>Kiểm tra các ốc vít xem có dấu hiệu tháo mở không.</li>
+                  <li>Test kỹ các chức năng cơ bản (nghe gọi, wifi, camera, cảm ứng...).</li>
+                </ul>
+              </li>
+            </ul>
+          `
+        },
+        {
+          id: 'scam_alert',
+          title: 'Nhận biết dấu hiệu lừa đảo',
+          content: `
+            <p>Hãy cảnh giác cao độ nếu gặp các trường hợp sau:</p>
+            <p>1. <strong>Giá rẻ bất thường:</strong> "IP 14 Pro Max giá 5 triệu" chắc chắn là lừa đảo (treo đầu dê bán thịt chó).</p>
+            <p>2. <strong>Hối thúc đặt cọc:</strong> Kẻ gian thường viện cớ "đang có người khác hỏi mua", "cần tiền gấp" để giục bạn chuyển khoản giữ hàng.</p>
+            <p>3. <strong>Dẫn dụ ra ngoài ứng dụng:</strong> Yêu cầu kết bạn Zalo/Facebook để gửi ảnh, nhưng thực chất là gửi đường link giả mạo chiếm đoạt tài khoản.</p>
+            <p>4. <strong>Lý do gửi hàng xe khách:</strong> "Mình ở xa không giao trực tiếp được, bạn chuyển khoản mình gửi xe khách cho", đây là bẫy lừa đảo phổ biến.</p>
+          `
+        }
+      ]
+    },
+    {
+      id: 'account',
+      title: 'Tài khoản & Hồ sơ',
+      isOpen: false,
+      articles: [
+        {
+          id: 'register',
+          title: 'Đăng ký & Bảo mật',
+          content: '<p>Để bảo vệ tài khoản, vui lòng sử dụng số điện thoại chính chủ. Không chia sẻ mã OTP cho bất kỳ ai, kể cả nhân viên VietMarket.</p>'
+        },
+        {
+          id: 'forgot_pass',
+          title: 'Quên mật khẩu / Bị khóa',
+          content: '<p>Nếu quên mật khẩu, hãy dùng chức năng "Quên mật khẩu" tại màn hình đăng nhập. Nếu tài khoản bị khóa do vi phạm, vui lòng liên hệ hotro@vietmarket.vn.</p>'
+        }
+      ]
+    },
+    {
+      id: 'payment',
+      title: 'Thanh toán & Giao nhận',
+      isOpen: false,
+      articles: [
+        {
+          id: 'cod',
+          title: 'Thanh toán trực tiếp',
+          content: '<p>VietMarket khuyến khích hình thức <strong>"Tiền trao cháo múc"</strong>. Người mua và người bán gặp nhau trực tiếp, kiểm tra hàng hóa oke rồi mới thanh toán tiền mặt hoặc chuyển khoản tại chỗ.</p>'
+        },
+        {
+          id: 'policy_return',
+          title: 'Chính sách Đổi trả & Hoàn tiền',
+          content: `
+            <div style="background: #ffebee; padding: 15px; border-radius: 8px; border: 1px solid #ffcdd2; color: #c62828;">
+              <strong>LƯU Ý QUAN TRỌNG:</strong> 
+              <p style="margin: 5px 0 0;">VietMarket là nền tảng đăng tin rao vặt trung gian. Chúng tôi cung cấp công cụ để người mua và người bán kết nối với nhau.</p>
+            </div>
+            <p style="margin-top: 15px;">Do tính chất giao dịch trực tiếp giữa các cá nhân (C2C):</p>
+            <ul>
+                <li><strong>VietMarket KHÔNG hỗ trợ quy trình Trả hàng/Hoàn tiền trên hệ thống:</strong> Mọi yêu cầu đổi trả, bảo hành sau mua bán là thỏa thuận dân sự trực tiếp giữa Người Mua và Người Bán.</li>
+                <li><strong>Trách nhiệm kiểm tra:</strong> Người mua có trách nhiệm kiểm tra kỹ lưỡng tình trạng sản phẩm trước khi thanh toán. Việc thanh toán đồng nghĩa với việc bạn đã chấp nhận tình trạng sản phẩm.</li>
+                <li><strong>Giải quyết tranh chấp:</strong> Nếu phát sinh tranh chấp, hai bên tự thương lượng. VietMarket chỉ hỗ trợ cung cấp thông tin lịch sử chat/đăng tin nếu có yêu cầu từ cơ quan chức năng.</li>
+            </ul>
+          `,
+          steps: [
+             { title: 'Thỏa thuận trước', desc: 'Hỏi kỹ người bán về chính sách bao test ("bao test 7 ngày lỗi hoàn tiền" là thỏa thuận riêng của người bán).' },
+             { title: 'Kiểm tra kỹ', desc: 'Không thanh toán khi chưa cầm sản phẩm trên tay và test mọi chức năng.' },
+             { title: 'Giữ bằng chứng', desc: 'Lưu lại tin nhắn cam kết, số điện thoại của người bán.' }
+          ]
+        }
+      ]
+    }
+  ],
 
-    // --- [EDIT 3] Nội dung chi tiết các bước (Hiện tại đang dùng chung cho mọi bài của Người Mua) ---
-    steps: [
-      { 
-        title: 'BƯỚC 1: KIỂM TRA THÔNG TIN', // Tiêu đề bước 1
-        points: [ // Các gạch đầu dòng của bước 1
-          'Xem kỹ đánh giá.', 
-          'So sánh giá cả.'
-        ] 
-      },
-      { 
-        title: 'BƯỚC 2: GIAO DỊCH AN TOÀN', // Tiêu đề bước 2
-        points: [ // Các gạch đầu dòng của bước 2
-          'Không cọc trước.', 
-          'Giao dịch nơi đông người.'
-        ] 
-      }
-    ]
-  },
-
-  // 2. DỮ LIỆU CHO NGƯỜI BÁN
-  seller: {
-    // --- [EDIT 4] Nội dung giới thiệu chung cho người bán ---
-    introSafety: 'Các hướng dẫn giúp bạn bán hàng nhanh chóng và quản lý tin đăng hiệu quả.',
-
-    // --- [EDIT 5] Danh sách Menu bên trái cho người bán ---
-    sidebarMenu: [
-      {
-        title: 'Mẹo bán hàng', // <-- Tên danh mục lớn
-        isOpen: true,
-        items: ['Quy định đăng tin', 'Mẹo bán nhanh', 'Chụp ảnh sản phẩm đẹp']
-      },
-      {
-        title: 'Quản lý tin đăng', // <-- Tên danh mục lớn
-        isOpen: false,
-        items: ['Sửa tin đăng', 'Đẩy tin lên đầu', 'Ẩn/Hiện tin', 'Gia hạn tin']
-      },
-      {
-        title: 'Tài khoản doanh nghiệp', // <-- Tên danh mục lớn
-        isOpen: false,
-        items: ['Đăng ký Shop Uy Tín', 'Quyền lợi Đối tác', 'Bảng giá dịch vụ']
-      }
-    ],
-
-    // --- [EDIT 6] Nội dung chi tiết các bước (Dùng chung cho mọi bài của Người Bán) ---
-    steps: [
-      { 
-        title: 'CHUẨN BỊ NỘI DUNG', 
-        points: ['Hình ảnh rõ nét.', 'Mô tả trung thực.'] 
-      },
-      { 
-        title: 'CHĂM SÓC KHÁCH', 
-        points: ['Trả lời nhanh.', 'Thái độ lịch sự.'] 
-      }
-    ]
-  }
+  seller: [
+    {
+      id: 'selling_guide',
+      title: 'Hướng dẫn bán hàng',
+      isOpen: true,
+      articles: [
+        {
+          id: 'post_ad',
+          title: 'Quy định đăng tin',
+          content: `
+            <p>Tin đăng cần tuân thủ:</p>
+            <ul>
+              <li>Không bán hàng cấm, hàng giả, hàng nhái.</li>
+              <li>Hình ảnh phải là ảnh thật của sản phẩm.</li>
+              <li>Chọn đúng danh mục sản phẩm.</li>
+            </ul>
+          `
+        },
+        {
+          id: 'promotions',
+          title: 'Đẩy tin & Dịch vụ VIP',
+          content: '<p>Sử dụng "Đẩy tin" để bài viết lên đầu trang tìm kiếm. Phí dịch vụ sẽ trừ vào ví Đồng Tốt của bạn.</p>'
+        }
+      ]
+    },
+    {
+      id: 'order_process',
+      title: 'Quy trình xử lý đơn',
+      isOpen: false,
+      articles: [
+        {
+          id: 'confirm_order',
+          title: 'Xác nhận và Giao hàng',
+          content: '<p>Khi có đơn mới, bạn cần xác nhận trong vòng 24h. Sau đó đóng gói và bàn giao cho đơn vị vận chuyển.</p>',
+          steps: [
+            { title: 'Bước 1', desc: 'Nhận thông báo đơn mới.' },
+            { title: 'Bước 2', desc: 'Vào Quản lý đơn > Chấp nhận đơn.' },
+            { title: 'Bước 3', desc: 'In phiếu gửi (hoặc ghi mã vận đơn) và đóng gói.' },
+            { title: 'Bước 4', desc: 'Shipper đến lấy hàng.' }
+          ]
+        },
+        {
+          id: 'wallet',
+          title: 'Rút tiền doanh thu',
+          content: '<p>Tiền bán hàng sẽ được cộng vào Ví sau khi đơn hàng thành công (Khách xác nhận đã nhận hoặc sau 3 ngày không khiếu nại). Bạn có thể rút về ngân hàng bất cứ lúc nào.</p>'
+        }
+      ]
+    }
+  ]
 });
-// =================================================================
 
 const currentRoleData = computed(() => database[activeRole.value]);
 
@@ -289,41 +335,52 @@ const switchRole = (role) => {
 };
 
 const toggleSidebarMenu = (index) => {
-  const menus = currentRoleData.value.sidebarMenu;
+  const menus = currentRoleData.value;
   const isCurrentlyOpen = menus[index].isOpen;
-  menus.forEach(m => m.isOpen = false);
-  if (!isCurrentlyOpen) menus[index].isOpen = true;
+  // Close others optional, maybe let multiple stay open
+  menus.forEach(m => m.isOpen = false); 
+  menus[index].isOpen = !isCurrentlyOpen; // Toggle
 };
 
 const goToRootLevel = () => {
   viewMode.value = 'root';
   selectedCategory.value = null;
-  selectedArticle.value = '';
+  selectedArticle.value = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const goToListLevel = (categoryObj) => {
   selectedCategory.value = categoryObj;
   
-  // Đồng bộ mở menu bên trái cho khớp
-  currentRoleData.value.sidebarMenu.forEach(m => {
-    if (m.title === categoryObj.title) m.isOpen = true;
-    else m.isOpen = false;
+  // Mở menu tương ứng
+  currentRoleData.value.forEach(m => {
+    if (m.id === categoryObj.id) m.isOpen = true;
   });
 
   viewMode.value = 'list';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-const goToDetailLevel = (articleTitle, categoryObj) => {
-  selectedCategory.value = categoryObj;
-  selectedArticle.value = articleTitle;
+const goToDetailLevel = (articleObj, categoryObj) => {
+  if (categoryObj) selectedCategory.value = categoryObj;
+  selectedArticle.value = articleObj;
   viewMode.value = 'detail';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-const isArticleActive = (title) => {
-  return viewMode.value === 'detail' && selectedArticle.value === title;
+const quickAccess = (articleId) => {
+  // Tìm article trong data
+  for (const cat of currentRoleData.value) {
+    const found = cat.articles.find(a => a.id === articleId);
+    if (found) {
+      goToDetailLevel(found, cat);
+      return;
+    }
+  }
+};
+
+const isArticleActive = (article) => {
+  return viewMode.value === 'detail' && selectedArticle.value?.id === article.id;
 };
 </script>
 
@@ -335,12 +392,12 @@ const isArticleActive = (title) => {
   --light-yellow-bg: #fff9c4;
 }
 
-.support-page-wrapper { background-color: #fff; min-height: 100vh; }
+.support-page-wrapper { background-color: #f8f9fa; min-height: 100vh; padding-bottom: 3rem; }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 
 /* Breadcrumb */
 .breadcrumb { 
-  font-size: 0.95rem; color: #888; margin-bottom: 2rem; 
+  font-size: 0.95rem; color: #888; margin-bottom: 1.5rem; 
   display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
 }
 .breadcrumb .crumb-link { 
@@ -353,132 +410,133 @@ const isArticleActive = (title) => {
 .support-top-bar { 
   background: #fff; 
   border-bottom: 1px solid #eee; 
-  padding: 0; /* Xóa padding để kiểm soát height */
   margin-bottom: 2rem; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 .top-bar-content { 
   display: flex; 
   justify-content: space-between; 
   align-items: center;
-  height: 60px; /* Đặt chiều cao cố định */
+  height: 60px;
 }
 .user-role-switch { 
   display: flex; 
   gap: 2rem; 
   font-weight: 600; 
   color: #777; 
-  height: 100%; /* Chiếm full chiều cao container */
+  height: 100%; 
 }
 .role-item { 
   cursor: pointer; 
   position: relative; 
   transition: color 0.2s; 
   display: flex;
-  align-items: center; /* Căn giữa chữ */
-  height: 100%; /* Full height để border nằm đúng đáy */
-  padding: 0 5px; /* Thêm chút padding ngang */
+  align-items: center; 
+  height: 100%; 
+  padding: 0 5px;
+  font-size: 1rem;
 }
 .role-item:hover, .role-item.active { color: #0055aa; }
-
-/* Thanh vàng nằm sát đáy tuyệt đối */
 .role-item.active::after { 
-  content: ''; 
-  position: absolute; 
-  bottom: 0; /* Sát đáy 0 */
-  left: 0; 
-  width: 100%; 
-  height: 4px; 
-  background: #ffc107; 
+  content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: #0055aa; 
 }
 
-.support-search { position: relative; width: 400px; }
-.support-search input { width: 100%; padding: 0.6rem 1rem 0.6rem 2.5rem; border: 1px solid #ddd; border-radius: 20px; outline: none; transition: border-color 0.2s; }
-.support-search input:focus { border-color: #0055aa; box-shadow: 0 0 0 2px rgba(0,85,170,0.1); }
-.search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #999; }
+.support-contact-info { display: flex; gap: 1.5rem; color: #555; font-size: 0.9rem; }
+.support-contact-info span { display: flex; align-items: center; gap: 0.5rem; }
 
 /* Layout */
-.main-layout { display: flex; gap: 3rem; align-items: flex-start; margin-bottom: 4rem; }
-.sidebar { width: 25%; }
-.content-area { width: 75%; }
+.main-layout { display: flex; gap: 2rem; align-items: flex-start; }
+.sidebar { width: 280px; flex-shrink: 0; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 1.5rem 0; }
+.content-area { flex: 1; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 2rem; min-height: 500px; }
 
 /* Menu Sidebar */
-.sidebar-title { font-size: 0.85rem; color: #999; margin-bottom: 1rem; font-weight: 700; text-transform: uppercase; }
-.menu-list { list-style: none; padding: 0; }
+.sidebar-title { font-size: 0.9rem; color: #999; margin: 0 1.5rem 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.menu-list { list-style: none; padding: 0; margin: 0; }
 .menu-label { 
   display: flex; justify-content: space-between; align-items: center;
-  padding: 0.8rem 0.5rem; font-weight: 600; color: #333; cursor: pointer;
-  border-bottom: 1px solid #f0f0f0; transition: all 0.2s; border-radius: 4px;
+  padding: 1rem 1.5rem; font-weight: 600; color: #333; cursor: pointer;
+  border-left: 3px solid transparent; transition: all 0.2s;
 }
-.menu-label:hover { color: #0055aa; background-color: #f9f9f9; }
+.menu-label:hover { color: #0055aa; background-color: #f8fbff; }
 .menu-item.is-active-category .menu-label { 
   color: #0055aa; 
-  background-color: var(--light-blue-bg);
-  border-right: 4px solid #ffc107; 
+  background-color: #f0f7ff;
+  border-left-color: #0055aa; 
 }
-.menu-item.is-open .menu-label { border-bottom-color: transparent; }
+.arrow-icon { font-size: 0.8rem; color: #bbb; }
 
-.arrow-icon { font-size: 0.8rem; color: #888; transition: transform 0.2s; }
-
-.submenu { list-style: none; padding-left: 0.5rem; margin-bottom: 1rem; margin-top: 0.2rem; }
+.submenu { list-style: none; padding: 0; background: #fcfcfc; border-bottom: 1px solid #eee; }
 .submenu li { 
-  padding: 0.6rem 0.5rem; color: #555; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; border-radius: 4px;
+  padding: 0.8rem 1.5rem 0.8rem 2.5rem; color: #555; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; 
 }
-.submenu li:hover { color: #0055aa; background-color: var(--light-yellow-bg); }
-.submenu li.active { color: #0055aa; font-weight: 700; background-color: #fff59d; }
+.submenu li:hover { color: #0055aa; background-color: #edf5fe; }
+.submenu li.active { color: #0055aa; font-weight: 600; background-color: #e3effd; }
 
-/* --- VIEW 1: ROOT --- */
-.page-title { font-size: 1.8rem; color: #333; margin-bottom: 1.5rem; font-weight: 700; }
-.categories-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+/* --- VIEW 1: DASHBOARD --- */
+.page-title { font-size: 1.6rem; color: #333; margin-bottom: 2rem; font-weight: 700; text-align: center; }
+.categories-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
 
 .category-card {
-  border: 1px solid #dbeafe;
-  border-radius: 12px; padding: 1.8rem;
+  border: 1px solid #eee;
+  border-radius: 12px; padding: 1.5rem;
   display: flex; align-items: center; justify-content: space-between; 
-  cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-  background: #fff;
+  cursor: pointer; transition: all 0.2s; 
+  background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.03);
 }
 .category-card:hover { 
-  transform: translateY(-3px); 
-  box-shadow: 0 5px 15px rgba(0,85,170, 0.12); 
+  transform: translateY(-5px); 
+  box-shadow: 0 10px 20px rgba(0,85,170, 0.1); 
   border-color: #0055aa; 
 }
-.cat-info h3 { margin: 0; font-size: 1.2rem; color: #333; font-weight: 600; transition: color 0.2s; }
-.category-card:hover .cat-info h3 { color: #0055aa; }
-.cat-info p { margin: 0.3rem 0 0; font-size: 0.95rem; color: #888; }
-.go-icon { font-size: 1rem; color: #ccc; transition: color 0.2s; }
-.category-card:hover .go-icon { color: #ffc107; }
+.cat-info h3 { margin: 0; font-size: 1.1rem; color: #333; font-weight: 700; }
+.cat-info p { margin: 0.3rem 0 0; font-size: 0.9rem; color: #888; }
+.go-icon { color: #ddd; transition: 0.2s; }
+.category-card:hover .go-icon { color: #0055aa; }
+
+.quick-links { background: #f8fbff; padding: 1.5rem; border-radius: 12px; border: 1px dashed #0055aa; }
+.quick-links h3 { margin: 0 0 1rem; color: #0055aa; font-size: 1.1rem; }
+.quick-links ul { list-style-type: none; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+.quick-links li { cursor: pointer; color: #333; text-decoration: underline; font-weight: 500; transition: color 0.2s; }
+.quick-links li:hover { color: #0055aa; }
 
 /* --- VIEW 2: LIST --- */
-.category-heading { font-size: 1.5rem; color: #0055aa; margin-bottom: 1.5rem; border-bottom: 2px solid #e6f0fa; padding-bottom: 0.5rem; }
-.article-list-container { display: flex; flex-direction: column; gap: 0.8rem; }
+.category-heading { font-size: 1.4rem; color: #0055aa; margin-bottom: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 1rem; }
+.article-list-container { display: flex; flex-direction: column; gap: 1rem; }
 .article-item-card {
-  padding: 1rem; border: 1px solid #eee; border-radius: 8px; cursor: pointer;
-  display: flex; align-items: center; gap: 0.8rem; font-size: 1rem; color: #444;
+  padding: 1.2rem; border: 1px solid #eee; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; gap: 1rem; font-size: 1rem; color: #444;
   transition: all 0.2s; background: #fff;
 }
 .article-item-card:hover { 
-  background-color: var(--light-blue-bg); 
   border-color: #0055aa; 
   color: #0055aa; 
-  padding-left: 1.2rem; 
+  background-color: #f8fbff;
+  transform: translateX(5px);
 }
-.file-icon { color: #999; transition: color 0.2s; }
-.article-item-card:hover .file-icon { color: #ffc107; }
+.file-icon { color: #ccc; }
+.article-item-card:hover .file-icon { color: #0055aa; }
 
 /* --- VIEW 3: DETAIL --- */
-.article-title { font-size: 2rem; color: #333; margin-bottom: 1.5rem; font-weight: 700; line-height: 1.3; }
-.article-body p { line-height: 1.6; margin-bottom: 1rem; color: #444; }
-.banner-box { background: linear-gradient(135deg, #ffc107 0%, #ffdb6e 100%); border-radius: 12px; padding: 2rem; margin: 2rem 0; display: flex; align-items: center; justify-content: center; min-height: 180px; box-shadow: 0 4px 10px rgba(255, 193, 7, 0.2); }
-.banner-text { text-align: center; color: #fff; display: flex; flex-direction: column; text-shadow: 1px 1px 4px rgba(0,0,0,0.1); }
-.small-text { font-size: 1.2rem; font-weight: 800; letter-spacing: 2px; color: #0055aa; background: #fff; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; margin-bottom: 0.5rem; transform: rotate(-5deg); align-self: center; }
-.big-text { font-size: 2.5rem; font-weight: 900; line-height: 1.1; -webkit-text-stroke: 1px #e6a800; }
-.step-box { background-color: #fff9c4; border-radius: 50px 12px 12px 50px; display: flex; align-items: flex-start; margin-bottom: 1.5rem; padding: 1.5rem 1.5rem 1.5rem 0; }
-.step-number { background-color: #ffc107; color: #fff; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; flex-shrink: 0; margin-right: 1.5rem; border: 4px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.step-content h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #333; font-weight: 800; text-transform: uppercase; }
-.step-content ul { padding-left: 1.2rem; margin: 0; color: #555; }
-.step-content li { margin-bottom: 0.3rem; }
-.step-box.blue-theme { background-color: #e6f0fa; }
-.step-box.blue-theme .step-number { background-color: #0055aa; }
+.article-title { font-size: 1.8rem; color: #333; margin-bottom: 0.5rem; font-weight: 700; line-height: 1.3; }
+.article-meta { color: #999; font-size: 0.9rem; margin-bottom: 2rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
+.article-body { color: #333; line-height: 1.6; font-size: 1rem; }
+.content-html p { margin-bottom: 1rem; }
+.content-html ul { padding-left: 1.5rem; margin-bottom: 1.5rem; }
+.content-html li { margin-bottom: 0.5rem; }
+
+.steps-container { margin-top: 2rem; }
+.step-box { background: #f9f9f9; padding: 1.5rem; border-radius: 8px; display: flex; gap: 1.5rem; margin-bottom: 1rem; border-left: 4px solid #ddd; }
+.step-number { width: 40px; height: 40px; background: #666; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.step-content h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: #333; }
+.step-content p { margin: 0; color: #666; }
+
+.step-box.blue-theme { background: #f0f7ff; border-left-color: #0055aa; }
+.step-box.blue-theme .step-number { background: #0055aa; }
+
+.feedback-section { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid #eee; text-align: center; }
+.feedback-section p { color: #666; margin-bottom: 1rem; }
+.btn-feedback { padding: 0.5rem 1.5rem; border: 1px solid #ddd; background: #fff; border-radius: 20px; cursor: pointer; margin: 0 0.5rem; transition: all 0.2s; }
+.btn-feedback:hover { border-color: #0055aa; color: #0055aa; background: #f0f7ff; }
 
 .fade-in { animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
