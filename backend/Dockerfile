@@ -1,5 +1,5 @@
 # ---------- Composer Phase ----------
-FROM composer:latest AS composer-base
+FROM composer:2.9.2 AS composer-base
 WORKDIR /app
 
 COPY composer.json composer.lock artisan ./
@@ -9,7 +9,7 @@ COPY routes routes
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
 # ---------- Production Image ----------
-FROM php:8.5-alpine AS production
+FROM php:8.5-alpine3.22 AS production
 WORKDIR /app
 
 # Install dependencies
@@ -26,21 +26,12 @@ RUN set -eux; \
         pdo_mysql \
         bcmath \
         zip \
-        intl \
-        opcache \
-    && rm -rf /var/cache/apk/*
+        intl
 
-# Configure PHP settings (uploads + opcache)
-RUN { \
-        echo "upload_max_filesize = 10M"; \
-        echo "post_max_size = 12M"; \
-        echo "max_execution_time = 60"; \
-        echo "opcache.enable=1"; \
-        echo "opcache.memory_consumption=128"; \
-        echo "opcache.interned_strings_buffer=8"; \
-        echo "opcache.max_accelerated_files=10000"; \
-        echo "opcache.validate_timestamps=0"; \
-    } > /usr/local/etc/php/conf.d/custom.ini
+# Configure PHP upload limits
+RUN echo "upload_max_filesize = 10M" >> /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "post_max_size = 12M" >> /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "max_execution_time = 60" >> /usr/local/etc/php/conf.d/uploads.ini
 
 # Copy vendor first (cached layer), then source code
 COPY --from=composer-base /app/vendor ./vendor
