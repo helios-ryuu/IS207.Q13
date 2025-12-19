@@ -222,12 +222,14 @@ import { useRouter, useRoute } from 'vue-router';
 import { useCart } from '../stores/cart'; // Đảm bảo đường dẫn đúng
 import api from '../utils/api';
 import { getImageUrl } from '../utils/imageUrl';
+import { useToast } from '../utils/useToast';
 import Header from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 
 const router = useRouter();
 const route = useRoute();
 const { cartItems, refreshCart, clearCart } = useCart();
+const { showSuccess, showError } = useToast();
 
 const isProcessing = ref(false);
 
@@ -345,7 +347,7 @@ const isFormValid = computed(() => {
 // === 3. XỬ LÝ ĐẶT HÀNG (GỌI API) ===
 const handlePlaceOrder = async () => {
   if (!isFormValid.value) {
-    alert('Vui lòng điền đầy đủ thông tin giao hàng!');
+    showError('Vui lòng điền đầy đủ thông tin giao hàng!');
     return;
   }
 
@@ -385,7 +387,7 @@ const handlePlaceOrder = async () => {
     const response = await api.post('/orders', orderPayload);
     
     // Nếu thành công
-    alert('Đặt hàng thành công! Đơn hàng của bạn đang được xử lý.');
+    showSuccess('Đặt hàng thành công! Đơn hàng của bạn đang được xử lý.');
     
     // Xóa giỏ hàng (Refresh lại từ server để đồng bộ)
     await refreshCart(); 
@@ -396,7 +398,7 @@ const handlePlaceOrder = async () => {
   } catch (error) {
     console.error('Lỗi đặt hàng:', error);
     const msg = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.';
-    alert(msg);
+    showError(msg);
   } finally {
     isProcessing.value = false;
   }

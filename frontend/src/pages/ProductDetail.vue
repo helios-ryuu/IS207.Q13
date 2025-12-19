@@ -128,6 +128,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../utils/api';
 import { getImageUrl } from '../utils/imageUrl';
+import { useToast } from '../utils/useToast';
 import Header from "../components/layout/SearchHeader.vue";
 import Footer from "../components/layout/AppFooter.vue";
 import CommentSection from '../components/CommentSection.vue';
@@ -142,6 +143,7 @@ const loading = ref(true);
 
 const { addToCart } = useCart();
 const { isLoggedIn } = useAuth();
+const { showSuccess, showError } = useToast();
 
 // State & Logic "Xem thêm"
 const sellerListings = ref([]);
@@ -224,9 +226,11 @@ const handleAddToCart = async () => {
 
   console.log("Adding to cart:", cartItem); // Debug log để kiểm tra
 
-  const success = await addToCart(cartItem);
-  if (success) {
-    alert('Đã thêm sản phẩm vào giỏ hàng!');
+  const result = await addToCart(cartItem);
+  if (result.success) {
+    showSuccess(result.message);
+  } else {
+    showError(result.message);
   }
 };
 
@@ -235,9 +239,8 @@ const handleBuyNow = async () => {
   if (!product.value) return;
 
   if (!isLoggedIn.value) {
-    if(confirm('Bạn cần đăng nhập để mua hàng. Đăng nhập ngay?')) {
-      router.push({ path: '/login', query: { redirect: route.fullPath } });
-    }
+    showError('Bạn cần đăng nhập để mua hàng');
+    router.push({ path: '/login', query: { redirect: route.fullPath } });
     return;
   }
 
@@ -251,9 +254,11 @@ const handleBuyNow = async () => {
     quantity: 1
   };
 
-  const success = await addToCart(cartItem);
-  if (success) {
+  const result = await addToCart(cartItem);
+  if (result.success) {
     router.push('/cart');
+  } else {
+    showError(result.message);
   }
 };
 

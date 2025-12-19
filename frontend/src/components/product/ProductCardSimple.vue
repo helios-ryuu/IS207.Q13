@@ -45,6 +45,7 @@
 import { ref, onMounted, watch } from 'vue' // Thêm watch
 import { useRouter } from 'vue-router' // 1. Thêm import useRouter
 import { useAuth } from '../../utils/useAuth'
+import { useToast } from '../../utils/useToast'
 import api from '../../utils/api'
 import { getImageUrl } from '../../utils/imageUrl'
 
@@ -58,6 +59,7 @@ const props = defineProps({
 const emit = defineEmits(['favorite-changed'])
 const router = useRouter() // 2. Khởi tạo router
 const { isLoggedIn } = useAuth()
+const { showSuccess, showError } = useToast()
 
 const isFavorited = ref(!!props.product.is_favorited) 
 const isToggling = ref(false)
@@ -92,7 +94,7 @@ const checkFavoriteStatus = async () => {
 
 const toggleFavorite = async () => {
   if (!isLoggedIn.value) {
-    alert('Vui lòng đăng nhập để thêm vào yêu thích')
+    showError('Vui lòng đăng nhập để thêm vào yêu thích')
     return
   }
 
@@ -112,7 +114,7 @@ const toggleFavorite = async () => {
     }
   } catch (err) {
     console.error('Failed to toggle favorite:', err)
-    alert(err.response?.data?.message || 'Không thể thực hiện thao tác')
+    showError(err.response?.data?.message || 'Không thể thực hiện thao tác')
   } finally {
     isToggling.value = false
   }

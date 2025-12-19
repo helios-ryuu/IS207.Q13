@@ -234,20 +234,12 @@ const acceptOrder = async (order) => {
   
   try {
     await sellerOrderService.acceptOrder(order.id);
-    if ($toast) {
-      $toast.success(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
-    } else {
-      alert(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
-    }
+    $toast.success(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
     await fetchOrders();
   } catch (error) {
     console.error('Accept order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    if ($toast) {
-      $toast.error(errorMsg);
-    } else {
-      alert(errorMsg);
-    }
+    $toast.error(errorMsg);
   }
 };
 
@@ -256,20 +248,12 @@ const cancelOrder = async (order) => {
   
   try {
     await sellerOrderService.cancelOrder(order.id);
-    if ($toast) {
-      $toast.success(`Đã hủy đơn hàng #${order.trackingCode}.`);
-    } else {
-      alert(`Đã hủy đơn hàng #${order.trackingCode}.`);
-    }
+    $toast.success(`Đã hủy đơn hàng #${order.trackingCode}.`);
     await fetchOrders();
   } catch (error) {
     console.error('Cancel order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    if ($toast) {
-      $toast.error(errorMsg);
-    } else {
-      alert(errorMsg);
-    }
+    $toast.error(errorMsg);
   }
 };
 
@@ -278,20 +262,12 @@ const shipOrder = async (order) => {
   
   try {
     await sellerOrderService.shipOrder(order.id);
-    if ($toast) {
-      $toast.success(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
-    } else {
-      alert(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
-    }
+    $toast.success(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
     await fetchOrders();
   } catch (error) {
     console.error('Ship order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    if ($toast) {
-      $toast.error(errorMsg);
-    } else {
-      alert(errorMsg);
-    }
+    $toast.error(errorMsg);
   }
 };
 
@@ -300,20 +276,12 @@ const refundOrder = async (order) => {
   
   try {
     await sellerOrderService.confirmReturn(order.id);
-    if ($toast) {
-      $toast.success(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
-    } else {
-      alert(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
-    }
+    $toast.success(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
     await fetchOrders();
   } catch (error) {
     console.error('Refund order error:', error);
     const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
-    if ($toast) {
-      $toast.error(errorMsg);
-    } else {
-      alert(errorMsg);
-    }
+    $toast.error(errorMsg);
   }
 };
 

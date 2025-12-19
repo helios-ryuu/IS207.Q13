@@ -69,8 +69,7 @@ export const useCart = () => {
   // Thêm sản phẩm vào giỏ
   const addToCart = async (product) => {
     if (!isLoggedIn()) {
-      alert('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng!');
-      return false;
+      return { success: false, message: 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng!' };
     }
 
     try {
@@ -80,11 +79,10 @@ export const useCart = () => {
       });
       // Reload cart from API
       await loadCart();
-      return true;
+      return { success: true, message: 'Đã thêm vào giỏ hàng!' };
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert(error.response?.data?.message || 'Không thể thêm vào giỏ hàng');
-      return false;
+      return { success: false, message: error.response?.data?.message || 'Không thể thêm vào giỏ hàng' };
     }
   };
 

@@ -129,11 +129,13 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCart } from '../stores/cart';
+import { useToast } from '../utils/useToast';
 import Header from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
 
 const router = useRouter();
 const { cartItems, removeFromCart, updateQuantity, isLoading, refreshCart } = useCart();
+const { showSuccess, showError } = useToast();
 
 // Refresh cart khi vào trang
 onMounted(async () => {
@@ -245,9 +247,9 @@ const handleImageError = (e) => {
 const applyPromo = () => {
   if (promoCode.value.toUpperCase() === 'WELCOME10') {
     discount.value = selectedSubtotal.value * 0.1;
-    alert('Áp dụng mã giảm giá thành công! Giảm 10%');
+    showSuccess('Áp dụng mã giảm giá thành công! Giảm 10%');
   } else if (promoCode.value) {
-    alert('Mã giảm giá không hợp lệ!');
+    showError('Mã giảm giá không hợp lệ!');
   }
 };
 
@@ -259,7 +261,7 @@ const goToProduct = (productId) => {
 // Tiến hành thanh toán
 const proceedToCheckout = () => {
   if (selectedItems.value.length === 0) {
-    alert('Vui lòng chọn ít nhất một sản phẩm để thanh toán!');
+    showError('Vui lòng chọn ít nhất một sản phẩm để thanh toán!');
     return;
   }
   router.push({

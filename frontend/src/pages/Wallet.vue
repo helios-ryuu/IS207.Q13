@@ -172,8 +172,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../utils/api';
+import { useToast } from '../utils/useToast';
 import Header from '../components/layout/SearchHeader.vue';
 import Footer from '../components/layout/AppFooter.vue';
+
+const { showSuccess, showError } = useToast();
 
 const balance = ref(0);
 const transactions = ref([]);
@@ -211,18 +214,18 @@ const fetchWalletData = async () => {
 // [MỚI] Xử lý nạp tiền
 const handleDeposit = async () => {
     if (!depositAmount.value || depositAmount.value < 10000) {
-        alert('Vui lòng nhập số tiền hợp lệ (tối thiểu 10.000đ)');
+        showError('Vui lòng nhập số tiền hợp lệ (tối thiểu 10.000đ)');
         return;
     }
     isSubmitting.value = true;
     try {
         await api.post('/wallet/deposit', { amount: depositAmount.value });
-        alert('Nạp tiền thành công!');
+        showSuccess('Nạp tiền thành công!');
         showDepositModal.value = false;
         depositAmount.value = '';
         await fetchWalletData(); // Refresh lại ví
     } catch (error) {
-        alert(error.response?.data?.message || 'Lỗi nạp tiền');
+        showError(error.response?.data?.message || 'Lỗi nạp tiền');
     } finally {
         isSubmitting.value = false;
     }
@@ -231,18 +234,18 @@ const handleDeposit = async () => {
 // Xử lý rút tiền
 const handleWithdraw = async () => {
     if (!withdrawForm.value.amount || withdrawForm.value.amount > balance.value) {
-        alert('Số tiền không hợp lệ hoặc vượt quá số dư!');
+        showError('Số tiền không hợp lệ hoặc vượt quá số dư!');
         return;
     }
     isSubmitting.value = true;
     try {
         await api.post('/wallet/withdraw', withdrawForm.value);
-        alert('Yêu cầu rút tiền thành công!');
+        showSuccess('Yêu cầu rút tiền thành công!');
         showWithdrawModal.value = false;
         withdrawForm.value = { amount: '', bank_name: '', bank_account: '', account_holder: '' };
         await fetchWalletData();
     } catch (error) {
-        alert(error.response?.data?.message || 'Lỗi rút tiền');
+        showError(error.response?.data?.message || 'Lỗi rút tiền');
     } finally {
         isSubmitting.value = false;
     }

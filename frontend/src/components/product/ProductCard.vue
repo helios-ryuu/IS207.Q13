@@ -42,6 +42,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useAuth } from '../../utils/useAuth'
+import { useToast } from '../../utils/useToast'
 import api from '../../utils/api'
 import { getImageUrl } from '../../utils/imageUrl'
 
@@ -55,6 +56,7 @@ const props = defineProps({
 const emit = defineEmits(['favorite-changed'])
 
 const { isLoggedIn } = useAuth()
+const { showSuccess, showError } = useToast()
 
 const isFavorited = ref(false)
 const isToggling = ref(false)
@@ -77,8 +79,7 @@ const checkFavoriteStatus = async () => {
 // Toggle yêu thích
 const toggleFavorite = async () => {
   if (!isLoggedIn.value) {
-    // Có thể hiển thị modal đăng nhập ở đây
-    alert('Vui lòng đăng nhập để thêm vào yêu thích')
+    showError('Vui lòng đăng nhập để thêm vào yêu thích')
     return
   }
   
@@ -98,7 +99,7 @@ const toggleFavorite = async () => {
     }
   } catch (err) {
     console.error('Failed to toggle favorite:', err)
-    alert(err.response?.data?.message || 'Không thể thực hiện thao tác')
+    showError(err.response?.data?.message || 'Không thể thực hiện thao tác')
   } finally {
     isToggling.value = false
   }

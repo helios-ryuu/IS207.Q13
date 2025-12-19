@@ -28,12 +28,7 @@ class CartService
             throw new Exception("Sản phẩm không tồn tại.");
         }
 
-        // 2. Check kho
-        if ($variant->quantity < $quantity) {
-            throw new Exception("Kho không đủ hàng. Chỉ còn: " . $variant->quantity);
-        }
-
-        // 3. Tìm item trong giỏ (Dùng 2 điều kiện vì khóa chính phức hợp)
+        // 2. Tìm item trong giỏ (Dùng 2 điều kiện vì khóa chính phức hợp)
         $cartItem = CartItem::where('user_id', $userId)
             ->where('variant_id', $variantId)
             ->first();
@@ -42,12 +37,6 @@ class CartService
             // Có rồi thì cộng dồn
             $newQuantity = $cartItem->quantity + $quantity;
 
-            if ($variant->quantity < $newQuantity) {
-                throw new Exception("Tổng số lượng vượt quá tồn kho.");
-            }
-
-            // Lưu ý: Với khóa phức hợp, ta không dùng $cartItem->save() bình thường được nếu Laravel không hỗ trợ native
-            // Nên dùng update query cho chắc chắn
             CartItem::where('user_id', $userId)
                 ->where('variant_id', $variantId)
                 ->update(['quantity' => $newQuantity]);
@@ -63,6 +52,7 @@ class CartService
 
         return true;
     }
+
 
     // Cập nhật số lượng
     // $itemId ở đây chính là variant_id truyền từ URL
@@ -83,12 +73,6 @@ class CartService
                 ->where('variant_id', $variantId)
                 ->delete();
             return null;
-        }
-
-        // Check kho
-        $variant = $cartItem->variant;
-        if ($variant && $variant->quantity < $quantity) {
-            throw new Exception("Kho không đủ hàng.");
         }
 
         // Update số lượng

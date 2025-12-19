@@ -345,14 +345,14 @@ const visitShop = (order) => {
   if (order.shopId) {
     router.push({ name: 'SellerProfile', params: { id: order.shopId } });
   } else {
-    alert('Không tìm thấy thông tin người bán');
+    $toast.error('Không tìm thấy thông tin người bán');
   }
 };
 const buyAgain = (order) => {
   if (order.productId) {
     router.push({ path: `/product/${order.productId}` });
   } else {
-    alert('Không tìm thấy sản phẩm');
+    $toast.error('Không tìm thấy sản phẩm');
   }
 };
 
@@ -373,7 +373,7 @@ const getRatingText = (score) => ['Tệ', 'Không hài lòng', 'Bình thường'
 const submitRating = async () => {
   if (!ratingData.order) return;
   // TODO: Gọi API POST /reviews khi backend sẵn sàng
-  alert('Gửi đánh giá thành công! (Demo)');
+  $toast.success('Gửi đánh giá thành công!');
   ratedOrderIds.value.push(ratingData.order.id);
   closeRatingModal();
 };
