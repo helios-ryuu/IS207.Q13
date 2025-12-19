@@ -98,7 +98,6 @@
               </template>
 
               <template v-else-if="order.statusId === 'shipping'">
-                <button class="btn btn-primary" @click="completeOrder(order)">Hoàn tất vận chuyển</button>
                 <button class="btn btn-default" @click="viewOrderDetails(order)">Xem chi tiết</button>
               </template>
 

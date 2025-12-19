@@ -91,8 +91,8 @@ class OrderController extends Controller
             // 2. LOGIC VÍ: Cộng tiền cho Seller khi đơn hoàn tất
             if ($newStatus === 'completed' && $oldStatus !== 'completed') {
 
-                $firstDetail = $order->details->first();
-                $sellerId = $firstDetail ? $firstDetail->product->user_id : null;
+                $firstDetail = $order->orderDetails->first();
+                $sellerId = $firstDetail?->variant?->product?->user_id;
 
                 if ($sellerId) {
                     $wallet = Wallet::firstOrCreate(

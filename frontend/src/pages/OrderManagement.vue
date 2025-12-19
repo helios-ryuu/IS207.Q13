@@ -103,11 +103,7 @@
               </template>
 
               <template v-else-if="order.statusId === 'shipping'">
-                <button class="btn btn-disabled" disabled>Đang vận chuyển</button>
-              </template>
-
-              <template v-else-if="order.statusId === 'delivering'">
-                <button class="btn btn-primary" @click="confirmReceived(order.id)">Đã Nhận Hàng</button>
+                <button class="btn btn-primary" @click="openConfirmReceivedModal(order)">Xác nhận đã nhận hàng</button>
               </template>
 
               <template v-else-if="order.statusId === 'completed'">
@@ -167,6 +163,34 @@
     </div>
   </div>
 
+  <!-- Modal xác nhận đã nhận hàng -->
+  <div v-if="showConfirmReceivedModal" class="modal-overlay" @click.self="closeConfirmReceivedModal">
+    <div class="modal-content fade-in">
+      <div class="modal-header">
+        <h3>Xác nhận đã nhận hàng</h3>
+        <button class="close-btn" @click="closeConfirmReceivedModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="product-preview" v-if="confirmReceivedData.order">
+          <img :src="confirmReceivedData.order.image" alt="Product" @error="handleImageError">
+          <div class="preview-info">
+            <p class="name">{{ confirmReceivedData.order.productName }}</p>
+            <p class="variant">{{ confirmReceivedData.order.variant }}</p>
+          </div>
+        </div>
+        <div class="confirm-message">
+          <font-awesome-icon icon="box" class="confirm-icon" />
+          <p>Bạn xác nhận đã nhận được hàng và hài lòng với sản phẩm?</p>
+          <p class="confirm-note">Sau khi xác nhận, đơn hàng sẽ được chuyển sang trạng thái <strong>Hoàn thành</strong>.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" @click="closeConfirmReceivedModal">Hủy</button>
+        <button class="btn btn-primary" @click="confirmReceivedOrder">Xác nhận đã nhận hàng</button>
+      </div>
+    </div>
+  </div>
+
   <Footer />
 </template>
 
@@ -203,11 +227,14 @@ const currentReturnDetails = reactive({ reason: '', pickupDate: '' });
 const showRatingModal = ref(false);
 const ratingData = reactive({ order: null, score: 5, comment: '' });
 
+// MODAL XÁC NHẬN ĐÃ NHẬN HÀNG
+const showConfirmReceivedModal = ref(false);
+const confirmReceivedData = reactive({ order: null });
+
 const tabs = [
   { id: 'all', name: 'Tất cả' },
   { id: 'pending', name: 'Chờ xác nhận' },
-  { id: 'shipping', name: 'Vận chuyển' }, // Gộp confirm/processing vào đây
-  { id: 'delivering', name: 'Chờ giao hàng' }, 
+  { id: 'shipping', name: 'Vận chuyển' },
   { id: 'completed', name: 'Hoàn thành' },
   { id: 'cancelled', name: 'Đã hủy' },
   { id: 'return', name: 'Trả hàng / Hoàn tiền' }
@@ -401,6 +428,27 @@ const submitRating = async () => {
   closeRatingModal();
 };
 
+const openConfirmReceivedModal = (order) => { 
+  confirmReceivedData.order = order; 
+  showConfirmReceivedModal.value = true; 
+};
+const closeConfirmReceivedModal = () => showConfirmReceivedModal.value = false;
+
+const confirmReceivedOrder = async () => {
+  if (!confirmReceivedData.order) return;
+  
+  try {
+    await api.put(`/orders/${confirmReceivedData.order.id}/status`, { status: 'completed' });
+    showSuccess('Đã xác nhận nhận hàng, đơn hàng hoàn thành!');
+    await fetchOrders();
+    closeConfirmReceivedModal();
+  } catch (error) {
+    console.error("Lỗi xác nhận:", error);
+    const msg = error.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại sau.';
+    showError(msg);
+  }
+};
+
 // --- FILTER ---
 const allFilteredOrders = computed(() => {
   return orders.value.filter(order => {
@@ -560,6 +608,11 @@ onMounted(() => {
 .rating-comment textarea { width: 100%; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; resize: vertical; outline: none; font-family: inherit; font-size: 0.95rem; }
 .rating-comment textarea:focus { border-color: #0055aa; }
 .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 1rem; background: #f9f9f9; }
+
+.confirm-message { text-align: center; color: #555; padding: 1rem 0; }
+.confirm-icon { font-size: 3rem; color: #0055aa; margin-bottom: 1rem; display: block; margin-left: auto; margin-right: auto; }
+.confirm-note { font-size: 0.9rem; color: #777; margin-top: 0.8rem; background: #f5f9ff; padding: 0.8rem; border-radius: 6px; }
+
 .fade-in { animation: fadeIn 0.2s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 </style>
