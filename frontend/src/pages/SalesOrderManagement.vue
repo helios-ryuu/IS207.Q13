@@ -234,11 +234,20 @@ const acceptOrder = async (order) => {
   
   try {
     await sellerOrderService.acceptOrder(order.id);
-    $toast.success(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
+    if ($toast) {
+      $toast.success(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
+    } else {
+      alert(`Đơn hàng #${order.trackingCode} đã được chấp nhận.`);
+    }
     await fetchOrders();
   } catch (error) {
     console.error('Accept order error:', error);
-    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
+    const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
+    if ($toast) {
+      $toast.error(errorMsg);
+    } else {
+      alert(errorMsg);
+    }
   }
 };
 
@@ -247,11 +256,20 @@ const cancelOrder = async (order) => {
   
   try {
     await sellerOrderService.cancelOrder(order.id);
-    $toast.success(`Đã hủy đơn hàng #${order.trackingCode}.`);
+    if ($toast) {
+      $toast.success(`Đã hủy đơn hàng #${order.trackingCode}.`);
+    } else {
+      alert(`Đã hủy đơn hàng #${order.trackingCode}.`);
+    }
     await fetchOrders();
   } catch (error) {
     console.error('Cancel order error:', error);
-    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
+    const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
+    if ($toast) {
+      $toast.error(errorMsg);
+    } else {
+      alert(errorMsg);
+    }
   }
 };
 
@@ -260,11 +278,20 @@ const shipOrder = async (order) => {
   
   try {
     await sellerOrderService.shipOrder(order.id);
-    $toast.success(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
+    if ($toast) {
+      $toast.success(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
+    } else {
+      alert(`Đã chuyển đơn hàng #${order.trackingCode} sang trạng thái Vận chuyển.`);
+    }
     await fetchOrders();
   } catch (error) {
     console.error('Ship order error:', error);
-    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
+    const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
+    if ($toast) {
+      $toast.error(errorMsg);
+    } else {
+      alert(errorMsg);
+    }
   }
 };
 
@@ -273,11 +300,20 @@ const refundOrder = async (order) => {
   
   try {
     await sellerOrderService.confirmReturn(order.id);
-    $toast.success(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
+    if ($toast) {
+      $toast.success(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
+    } else {
+      alert(`Đã hoàn tất thủ tục hoàn tiền cho đơn #${order.trackingCode}.`);
+    }
     await fetchOrders();
   } catch (error) {
     console.error('Refund order error:', error);
-    $toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
+    const errorMsg = error.response?.data?.message || 'Có lỗi xảy ra';
+    if ($toast) {
+      $toast.error(errorMsg);
+    } else {
+      alert(errorMsg);
+    }
   }
 };
 
@@ -332,7 +368,7 @@ const clearAllCategories = () => { selectedCategories.value = []; };
 /* THEME COLORS */
 :root { --primary-blue: #0055aa; --primary-yellow: #ffc107; --text-dark: #333; }
 
-.order-management-page { background-color: #f5f5f5; min-height: 100vh; padding-bottom: 3rem; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+.order-management-page { background-color: #f5f5f5; min-height: 100vh; padding-bottom: 3rem; }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 
 /* Breadcrumb */

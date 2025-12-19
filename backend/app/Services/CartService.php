@@ -11,7 +11,7 @@ class CartService
     // Lấy giỏ hàng
     public function getCart($userId)
     {
-        return CartItem::with(['variant.product', 'variant.images'])
+        return CartItem::with(['variant.product.seller', 'variant.images'])
             ->where('user_id', $userId)
             ->get();
     }
@@ -41,7 +41,7 @@ class CartService
         if ($cartItem) {
             // Có rồi thì cộng dồn
             $newQuantity = $cartItem->quantity + $quantity;
-            
+
             if ($variant->quantity < $newQuantity) {
                 throw new Exception("Tổng số lượng vượt quá tồn kho.");
             }
@@ -51,7 +51,7 @@ class CartService
             CartItem::where('user_id', $userId)
                 ->where('variant_id', $variantId)
                 ->update(['quantity' => $newQuantity]);
-                
+
         } else {
             // Tạo mới
             CartItem::create([
@@ -88,7 +88,7 @@ class CartService
         // Check kho
         $variant = $cartItem->variant;
         if ($variant && $variant->quantity < $quantity) {
-             throw new Exception("Kho không đủ hàng.");
+            throw new Exception("Kho không đủ hàng.");
         }
 
         // Update số lượng

@@ -24,7 +24,7 @@ return new class extends Migration {
             $table->string('instagram')->nullable();
             $table->string('twitter')->nullable();
             $table->enum('status', ['active', 'inactive', 'banned', 'suspended'])->default('active');
-            $table->enum('role', ['customer', 'seller', 'admin'])->default('customer');
+            $table->enum('role', ['seller', 'admin'])->default('seller');
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();

@@ -10,7 +10,7 @@ class MessageSeeder extends Seeder
 {
     public function run(): void
     {
-        $customers = User::where('role', 'customer')->get();
+        $customers = User::where('role', 'seller')->get();
         $sellers = User::where('role', 'seller')->get();
 
         if ($customers->isEmpty() || $sellers->isEmpty())

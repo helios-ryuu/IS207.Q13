@@ -10,7 +10,7 @@ class ShippingAddressSeeder extends Seeder
 {
     public function run(): void
     {
-        $users = User::whereIn('role', ['customer', 'seller'])->get();
+        $users = User::where('role', 'seller')->get();
 
         $provinces = ['TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng'];
         $districts = [

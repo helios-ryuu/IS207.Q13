@@ -413,7 +413,7 @@ onMounted(() => {
 /* THEME COLORS */
 :root { --primary-blue: #0055aa; --primary-yellow: #ffc107; --text-dark: #333; }
 
-.order-management-page { background-color: #f5f5f5; min-height: 100vh; padding-bottom: 3rem; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+.order-management-page { background-color: #f5f5f5; min-height: 100vh; padding-bottom: 3rem; }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 15px; }
 
 /* Breadcrumb */

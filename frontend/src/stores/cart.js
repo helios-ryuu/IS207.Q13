@@ -27,7 +27,8 @@ const loadCart = async () => {
       image: getImageUrl(item.image),
       quantity: item.quantity,
       color: item.color,
-      size: item.size
+      size: item.size,
+      seller: item.seller || null
     }));
   } catch (error) {
     console.error('Error loading cart from API:', error);
@@ -61,7 +62,7 @@ export const useCart = () => {
   const cartTotal = computed(() => {
     return cartItems.value.reduce((total, item) => {
       // Vì price đã là số rồi nên cứ thế nhân thôi
-      return total + (Number(item.price) * item.quantity); 
+      return total + (Number(item.price) * item.quantity);
     }, 0);
   });
 

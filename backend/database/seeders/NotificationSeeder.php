@@ -17,12 +17,12 @@ class NotificationSeeder extends Seeder
 
         $notificationTemplates = [
             // Customer notifications
-            ['role' => 'customer', 'type' => 'order', 'title' => 'Đơn hàng đã được giao', 'content' => 'Đơn hàng của bạn đã được giao thành công. Hãy đánh giá sản phẩm nhé!', 'link' => '/orders'],
-            ['role' => 'customer', 'type' => 'order', 'title' => 'Đơn hàng đang giao', 'content' => 'Đơn hàng của bạn đang trên đường giao. Vui lòng giữ điện thoại để nhận hàng.', 'link' => '/orders'],
-            ['role' => 'customer', 'type' => 'promotion', 'title' => 'Mã giảm giá mới', 'content' => 'Bạn nhận được mã giảm 10% cho đơn hàng tiếp theo!', 'link' => '/promotions'],
-            ['role' => 'customer', 'type' => 'promotion', 'title' => 'Flash Sale 50%', 'content' => 'Khuyến mãi khủng hôm nay - giảm đến 50% tất cả sản phẩm điện tử!', 'link' => '/flash-sale'],
-            ['role' => 'customer', 'type' => 'message', 'title' => 'Tin nhắn mới từ Shop', 'content' => 'Bạn có tin nhắn mới từ người bán.', 'link' => '/chat'],
-            ['role' => 'customer', 'type' => 'system', 'title' => 'Cập nhật tài khoản', 'content' => 'Thông tin tài khoản của bạn đã được cập nhật thành công.', 'link' => '/profile'],
+            ['role' => 'seller', 'type' => 'order', 'title' => 'Đơn hàng đã được giao', 'content' => 'Đơn hàng của bạn đã được giao thành công. Hãy đánh giá sản phẩm nhé!', 'link' => '/orders'],
+            ['role' => 'seller', 'type' => 'order', 'title' => 'Đơn hàng đang giao', 'content' => 'Đơn hàng của bạn đang trên đường giao. Vui lòng giữ điện thoại để nhận hàng.', 'link' => '/orders'],
+            ['role' => 'seller', 'type' => 'promotion', 'title' => 'Mã giảm giá mới', 'content' => 'Bạn nhận được mã giảm 10% cho đơn hàng tiếp theo!', 'link' => '/promotions'],
+            ['role' => 'seller', 'type' => 'promotion', 'title' => 'Flash Sale 50%', 'content' => 'Khuyến mãi khủng hôm nay - giảm đến 50% tất cả sản phẩm điện tử!', 'link' => '/flash-sale'],
+            ['role' => 'seller', 'type' => 'message', 'title' => 'Tin nhắn mới từ Shop', 'content' => 'Bạn có tin nhắn mới từ người bán.', 'link' => '/chat'],
+            ['role' => 'seller', 'type' => 'system', 'title' => 'Cập nhật tài khoản', 'content' => 'Thông tin tài khoản của bạn đã được cập nhật thành công.', 'link' => '/profile'],
 
             // Seller notifications
             ['role' => 'seller', 'type' => 'order', 'title' => 'Đơn hàng mới', 'content' => 'Bạn có đơn hàng mới đang chờ xác nhận.', 'link' => '/seller/orders'],

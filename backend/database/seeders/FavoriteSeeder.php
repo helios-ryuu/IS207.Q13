@@ -11,7 +11,7 @@ class FavoriteSeeder extends Seeder
 {
     public function run(): void
     {
-        $customers = User::where('role', 'customer')->get();
+        $customers = User::where('role', 'seller')->get();
         $products = Product::where('status', 'active')->get();
 
         if ($customers->isEmpty() || $products->isEmpty())
