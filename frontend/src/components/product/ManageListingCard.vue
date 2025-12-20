@@ -44,13 +44,16 @@
         <font-awesome-icon icon="trash" /> Xóa tin
       </button>
       
-      <button v-if="product.status === 'hidden'" class="btn-action btn-show" @click.stop.prevent="$emit('toggle-hidden', product.id)">
-        <font-awesome-icon icon="eye" /> Hiện tin
-      </button>
-      
-      <button v-else class="btn-action btn-hide" @click.stop.prevent="$emit('toggle-hidden', product.id)">
-        <font-awesome-icon icon="eye-slash" /> Ẩn tin
-      </button>
+      <!-- Chỉ hiển nút Ẩn/Hiện khi đã được duyệt (active/hidden) -->
+      <template v-if="product.status === 'active' || product.status === 'hidden'">
+        <button v-if="product.status === 'hidden'" class="btn-action btn-show" @click.stop.prevent="$emit('toggle-hidden', product.id)">
+          <font-awesome-icon icon="eye" /> Hiện tin
+        </button>
+        
+        <button v-else class="btn-action btn-hide" @click.stop.prevent="$emit('toggle-hidden', product.id)">
+          <font-awesome-icon icon="eye-slash" /> Ẩn tin
+        </button>
+      </template>
     </div>
   </div>
 </template>
@@ -69,11 +72,11 @@ const emit = defineEmits(['delete', 'edit', 'toggle-hidden']);
 
 const getStatusLabel = (status) => {
   const labels = {
-    'active': 'Đang hiển thị',
-    'expired': 'Hết hạn',
-    'rejected': 'Bị từ chối',
+    'pending': 'Đang xét duyệt',
+    'rejected': 'Đã bị từ chối',
+    'active': 'Đã duyệt - Đang hiển thị',
     'hidden': 'Đã ẩn',
-    'pending': 'Chờ duyệt'
+    'expired': 'Hết hạn',
   };
   return labels[status] || status;
 };
@@ -172,6 +175,7 @@ const formatDate = (dateString) => {
 .status-active { background: #e6fffa; color: #047857; }
 .status-hidden { background: #f3f4f6; color: #6b7280; }
 .status-rejected { background: #fef2f2; color: #dc2626; }
+.status-pending { background: #fef3c7; color: #d97706; }
 
 /* CỘT ACTIONS (NÚT BẤM) */
 .card-actions {

@@ -24,9 +24,9 @@ class WalletController extends Controller
         try {
             $userId = Auth::id();
             $wallet = $this->walletService->getWallet($userId);
-            
+
             return response()->json([
-                'status' => 'success', 
+                'status' => 'success',
                 'data' => new WalletResource($wallet)
             ]);
         } catch (Exception $e) {
@@ -44,11 +44,11 @@ class WalletController extends Controller
         try {
             $userId = Auth::id();
             $wallet = $this->walletService->deposit($userId, $request->amount);
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Nạp tiền thành công!',
-                'current_balance' => $wallet->balance // Trả về số trực tiếp hoặc format ở frontend
+                'current_balance' => $wallet->calculated_balance // Tính từ transactions
             ]);
         } catch (Exception $e) {
             // Log lỗi để debug nếu cần
@@ -67,11 +67,11 @@ class WalletController extends Controller
         try {
             $userId = Auth::id();
             $wallet = $this->walletService->withdraw($userId, $request->amount);
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Rút tiền thành công!',
-                'current_balance' => $wallet->balance
+                'current_balance' => $wallet->calculated_balance // Tính từ transactions
             ]);
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
@@ -84,9 +84,9 @@ class WalletController extends Controller
         try {
             $userId = Auth::id();
             $transactions = $this->walletService->getHistory($userId);
-            
+
             return response()->json([
-                'status' => 'success', 
+                'status' => 'success',
                 'data' => TransactionResource::collection($transactions)
             ]);
         } catch (Exception $e) {

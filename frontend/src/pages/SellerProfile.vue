@@ -140,7 +140,7 @@ const fetchShopData = async () => {
       id: item.id,
       title: item.name,
       price: formatPrice(item.price_range?.min || 0),
-      location: 'Toàn quốc',
+      location: item.location || 'Toàn quốc', // Lấy từ API
       imageUrl: getImageUrl(item.thumbnail),
       // User info để hiển thị trên card (nếu cần)
       seller: item.seller?.name,
@@ -235,8 +235,58 @@ onMounted(() => {
 .stat-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .shop-products { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+.section-header h2 { margin: 0; font-size: 1.25rem; color: #1e293b; }
+.section-header h2 span { font-weight: 400; color: #64748b; font-size: 1rem; }
+
+/* Sort Filter Dropdown */
+.sort-filter {
+  position: relative;
+}
+
+.sort-filter select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 36px 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  min-width: 160px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.sort-filter select:hover {
+  border-color: #cbd5e1;
+  background-color: #f1f5f9;
+}
+
+.sort-filter select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.sort-filter select option {
+  padding: 10px;
+  background: white;
+  color: #1e293b;
+}
+
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
 .loading-state { text-align: center; padding: 40px; color: #777; }
 .empty-state { text-align: center; padding: 50px; color: #999; font-style: italic; }
-@media (max-width: 768px) { .seller-header-card { flex-direction: column; align-items: flex-start; } .seller-stats-right { width: 100%; border-left: none; padding-left: 0; justify-content: space-between; border-top: 1px solid #eee; padding-top: 15px; } }
+
+@media (max-width: 768px) { 
+  .seller-header-card { flex-direction: column; align-items: flex-start; } 
+  .seller-stats-right { width: 100%; border-left: none; padding-left: 0; justify-content: space-between; border-top: 1px solid #eee; padding-top: 15px; } 
+  .section-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .sort-filter select { width: 100%; }
+}
 </style>

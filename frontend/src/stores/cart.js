@@ -106,7 +106,7 @@ export const useCart = () => {
     }
   };
 
-  // Cập nhật số lượng sản phẩm
+  // Cập nhật số lượng sản phẩm - Optimistic update để tránh reload
   const updateQuantity = async (productId, quantity) => {
     if (!isLoggedIn()) return;
 
@@ -118,13 +118,17 @@ export const useCart = () => {
       return;
     }
 
+    // Optimistic update: cập nhật local trước
+    const oldQuantity = item.quantity;
+    item.quantity = quantity;
+
     try {
       await api.put(`/cart/items/${item.variant_id}`, { quantity });
-      await loadCart();
+      // Không cần reload lại cart, đã update local rồi
     } catch (error) {
       console.error('Error updating quantity:', error);
-      // Fallback: update locally
-      item.quantity = quantity;
+      // Rollback nếu API fail
+      item.quantity = oldQuantity;
     }
   };
 
