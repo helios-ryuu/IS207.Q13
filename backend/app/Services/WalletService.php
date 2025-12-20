@@ -18,24 +18,20 @@ class WalletService
         );
     }
 
-    // Nạp tiền (Logic đã sửa: Cộng tiền + Tạo Transaction)
+    // Nạp tiền (Chỉ tạo Transaction - balance tính từ sum)
     public function deposit($userId, $amount)
     {
         return DB::transaction(function () use ($userId, $amount) {
             $wallet = $this->getWallet($userId);
-            
-            // 1. Cộng tiền vào ví
-            $wallet->balance += $amount;
-            $wallet->save();
 
-            // 2. [QUAN TRỌNG] Tạo lịch sử giao dịch
+            // Tạo giao dịch nạp tiền (số dương)
             Transaction::create([
-                'user_id' => $userId, // Gắn với user
-                'order_id' => null,   // Nạp tiền thì không có đơn hàng
-                'amount' => $amount,  // Số dương
-                'payment_method' => 'bank_transfer', // Hoặc 'system'
+                'user_id' => $userId,
+                'order_id' => null,
+                'amount' => $amount, // Số dương = nạp tiền
+                'payment_method' => 'bank_transfer',
                 'status' => 'completed',
-                'transaction_code' => 'DEP_' . strtoupper(uniqid()), // Mã giao dịch duy nhất
+                'transaction_code' => 'DEP_' . strtoupper(uniqid()),
                 'transaction_date' => now(),
                 'response_data' => json_encode(['note' => 'Nạp tiền vào ví']),
             ]);
@@ -44,30 +40,29 @@ class WalletService
         });
     }
 
-    // Rút tiền (Logic đã sửa: Trừ tiền + Tạo Transaction)
+    // Rút tiền (Kiểm tra calculated_balance, chỉ tạo Transaction)
+    // Môi trường test: Transaction completed ngay lập tức (tiền trừ ngay)
     public function withdraw($userId, $amount)
     {
         return DB::transaction(function () use ($userId, $amount) {
             $wallet = $this->getWallet($userId);
 
-            if ($wallet->balance < $amount) {
-                throw new Exception("Số dư ví không đủ.");
+            // Kiểm tra số dư (tính từ transactions)
+            $currentBalance = $wallet->calculated_balance;
+            if ($currentBalance < $amount) {
+                throw new Exception("Số dư ví không đủ. Hiện có: " . number_format($currentBalance) . "đ");
             }
 
-            // 1. Trừ tiền
-            $wallet->balance -= $amount;
-            $wallet->save();
-
-            // 2. Tạo lịch sử giao dịch
+            // Tạo giao dịch rút tiền (số âm, completed ngay cho test)
             Transaction::create([
                 'user_id' => $userId,
                 'order_id' => null,
-                'amount' => -$amount, // Số âm
+                'amount' => -$amount, // Số âm = rút tiền
                 'payment_method' => 'bank_transfer',
-                'status' => 'pending', // Chờ xử lý
+                'status' => 'completed', // Thành công ngay cho môi trường test
                 'transaction_code' => 'WDR_' . strtoupper(uniqid()),
                 'transaction_date' => now(),
-                'response_data' => json_encode(['note' => 'Yêu cầu rút tiền']),
+                'response_data' => json_encode(['note' => 'Rút tiền về ngân hàng']),
             ]);
 
             return $wallet;
@@ -77,11 +72,7 @@ class WalletService
     // Lấy lịch sử giao dịch
     public function getHistory($userId)
     {
-        // Logic mới: Lấy tất cả giao dịch của User (bao gồm cả Nạp/Rút và Đơn hàng)
         return Transaction::where('user_id', $userId)
-            ->orWhereHas('order', function ($query) use ($userId) {
-                $query->where('user_id', $userId);
-            })
             ->orderBy('created_at', 'desc')
             ->get();
     }

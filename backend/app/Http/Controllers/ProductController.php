@@ -30,7 +30,8 @@ class ProductController extends Controller
     // 1. GET /api/products
     public function index(Request $request)
     {
-        $query = Product::with(['seller', 'variants.images', 'categories']);
+        $query = Product::with(['seller', 'variants.images', 'categories'])
+            ->where('status', 'active'); // Chỉ lấy sản phẩm đã được duyệt
 
         // 1. Lọc theo Danh mục (Category)
         if ($request->filled('category')) {
@@ -118,7 +119,7 @@ class ProductController extends Controller
                 'name' => $request->name,
                 'description' => $request->description,
                 'location' => $request->location, // Địa chỉ sản phẩm
-                'status' => 'active',
+                'status' => 'pending', // Chờ admin duyệt
                 'seller_id' => auth()->id(),
             ]);
 
@@ -132,7 +133,7 @@ class ProductController extends Controller
 
             DB::commit();
 
-            $this->notificationService->create($product->seller_id, 'Đăng tin thành công', "Bài đăng '{$product->name}' đã được đăng thành công.", 'system');
+            $this->notificationService->create($product->seller_id, 'Đăng tin thành công', "Bài đăng '{$product->name}' đã được gửi và đang chờ admin xét duyệt.", 'system');
 
             return new ProductResource($product->load('variants'));
 
@@ -156,7 +157,7 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'required|string',
             'price' => 'nullable|numeric', // Giá có thể gửi lên hoặc không
-            'status' => 'nullable|in:active,hidden,sold',
+            'status' => 'nullable|in:active,inactive,out_of_stock,pending,rejected,hidden',
         ]);
 
         // 4. Cập nhật bảng Product (Tên, Mô tả, Trạng thái)
@@ -200,10 +201,11 @@ class ProductController extends Controller
         return response()->json(['message' => 'Product deleted successfully']);
     }
 
-    // 10. GET /api/products/seller/{sellerId}
+    // 10. GET /api/products/seller/{sellerId} - Sản phẩm của shop (public, chỉ active)
     public function getSellerProducts($sellerId)
     {
         $products = Product::where('seller_id', $sellerId)
+            ->where('status', 'active') // Chỉ hiển thị sản phẩm đã được duyệt
             ->with(['variants.images'])
             ->paginate(10);
 
@@ -288,6 +290,7 @@ class ProductController extends Controller
                     'price' => $variant?->price ?? 0,
                     'image' => $image,
                     'status' => $p->status,
+                    'location' => $p->location ?? 'Toàn quốc',
                     'category' => $p->categories->first()?->name ?? 'Chưa phân loại',
                     'views' => 0,
                     'created_at' => $p->created_at->format('Y-m-d'),

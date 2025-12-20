@@ -4,6 +4,8 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Models\Review;
+use Illuminate\Support\Facades\Auth;
 
 class OrderResource extends JsonResource
 {
@@ -26,11 +28,22 @@ class OrderResource extends JsonResource
             'refunded' => 'ĐÃ HOÀN TIỀN',
         ];
 
+        // Kiểm tra người dùng đã đánh giá sản phẩm trong đơn hàng này chưa
+        $isRated = false;
+        $userId = Auth::id();
+        if ($userId && $this->orderDetails->isNotEmpty()) {
+            $productIds = $this->orderDetails->map(fn($d) => $d->variant?->product_id)->filter()->unique();
+            $isRated = Review::where('user_id', $userId)
+                ->whereIn('product_id', $productIds)
+                ->exists();
+        }
+
         return [
             'id' => $this->id,
             'tracking_code' => $this->tracking_code,
             'status' => $this->status,
             'status_label' => $statusLabels[$this->status] ?? strtoupper($this->status),
+            'is_rated' => $isRated, // Đã đánh giá sản phẩm trong đơn hàng này chưa
             'order_date' => $this->order_date ? $this->order_date->format('d/m/Y H:i') : null,
             'updated_at' => $this->updated_at ? $this->updated_at->format('d/m/Y H:i') : null,
 

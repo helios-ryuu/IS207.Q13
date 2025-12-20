@@ -16,7 +16,7 @@ class UpdateProductRequest extends FormRequest
         return [
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
-            'status' => 'sometimes|in:active,inactive,out_of_stock',
+            'status' => 'sometimes|in:active,inactive,out_of_stock,pending,rejected,hidden',
             'category_ids' => 'sometimes|array',
             'category_ids.*' => 'exists:categories,id',
         ];

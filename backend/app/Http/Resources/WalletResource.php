@@ -11,7 +11,8 @@ class WalletResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'balance' => (float) $this->balance, // Quan trọng: ép kiểu float
+            'balance' => $this->calculated_balance, // Tính từ transactions
+            'stored_balance' => (float) $this->balance, // Giá trị lưu trong DB (backup)
             'status' => $this->status,
             'user_id' => $this->user_id,
         ];

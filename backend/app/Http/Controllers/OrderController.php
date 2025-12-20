@@ -26,27 +26,43 @@ class OrderController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    // 1. POST /api/orders (Tạo đơn)
+    // 1. POST /api/orders (Tạo đơn) - Tách theo seller
     public function store(CreateOrderRequest $request)
     {
         try {
             $userId = Auth::id();
-            $order = $this->orderService->createOrder($userId, $request->validated());
+            $result = $this->orderService->createOrder($userId, $request->validated());
+
+            // Xử lý trường hợp 1 hoặc nhiều đơn hàng
+            $orders = is_array($result) ? $result : [$result];
+            $orderCount = count($orders);
 
             // Notify User
-            $this->notificationService->create($userId, 'Đơn hàng mới', "Bạn đã đặt đơn hàng #{$order->tracking_code} thành công.", 'order');
+            if ($orderCount === 1) {
+                $this->notificationService->create($userId, 'Đơn hàng mới', "Bạn đã đặt đơn hàng #{$orders[0]->tracking_code} thành công.", 'order');
+            } else {
+                $this->notificationService->create($userId, 'Đơn hàng mới', "Bạn đã đặt {$orderCount} đơn hàng thành công.", 'order');
+            }
 
-            // Notify Seller
-            $firstDetail = $order->orderDetails->first();
-            $sellerId = $firstDetail?->variant?->product?->user_id;
-            if ($sellerId) {
-                $this->notificationService->create($sellerId, 'Đơn hàng mới', "Bạn có đơn hàng mới #{$order->tracking_code}.", 'order');
+            // Notify Sellers
+            foreach ($orders as $order) {
+                $order->load('orderDetails.variant.product');
+                $firstDetail = $order->orderDetails->first();
+                $sellerId = $firstDetail?->variant?->product?->seller_id;
+                if ($sellerId) {
+                    $this->notificationService->create($sellerId, 'Đơn hàng mới', "Bạn có đơn hàng mới #{$order->tracking_code}.", 'order');
+                }
             }
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Đặt hàng thành công!',
-                'data' => new OrderResource($order)
+                'message' => $orderCount > 1
+                    ? "Đặt hàng thành công! Đã tạo {$orderCount} đơn hàng riêng theo từng shop."
+                    : 'Đặt hàng thành công!',
+                'data' => $orderCount === 1
+                    ? new OrderResource($orders[0])
+                    : OrderResource::collection(collect($orders)),
+                'order_count' => $orderCount
             ], 201);
 
         } catch (Exception $e) {
@@ -115,23 +131,23 @@ class OrderController extends Controller
             if ($newStatus === 'completed' && $oldStatus !== 'completed') {
 
                 $firstDetail = $order->orderDetails->first();
-                $sellerId = $firstDetail?->variant?->product?->user_id;
+                $sellerId = $firstDetail?->variant?->product?->seller_id;
 
                 if ($sellerId) {
-                    $wallet = Wallet::firstOrCreate(
+                    // Đảm bảo wallet tồn tại
+                    Wallet::firstOrCreate(
                         ['user_id' => $sellerId],
                         ['balance' => 0, 'status' => 'active']
                     );
 
                     $income = $order->total_amount;
-                    $wallet->balance += $income;
-                    $wallet->save();
 
+                    // Chỉ tạo transaction (balance tính từ sum)
                     Transaction::create([
                         'user_id' => $sellerId,
                         'order_id' => $order->id,
-                        'amount' => $income,
-                        'payment_method' => 'wallet', // system/wallet
+                        'amount' => $income, // Số dương = doanh thu
+                        'payment_method' => 'wallet',
                         'status' => 'completed',
                         'transaction_code' => 'INC_' . $order->id . '_' . time(),
                         'transaction_date' => now(),
@@ -265,28 +281,25 @@ class OrderController extends Controller
             \Log::info("Order retrieved. Buyer ID: " . $order->user_id);
 
             // LOGIC VÍ: Cộng tiền cho Seller
-            $firstDetail = $order->orderDetails->first(); // Note: $order from service might not have relations loaded if not requested. Service returns findOrFail result.
-            // OrderService completeOrder returns $order (fresh?).
-            // Let's reload to be safe or rely on lazy loading
+            $firstDetail = $order->orderDetails->first();
 
-            $checkSellerId = $firstDetail?->variant?->product?->user_id;
+            $checkSellerId = $firstDetail?->variant?->product?->seller_id;
             \Log::info("Derived Seller ID from Product: " . ($checkSellerId ?? 'NULL'));
 
-            // Logic giống updateStatus
+            // Chỉ tạo transaction (balance tính từ sum)
             if ($checkSellerId) {
-                $wallet = Wallet::firstOrCreate(
+                // Đảm bảo wallet tồn tại
+                Wallet::firstOrCreate(
                     ['user_id' => $checkSellerId],
                     ['balance' => 0, 'status' => 'active']
                 );
 
                 $income = $order->total_amount;
-                $wallet->balance += $income;
-                $wallet->save();
 
                 Transaction::create([
                     'user_id' => $checkSellerId,
                     'order_id' => $order->id,
-                    'amount' => $income,
+                    'amount' => $income, // Số dương = doanh thu
                     'payment_method' => 'wallet',
                     'status' => 'completed',
                     'transaction_code' => 'INC_' . $order->id . '_' . time(),

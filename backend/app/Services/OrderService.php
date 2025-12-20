@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 
 class OrderService
 {
-    // 1. TẠO ĐƠN HÀNG (Checkout)
+    // 1. TẠO ĐƠN HÀNG (Checkout) - Tách theo từng người bán
     public function createOrder($userId, $data)
     {
         return DB::transaction(function () use ($userId, $data) {
@@ -26,7 +26,6 @@ class OrderService
             }
 
             // B. Tự động TẠO ĐỊA CHỈ GIAO HÀNG MỚI
-            // Vì user nhập form trực tiếp, ta lưu địa chỉ này lại
             $address = ShippingAddress::create([
                 'user_id' => $userId,
                 'receiver_name' => $data['receiver_name'],
@@ -35,88 +34,105 @@ class OrderService
                 'province' => $data['province'],
                 'district' => $data['district'] ?? '',
                 'ward' => $data['ward'] ?? '',
-                'is_default' => false, // Mặc định không set default để tránh conflict
+                'is_default' => false,
                 'status' => 'active'
             ]);
 
-            // C. Tính tiền thủ công
-            $subtotal = 0;
+            // C. NHÓM CART ITEMS THEO SELLER_ID
+            $itemsBySeller = [];
             foreach ($cartItems as $item) {
-                if (!$item->variant)
+                if (!$item->variant || !$item->variant->product)
                     continue;
 
-                // Bỏ qua kiểm tra tồn kho theo yêu cầu
-                $subtotal += $item->quantity * $item->variant->price;
+                $sellerId = $item->variant->product->seller_id;
+                if (!isset($itemsBySeller[$sellerId])) {
+                    $itemsBySeller[$sellerId] = [];
+                }
+                $itemsBySeller[$sellerId][] = $item;
             }
 
-            $shippingFee = 30000;
-            // Logic miễn phí vận chuyển nếu trên 500k (giống Frontend đang tính)
-            if ($subtotal > 500000) {
-                $shippingFee = 0;
-            }
+            // D. TẠO RIÊNG MỖI ĐƠN HÀNG CHO TỪNG SELLER
+            $createdOrders = [];
+            $grandTotal = 0;
 
-            $totalAmount = $subtotal + $shippingFee;
+            foreach ($itemsBySeller as $sellerId => $sellerItems) {
+                // Tính tiền cho đơn hàng của seller này
+                $subtotal = 0;
+                foreach ($sellerItems as $item) {
+                    $subtotal += $item->quantity * $item->variant->price;
+                }
 
-            // D. Tạo Order (Dùng ID của địa chỉ vừa tạo ở trên)
-            $order = Order::create([
-                'user_id' => $userId,
-                'address_id' => $address->id, // <--- Dùng ID vừa tạo
-                'order_date' => now(),
-                'delivery_date' => now()->addDays(3),
-                'shipping_fee' => $shippingFee,
-                'status' => 'pending',
-                'notes' => $data['notes'] ?? null,
-                'payment_method' => $data['payment_method'] ?? 'cash',
-                'tracking_code' => 'ORD-' . strtoupper(Str::random(10)),
-                'total_amount' => $totalAmount, // [FIX] Lưu tổng tiền vào DB
-            ]);
+                // Phí ship cho mỗi đơn
+                $shippingFee = 30000;
+                if ($subtotal > 500000) {
+                    $shippingFee = 0;
+                }
 
-            // E. Lưu chi tiết đơn hàng & Trừ kho
-            foreach ($cartItems as $item) {
-                if (!$item->variant)
-                    continue;
+                $totalAmount = $subtotal + $shippingFee;
+                $grandTotal += $totalAmount;
 
-                OrderDetail::create([
-                    'order_id' => $order->id,
-                    'variant_id' => $item->variant_id,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->variant->price,
+                // Tạo Order riêng cho seller này
+                $order = Order::create([
+                    'user_id' => $userId,
+                    'address_id' => $address->id,
+                    'order_date' => now(),
+                    'delivery_date' => now()->addDays(3),
+                    'shipping_fee' => $shippingFee,
+                    'status' => 'pending',
+                    'notes' => $data['notes'] ?? null,
+                    'payment_method' => $data['payment_method'] ?? 'cash',
+                    'tracking_code' => 'ORD-' . strtoupper(Str::random(10)),
+                    'total_amount' => $totalAmount,
                 ]);
-                $item->variant->decrement('quantity', $item->quantity);
+
+                // Lưu chi tiết đơn hàng & Trừ kho
+                foreach ($sellerItems as $item) {
+                    OrderDetail::create([
+                        'order_id' => $order->id,
+                        'variant_id' => $item->variant_id,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->variant->price,
+                    ]);
+                    $item->variant->decrement('quantity', $item->quantity);
+                }
+
+                $createdOrders[] = $order;
             }
 
-            // F. TẠO TRANSACTION & TRỪ VÍ (Nếu thanh toán qua Ví)
-            if ($order->payment_method === 'wallet') {
+            // E. TẠO TRANSACTION & TRỪ VÍ (Nếu thanh toán qua Ví)
+            $paymentMethod = $data['payment_method'] ?? 'cash';
+            if ($paymentMethod === 'wallet') {
                 $wallet = Wallet::firstOrCreate(
                     ['user_id' => $userId],
                     ['balance' => 0, 'status' => 'active']
                 );
 
-                // Kiểm tra số dư
-                if ($wallet->balance < $totalAmount) {
-                    throw new Exception('Số dư ví không đủ để thanh toán.');
+                // Kiểm tra số dư (tính từ tổng transactions)
+                $currentBalance = $wallet->calculated_balance;
+                if ($currentBalance < $grandTotal) {
+                    throw new Exception('Số dư ví không đủ để thanh toán. Hiện có: ' . number_format($currentBalance) . 'đ');
                 }
 
-                // Trừ tiền
-                $wallet->decrement('balance', $totalAmount);
-
-                // Tạo lịch sử giao dịch (Số âm)
-                Transaction::create([
-                    'user_id' => $userId,
-                    'order_id' => $order->id,
-                    'amount' => -$totalAmount, // Lưu số âm cho khoản chi
-                    'payment_method' => 'wallet',
-                    'status' => 'completed',   // Trạng thái hoàn thành ngay
-                    'transaction_code' => 'PAY-' . strtoupper(Str::random(10)), // Code khác biệt
-                    'transaction_date' => now(),
-                    'payment_gateway' => 'system'
-                ]);
+                // Tạo transaction cho từng đơn (balance sẽ tự động được tính lại từ transactions)
+                foreach ($createdOrders as $order) {
+                    Transaction::create([
+                        'user_id' => $userId,
+                        'order_id' => $order->id,
+                        'amount' => -$order->total_amount, // Số âm = chi tiêu
+                        'payment_method' => 'wallet',
+                        'status' => 'completed',
+                        'transaction_code' => 'PAY-' . strtoupper(Str::random(10)),
+                        'transaction_date' => now(),
+                        'payment_gateway' => 'system'
+                    ]);
+                }
             }
 
-            // G. Xóa giỏ hàng
+            // F. Xóa giỏ hàng
             CartItem::where('user_id', $userId)->delete();
 
-            return $order;
+            // Trả về đơn hàng đầu tiên (hoặc tất cả)
+            return count($createdOrders) === 1 ? $createdOrders[0] : $createdOrders;
         });
     }
 

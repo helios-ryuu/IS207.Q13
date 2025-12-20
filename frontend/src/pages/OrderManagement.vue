@@ -68,32 +68,58 @@
             </div>
           </div>
 
-          <div class="product-row">
-            <img :src="order.image" alt="Sản phẩm" class="product-img" @error="handleImageError">
-            <div class="product-info">
-              <h3 class="product-name">{{ order.productName }}</h3>
-              <p class="product-variant">Phân loại: {{ order.variant }}</p>
-              <p class="product-category-label">Danh mục: {{ order.category }}</p>
-              <div class="order-meta">
-                <span class="meta-item">Mã Đơn: <strong>{{ order.trackingCode || `ORD-${order.id}` }}</strong></span>
-                <span class="meta-item">Giá: <strong>{{ order.price }}</strong></span>
+          <!-- Order Meta -->
+          <div class="order-meta-row">
+            <span class="meta-item">Mã Đơn: <strong>{{ order.trackingCode || `ORD-${order.id}` }}</strong></span>
+            <span class="meta-item">Ngày đặt: <strong>{{ order.orderDate }}</strong></span>
+          </div>
+
+          <!-- Seller Info -->
+          <div class="seller-header">
+            <div class="seller-info-row">
+              <div v-if="!order.sellerAvatar" class="seller-avatar-letter">
+                {{ order.sellerName ? order.sellerName.charAt(0).toUpperCase() : 'S' }}
               </div>
-              <div class="seller-wrapper">
-                <div v-if="!order.sellerAvatar" class="seller-avatar-letter">
-                  {{ order.sellerName ? order.sellerName.charAt(0).toUpperCase() : 'S' }}
-                </div>
-                <img v-else :src="order.sellerAvatar" class="seller-avatar" @error="handleAvatarError">
-                <span>{{ order.sellerName }}</span>
-              </div>
-            </div>
-            <div class="product-price">
-              <span class="current-price">{{ order.totalPrice }}</span>
+              <img v-else :src="order.sellerAvatar" class="seller-avatar" @error="handleAvatarError">
+              <span class="seller-name">{{ order.sellerName }}</span>
+              <button class="btn-view-shop-small" @click="visitShop(order)">Xem Shop</button>
             </div>
           </div>
 
+          <!-- Items Table Header -->
+          <div class="items-table-header">
+            <span class="col-product">Sản phẩm</span>
+            <span class="col-price">Đơn giá</span>
+            <span class="col-qty">SL</span>
+            <span class="col-subtotal">Thành tiền</span>
+          </div>
+
+          <!-- All Items in Order -->
+          <div v-for="(item, index) in order.items" :key="index" class="product-row">
+            <div class="col-product">
+              <img :src="item.image || FALLBACK_IMAGE" alt="Sản phẩm" class="product-img" @error="handleImageError">
+              <div class="product-info">
+                <h3 class="product-name">{{ item.product_name }}</h3>
+                <p class="product-variant">{{ item.variant }}</p>
+              </div>
+            </div>
+            <div class="col-price">
+              <span>{{ formatPrice(item.unit_price) }}</span>
+            </div>
+            <div class="col-qty">
+              <span>{{ item.quantity }}</span>
+            </div>
+            <div class="col-subtotal">
+              <span>{{ formatPrice(item.unit_price * item.quantity) }}</span>
+            </div>
+          </div>
+
+
           <div class="card-footer">
-            <div class="total-section">
-              Thành tiền: <span class="total-price">{{ order.totalPrice }}</span>
+            <div class="price-breakdown">
+              <div class="price-row"><span>Tạm tính ({{ order.itemCount }} sản phẩm):</span><span>{{ order.subtotalFormatted }}</span></div>
+              <div class="price-row"><span>Phí vận chuyển:</span><span>{{ order.shippingFeeFormatted }}</span></div>
+              <div class="price-row total"><span>Tổng cộng:</span><span class="total-price">{{ order.totalPrice }}</span></div>
             </div>
             
             <div class="action-buttons">
@@ -107,7 +133,7 @@
               </template>
 
               <template v-else-if="order.statusId === 'completed'">
-                <button v-if="!checkIfRated(order.id)" class="btn btn-primary" @click="openRatingModal(order)">Đánh Giá</button>
+                <button v-if="!order.isRated" class="btn btn-primary" @click="openRatingModal(order)">Đánh Giá</button>
                 <button v-else class="btn btn-disabled" disabled>Đã đánh giá</button>
                 
                 <button class="btn btn-default" @click="buyAgain(order)">Mua Lại</button>
@@ -145,9 +171,9 @@
     <div class="modal-content fade-in">
       <div class="modal-header"><h3>Đánh giá sản phẩm</h3><button class="close-btn" @click="closeRatingModal">✕</button></div>
       <div class="modal-body">
-        <div class="product-preview" v-if="ratingData.order">
-          <img :src="ratingData.order.image" alt="Product" @error="handleImageError">
-          <div class="preview-info"><p class="name">{{ ratingData.order.productName }}</p><p class="variant">{{ ratingData.order.variant }}</p></div>
+        <div class="product-preview" v-if="ratingData.order?.items?.length">
+          <img :src="ratingData.order.items[0].image || FALLBACK_IMAGE" alt="Product" @error="handleImageError">
+          <div class="preview-info"><p class="name">{{ ratingData.order.items[0].product_name }}</p><p class="variant">{{ ratingData.order.items[0].variant }}</p></div>
         </div>
         <div class="rating-stars-section">
           <div class="stars-wrapper">
@@ -171,11 +197,11 @@
         <button class="close-btn" @click="closeConfirmReceivedModal">✕</button>
       </div>
       <div class="modal-body">
-        <div class="product-preview" v-if="confirmReceivedData.order">
-          <img :src="confirmReceivedData.order.image" alt="Product" @error="handleImageError">
+        <div class="product-preview" v-if="confirmReceivedData.order?.items?.length">
+          <img :src="confirmReceivedData.order.items[0].image || FALLBACK_IMAGE" alt="Product" @error="handleImageError">
           <div class="preview-info">
-            <p class="name">{{ confirmReceivedData.order.productName }}</p>
-            <p class="variant">{{ confirmReceivedData.order.variant }}</p>
+            <p class="name">{{ confirmReceivedData.order.items[0].product_name }}</p>
+            <p class="variant">{{ confirmReceivedData.order.items[0].variant }}</p>
           </div>
         </div>
         <div class="confirm-message">
@@ -199,10 +225,10 @@
         <button class="close-btn" @click="closeCancelModal">✕</button>
       </div>
       <div class="modal-body">
-        <div class="product-preview" v-if="cancelData.order">
-          <img :src="cancelData.order.image || FALLBACK_IMAGE" @error="handleImageError">
+        <div class="product-preview" v-if="cancelData.order?.items?.length">
+          <img :src="cancelData.order.items[0].image || FALLBACK_IMAGE" @error="handleImageError">
           <div class="preview-info">
-            <p class="name">{{ cancelData.order.productName }}</p>
+            <p class="name">{{ cancelData.order.items[0].product_name }}</p>
             <p class="variant">Mã đơn: {{ cancelData.order.trackingCode }}</p>
           </div>
         </div>
@@ -322,37 +348,46 @@ const fetchOrders = async () => {
 
     // Map dữ liệu từ Backend sang cấu trúc UI của Frontend
     orders.value = ordersData.map(order => {
-      // Backend trả về key 'items' (dựa trên ảnh bạn cung cấp trước đó)
-      const firstItem = (order.items && order.items.length > 0) ? order.items[0] : {}; 
+      // Lấy tất cả items trong đơn hàng (giờ chỉ từ 1 seller)
+      const items = order.items || [];
+      const firstItem = items.length > 0 ? items[0] : {};
       
-      // Xử lý giá tiền - Sử dụng giá đã format từ API
-      const displayPrice = order.total_amount_formatted || formatPrice(order.total_amount);
-
-      // Tên sản phẩm
-      const displayName = firstItem.product_name || firstItem.variant || 'Sản phẩm đơn hàng';
+      // Tính tạm tính từ items
+      const subtotal = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+      const shippingFee = order.shipping_fee || 0;
+      const totalAmount = order.total_amount || (subtotal + shippingFee);
+      
+      // Đếm tổng số sản phẩm
+      const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
       return {
         id: order.id,
         trackingCode: order.tracking_code,
+        orderDate: order.order_date || '',
         shopName: firstItem.seller_name || 'Shop VietMarket', 
         shopId: firstItem.seller_id,
         productId: firstItem.product_id,
-        productName: firstItem.product_name || displayName,
-        variant: firstItem.variant || '',
+        
+        items: items,
+        itemCount: itemCount,
         category: firstItem.category || 'Khác',
         
         statusId: mapBackendStatus(order.status),
         statusLabel: getStatusLabel(order.status),
         deliveryStatus: getDeliveryStatusText(order.status),
+        isRated: order.is_rated || false, // Từ API
         
-        price: firstItem.unit_price_formatted || displayPrice,      
-        totalPrice: displayPrice, 
+        // Giá tiền chi tiết
+        subtotal: subtotal,
+        subtotalFormatted: formatPrice(subtotal),
+        shippingFee: shippingFee,
+        shippingFeeFormatted: shippingFee > 0 ? formatPrice(shippingFee) : 'Miễn phí',
+        totalPrice: order.total_amount_formatted || formatPrice(totalAmount),
         
-        image: firstItem.image || null,
         sellerAvatar: firstItem.seller_avatar || null,
         sellerName: firstItem.seller_name || 'Người bán',
-        notes: order.notes || '', // Lý do hủy đơn
-        cancelReason: order.notes || '' // Alias cho view reason modal
+        notes: order.notes || '',
+        cancelReason: order.notes || ''
       };
     });
   } catch (error) {
@@ -480,6 +515,11 @@ const buyAgain = (order) => {
     showError('Không tìm thấy sản phẩm');
   }
 };
+const goToSeller = (sellerId) => {
+  if (sellerId) {
+    router.push({ name: 'SellerProfile', params: { id: sellerId } });
+  }
+};
 
 // --- MODAL & ACTION LOGIC (UI từ Main) ---
 // Fallback images - Data URI
@@ -496,16 +536,27 @@ const closeRatingModal = () => showRatingModal.value = false;
 const getRatingText = (score) => ['Tệ', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Tuyệt vời'][score - 1] || '';
 
 const submitRating = async () => {
-  if (!ratingData.order) return;
+  if (!ratingData.order || !ratingData.order.items?.length) return;
+  
+  const productId = ratingData.order.items[0].product_id;
+  if (!productId) {
+    showError('Không tìm thấy thông tin sản phẩm');
+    return;
+  }
   
   try {
-    await api.post(`/products/${ratingData.order.productId}/reviews`, {
+    await api.post(`/products/${productId}/reviews`, {
       rating: ratingData.score,
       content: ratingData.comment
     });
     showSuccess('Gửi đánh giá thành công!');
-    ratedOrderIds.value.push(ratingData.order.id);
-    localStorage.setItem('rated_order_ids', JSON.stringify(ratedOrderIds.value));
+    
+    // Cập nhật trạng thái isRated trong orders array
+    const orderIndex = orders.value.findIndex(o => o.id === ratingData.order.id);
+    if (orderIndex !== -1) {
+      orders.value[orderIndex].isRated = true;
+    }
+    
     closeRatingModal();
   } catch (error) {
     console.error("Lỗi gửi đánh giá:", error);
@@ -513,8 +564,10 @@ const submitRating = async () => {
     
     // Nếu backend báo đã đánh giá (422), đánh dấu order là đã rated
     if (error.response?.status === 422 && msg.includes('đã đánh giá')) {
-      ratedOrderIds.value.push(ratingData.order.id);
-      localStorage.setItem('rated_order_ids', JSON.stringify(ratedOrderIds.value));
+      const orderIndex = orders.value.findIndex(o => o.id === ratingData.order.id);
+      if (orderIndex !== -1) {
+        orders.value[orderIndex].isRated = true;
+      }
       closeRatingModal();
     }
     showError(msg);
@@ -636,26 +689,47 @@ onMounted(() => {
 .delivery-status { color: #26aa99; font-size: 0.9rem; font-weight: 500; }
 .status-label { color: #0055aa; text-transform: uppercase; padding-left: 1rem; border-left: 2px solid #eee; font-weight: 700; }
 
-/* Product Info */
-.product-row { padding: 1.5rem; display: flex; gap: 1.2rem; border-bottom: 1px solid #f9f9f9; }
-.product-img { width: 90px; height: 90px; border: 1px solid #eee; object-fit: cover; border-radius: 6px; }
-.product-info { flex: 1; }
-.product-name { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.4rem; color: #333; }
-.product-variant { font-size: 0.9rem; color: #777; margin-bottom: 0.4rem; }
-.product-category-label { font-size: 0.85rem; color: #999; font-style: italic; }
-/* Meta Info: Tracking/Date/Update */
-.order-meta { display: flex; gap: 1.5rem; margin-bottom: 0.5rem; font-size: 0.85rem; color: #777; flex-wrap: wrap; }
-.order-meta strong { font-weight: 600; color: #333; }
-.update-time { color: #0055aa; font-weight: 500; }
+/* Product Info & Seller Groups */
+.order-meta-row { padding: 0.8rem 1.5rem; background: #f9fbfd; border-bottom: 1px solid #eee; display: flex; gap: 2rem; font-size: 0.9rem; color: #666; flex-wrap: wrap; }
+.order-meta-row .meta-item { display: flex; gap: 0.5rem; }
+.order-meta-row strong { color: #333; }
 
-.seller-wrapper { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.9rem; color: #555; }
+/* Seller Header */
+.seller-header { background: #f1f5f9; padding: 0.8rem 1.5rem; }
+.seller-info-row { display: flex; align-items: center; gap: 0.6rem; }
+.seller-info-row .seller-name { font-weight: 600; color: #1e293b; }
+.btn-view-shop-small { padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 4px; background: #fff; border: 1px solid #cbd5e1; color: #64748b; cursor: pointer; margin-left: 0.5rem; }
+.btn-view-shop-small:hover { border-color: #0055aa; color: #0055aa; }
+
+/* Items Table Header */
+.items-table-header { display: flex; padding: 0.6rem 1.5rem; background: #f8fafc; border-bottom: 1px solid #e5e7eb; font-size: 0.8rem; font-weight: 600; color: #64748b; text-transform: uppercase; }
+.items-table-header .col-product { flex: 1; }
+.items-table-header .col-price { width: 100px; text-align: center; }
+.items-table-header .col-qty { width: 50px; text-align: center; }
+.items-table-header .col-subtotal { width: 120px; text-align: right; }
+
+/* Product Row as Table */
+.product-row { display: flex; padding: 0.8rem 1.5rem; border-bottom: 1px solid #f1f5f9; align-items: center; }
+.product-row:last-of-type { border-bottom: none; }
+.product-row .col-product { flex: 1; display: flex; gap: 0.8rem; align-items: center; min-width: 0; }
+.product-row .col-price { width: 100px; text-align: center; color: #64748b; font-size: 0.9rem; }
+.product-row .col-qty { width: 50px; text-align: center; color: #333; font-weight: 600; }
+.product-row .col-subtotal { width: 120px; text-align: right; color: #0055aa; font-weight: 600; font-size: 0.95rem; }
+
+.product-img { width: 60px; height: 60px; border: 1px solid #eee; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.product-info { flex: 1; min-width: 0; }
+.product-name { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.2rem; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-variant { font-size: 0.8rem; color: #94a3b8; margin: 0; }
+
 .seller-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
-.seller-avatar-letter { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
-.product-price { font-size: 1.1rem; color: #0055aa; font-weight: 700; }
+.seller-avatar-letter { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
 
-/* Footer & Buttons */
-.card-footer { background: #f8fbff; padding: 1.5rem; display: flex; flex-direction: column; align-items: flex-end; gap: 1.2rem; }
-.total-price { color: #0055aa; font-size: 1.6rem; font-weight: 700; margin-left: 0.5rem; }
+/* Footer & Price Breakdown */
+.card-footer { background: #f8fbff; padding: 1.2rem 1.5rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; flex-wrap: wrap; }
+.price-breakdown { display: flex; flex-direction: column; gap: 0.4rem; min-width: 250px; }
+.price-row { display: flex; justify-content: space-between; font-size: 0.9rem; color: #666; }
+.price-row.total { font-size: 1rem; font-weight: 600; color: #333; padding-top: 0.4rem; border-top: 1px dashed #ddd; margin-top: 0.3rem; }
+.total-price { color: #0055aa; font-size: 1.4rem; font-weight: 700; }
 .action-buttons { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: flex-end; }
 .btn { min-width: 140px; padding: 0.6rem 0; border-radius: 6px; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all 0.2s; border: 1px solid transparent; }
 .btn-primary { background: #ffc107; color: #222; border-color: #ffc107; box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3); }

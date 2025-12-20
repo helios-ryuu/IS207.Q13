@@ -112,12 +112,13 @@ const { user, isLoggedIn } = useAuth();
 const { showSuccess, showError } = useToast();
 
 const tabs = [
-  { id: 'active', label: 'Đang hiển thị' },
+  { id: 'pending', label: 'Đang xét duyệt' },
+  { id: 'rejected', label: 'Đã bị từ chối' },
+  { id: 'active', label: 'Đã duyệt - Đang hiển thị' },
   { id: 'hidden', label: 'Đã ẩn' },
-  { id: 'pending', label: 'Chờ duyệt' }, // Nếu backend có status này
 ];
 
-const activeTab = ref('active');
+const activeTab = ref('pending');
 const allListings = ref([]);
 const isLoading = ref(false);
 
@@ -144,18 +145,20 @@ const fetchListings = async () => {
   
   isLoading.value = true;
   try {
-    // 1. Fetch Listings
-    const response = await api.get(`/products/seller/${user.value.id}`);
+    // 1. Fetch Listings - Sử dụng endpoint /user/listings để lấy TẤT CẢ sản phẩm (bao gồm pending, rejected)
+    const response = await api.get('/user/listings');
     const rawData = response.data.data || response.data || [];
+    
+    console.log('API Response:', rawData); // Debug
     
     allListings.value = rawData.map(item => ({
       id: item.id,
-      status: item.status || 'active', 
-      title: item.name,
+      status: item.status || 'pending', 
+      title: item.title || item.name || 'Sản phẩm', // API trả về title, fallback name
       condition: 'Đã sử dụng', 
-      price: new Intl.NumberFormat('vi-VN').format(item.price_range?.min || 0) + ' đ',
-      rawPrice: item.price_range?.min || 0,
-      imageUrl: getImageUrl(item.thumbnail),
+      price: new Intl.NumberFormat('vi-VN').format(item.price || 0) + ' đ',
+      rawPrice: item.price || 0,
+      imageUrl: getImageUrl(item.image), // API trả về image, không phải thumbnail
       createdAt: item.created_at,
       location: item.location || 'Toàn quốc'
     }));

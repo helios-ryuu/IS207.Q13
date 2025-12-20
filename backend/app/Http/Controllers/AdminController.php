@@ -3,14 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Product;
 use App\Models\ProductPost;
 use App\Models\Order;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Get dashboard statistics
      */
@@ -25,9 +34,9 @@ class AdminController extends Controller
                 $usersGrowth = round((($usersLastMonth / $totalUsers) * 100), 1);
             }
 
-            // Pending posts (draft status)
-            $postsPending = ProductPost::where('status', 'draft')->count();
-            $postsLastWeek = ProductPost::where('status', 'draft')
+            // Pending posts (pending status in products table)
+            $postsPending = Product::where('status', 'pending')->count();
+            $postsLastWeek = Product::where('status', 'pending')
                 ->where('created_at', '>=', now()->subWeek())
                 ->count();
             $postsGrowth = 0;
@@ -41,7 +50,7 @@ class AdminController extends Controller
                 ->where('orders.created_at', '>=', now()->startOfMonth())
                 ->whereIn('orders.status', ['completed', 'delivered'])
                 ->sum(DB::raw('order_details.quantity * order_details.unit_price'));
-            
+
             $salesLastMonth = DB::table('orders')
                 ->join('order_details', 'orders.id', '=', 'order_details.order_id')
                 ->whereBetween('orders.created_at', [
@@ -50,7 +59,7 @@ class AdminController extends Controller
                 ])
                 ->whereIn('orders.status', ['completed', 'delivered'])
                 ->sum(DB::raw('order_details.quantity * order_details.unit_price'));
-            
+
             $salesGrowth = 0;
             if ($salesLastMonth > 0) {
                 $salesGrowth = round((($salesThisMonth - $salesLastMonth) / $salesLastMonth) * 100, 1);
@@ -61,9 +70,9 @@ class AdminController extends Controller
                 ->where('status', 'active')
                 ->count();
             $activeUsersYesterday = User::whereBetween('updated_at', [
-                    now()->subDay()->startOfDay(),
-                    now()->subDay()->endOfDay()
-                ])
+                now()->subDay()->startOfDay(),
+                now()->subDay()->endOfDay()
+            ])
                 ->where('status', 'active')
                 ->count();
             $activeGrowth = 0;
@@ -105,7 +114,7 @@ class AdminController extends Controller
         $recentUsers = User::orderBy('created_at', 'desc')
             ->take(3)
             ->get(['full_name', 'created_at']);
-        
+
         foreach ($recentUsers as $user) {
             $activities[] = [
                 'action' => 'Người dùng mới đăng ký',
@@ -114,18 +123,18 @@ class AdminController extends Controller
             ];
         }
 
-        // Recent approved posts
-        $approvedPosts = ProductPost::where('status', 'published')
+        // Recent approved products
+        $approvedProducts = Product::where('status', 'active')
             ->orderBy('updated_at', 'desc')
-            ->with('admin')
+            ->with('seller')
             ->take(2)
             ->get();
-        
-        foreach ($approvedPosts as $post) {
+
+        foreach ($approvedProducts as $product) {
             $activities[] = [
-                'action' => 'Bài đăng được phê duyệt',
-                'user' => $post->admin ? $post->admin->full_name : 'Admin',
-                'time' => $post->updated_at->diffForHumans(),
+                'action' => 'Sản phẩm được phê duyệt',
+                'user' => $product->seller ? $product->seller->full_name : 'Unknown',
+                'time' => $product->updated_at->diffForHumans(),
             ];
         }
 
@@ -135,7 +144,7 @@ class AdminController extends Controller
             ->with('user')
             ->take(2)
             ->get();
-        
+
         foreach ($completedOrders as $order) {
             $activities[] = [
                 'action' => 'Giao dịch thành công',
@@ -145,7 +154,7 @@ class AdminController extends Controller
         }
 
         // Sort by time and take latest 5
-        usort($activities, function($a, $b) {
+        usort($activities, function ($a, $b) {
             return strcmp($b['time'], $a['time']);
         });
 
@@ -154,4 +163,101 @@ class AdminController extends Controller
             'data' => array_slice($activities, 0, 5),
         ]);
     }
+
+    /**
+     * Get pending products for approval
+     */
+    public function getPendingProducts()
+    {
+        $products = Product::where('status', 'pending')
+            ->with(['seller', 'variants.images', 'categories'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $data = $products->map(function ($product) {
+            $variant = $product->variants->first();
+            return [
+                'id' => $product->id,
+                'title' => $product->name,
+                'author' => $product->seller ? $product->seller->full_name : 'Unknown',
+                'date' => $product->created_at->format('Y-m-d'),
+                'category' => $product->categories->first()?->name ?? 'Chưa phân loại',
+                'price' => $variant ? number_format((float) ($variant->price ?? 0), 0, ',', '.') . '₫' : 'N/A',
+                'image' => $variant?->images->first()?->full_image_url ?? null,
+                'location' => $product->location ?? 'Toàn quốc',
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * Approve a product
+     */
+    public function approveProduct(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+
+        if ($product->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chỉ có thể phê duyệt sản phẩm đang chờ duyệt.',
+            ], 400);
+        }
+
+        $product->status = 'active';
+        $product->save();
+
+        // Gửi thông báo cho seller
+        $this->notificationService->create(
+            $product->seller_id,
+            'Bài đăng đã được duyệt',
+            "Bài đăng '{$product->name}' đã được phê duyệt và đang hiển thị trên VietMarket.",
+            'system',
+            "/product/{$product->id}"
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sản phẩm đã được phê duyệt thành công.',
+            'data' => $product,
+        ]);
+    }
+
+    /**
+     * Reject a product
+     */
+    public function rejectProduct(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+
+        if ($product->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Chỉ có thể từ chối sản phẩm đang chờ duyệt.',
+            ], 400);
+        }
+
+        $product->status = 'rejected';
+        $product->save();
+
+        // Gửi thông báo cho seller
+        $this->notificationService->create(
+            $product->seller_id,
+            'Bài đăng bị từ chối',
+            "Bài đăng '{$product->name}' đã bị từ chối. Vui lòng kiểm tra và chỉnh sửa lại nội dung.",
+            'system',
+            "/manage-posts"
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sản phẩm đã bị từ chối.',
+            'data' => $product,
+        ]);
+    }
 }
+

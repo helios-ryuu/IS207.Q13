@@ -52,18 +52,50 @@
 
 
 
+          <!-- Status Banner for pending/rejected -->
+          <div v-if="product?.status === 'pending'" class="status-banner status-pending">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>Sản phẩm đang chờ xét duyệt</span>
+          </div>
+          <div v-if="product?.status === 'rejected'" class="status-banner status-rejected">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            <span>Sản phẩm đã bị từ chối</span>
+          </div>
+
           <div class="action-buttons">
-            <button class="btn-chat" @click="handleChat">
+            <button 
+              class="btn-chat" 
+              @click="handleChat"
+              :disabled="!isProductAvailable"
+              :class="{ 'btn-disabled': !isProductAvailable }"
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
               Chat ngay
             </button>
             
-            <button class="btn-add-cart" @click="handleAddToCart">
+            <button 
+              class="btn-add-cart" 
+              @click="handleAddToCart"
+              :disabled="!isProductAvailable"
+              :class="{ 'btn-disabled': !isProductAvailable }"
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
               Thêm vào giỏ
             </button>
             
-            <button class="btn-buy-now" @click="handleBuyNow">
+            <button 
+              class="btn-buy-now" 
+              @click="handleBuyNow"
+              :disabled="!isProductAvailable"
+              :class="{ 'btn-disabled': !isProductAvailable }"
+            >
               Mua ngay
             </button>
           </div>
@@ -151,6 +183,12 @@ const similarListings = ref([]);
 const visibleSellerListings = computed(() => sellerListings.value.slice(0, 4));
 const visibleSimilarListings = computed(() => similarListings.value.slice(0, 8));
 
+// Check if product is available for purchase (not pending/rejected)
+const isProductAvailable = computed(() => {
+  if (!product.value) return false;
+  return product.value.status === 'active';
+});
+
 // Fallback images - Data URI để tránh lỗi network và infinite loop
 const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="600" height="400" fill="%23eee"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23999" font-size="20" text-anchor="middle" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
 const FALLBACK_AVATAR = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="%23ddd"%3E%3Crect width="100%25" height="100%25"/%3E%3Ctext x="50%25" y="50%25" fill="%23888" font-size="12" text-anchor="middle" dy=".3em"%3EUser%3C/text%3E%3C/svg%3E';
@@ -182,6 +220,10 @@ const handleUserAvatarError = (e) => {
 // 1. Chat
 const handleChat = () => {
   if (!product.value) return;
+  if (!isProductAvailable.value) {
+    showError('Sản phẩm chưa được duyệt, không thể chat');
+    return;
+  }
   if (!isLoggedIn.value) {
     if(confirm('Bạn cần đăng nhập để chat với người bán. Đăng nhập ngay?')) {
       router.push({ path: '/login', query: { redirect: route.fullPath } });
@@ -203,6 +245,11 @@ const handleChat = () => {
 // 2. Thêm vào giỏ hàng (ĐÃ SỬA: Đảm bảo lấy đúng variant_id)
 const handleAddToCart = async () => {
   if (!product.value) return;
+  
+  if (!isProductAvailable.value) {
+    showError('Sản phẩm chưa được duyệt, không thể thêm vào giỏ');
+    return;
+  }
   
   if (!isLoggedIn.value) {
     if(confirm('Bạn cần đăng nhập để thêm vào giỏ hàng. Đăng nhập ngay?')) {
@@ -237,6 +284,11 @@ const handleAddToCart = async () => {
 // 3. Mua ngay
 const handleBuyNow = async () => {
   if (!product.value) return;
+
+  if (!isProductAvailable.value) {
+    showError('Sản phẩm chưa được duyệt, không thể mua');
+    return;
+  }
 
   if (!isLoggedIn.value) {
     showError('Bạn cần đăng nhập để mua hàng');
@@ -315,6 +367,7 @@ const mapProductFromApi = (data) => {
     variant_id: finalVariantId,   // Variant ID (Dùng để thêm giỏ hàng)
     name: data.name,
     description: data.description,
+    status: data.status || 'active', // Trạng thái sản phẩm
     priceDisplay: displayPrice,   // Dùng hiển thị
     priceNumber: rawPrice,        // Dùng tính toán
     image: images[0],
@@ -486,6 +539,38 @@ onMounted(() => { fetchProductDetail(); });
 .btn-buy-now { background: #dc3545; color: white; grid-column: 1 / 3; }
 
 .btn-chat:hover, .btn-buy-now:hover { opacity: 0.9; }
+
+/* Status Banner */
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+.status-banner.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+.status-banner.status-rejected {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Disabled Buttons */
+.btn-disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+.btn-disabled:hover {
+  opacity: 0.5 !important;
+}
 
 /* Seller Info */
 .seller-info { display: flex; align-items: center; gap: 12px; padding: 16px; background: #f8f9fa; border-radius: 8px; }

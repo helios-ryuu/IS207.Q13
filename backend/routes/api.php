@@ -19,6 +19,7 @@ use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SellerReviewController;
 use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\BankAccountController;
 // --- PUBLIC ROUTES (Ai cũng xem được) ---
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -94,6 +95,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // USER LISTINGS
     Route::get('/user/listings', [ProductController::class, 'getUserListings']);
 
+    // BANK ACCOUNTS
+    Route::get('/user/bank-accounts', [BankAccountController::class, 'index']);
+    Route::post('/user/bank-accounts', [BankAccountController::class, 'store']);
+    Route::put('/user/bank-accounts/{id}/set-default', [BankAccountController::class, 'setDefault']);
+    Route::delete('/user/bank-accounts/{id}', [BankAccountController::class, 'destroy']);
+
     // --- PRODUCT REVIEWS (Auth) ---
     Route::post('/products/{id}/reviews', [ReviewController::class, 'store']);
     Route::put('/reviews/{id}', [\App\Http\Controllers\ReviewController::class, 'update']);
@@ -165,7 +172,12 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/statistics/dashboard', [AdminController::class, 'getDashboardStats']);
     Route::get('/activities/recent', [AdminController::class, 'getRecentActivities']);
 
-    // Product Post Management
+    // Product Approval (NEW)
+    Route::get('/products/pending', [AdminController::class, 'getPendingProducts']);
+    Route::put('/products/{id}/approve', [AdminController::class, 'approveProduct']);
+    Route::put('/products/{id}/reject', [AdminController::class, 'rejectProduct']);
+
+    // Product Post Management (Legacy - kept for compatibility)
     Route::get('/posts', [ProductPostController::class, 'index']);
     Route::get('/posts/{id}', [ProductPostController::class, 'show']);
     Route::put('/posts/{id}/approve', [ProductPostController::class, 'approve']);

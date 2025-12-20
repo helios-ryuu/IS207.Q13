@@ -31,4 +31,20 @@ class Wallet extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Tính số dư ví từ tổng các giao dịch
+     * Balance = SUM(transactions.amount) với status = 'completed'
+     */
+    public function getCalculatedBalanceAttribute(): float
+    {
+        return (float) Transaction::where('user_id', $this->user_id)
+            ->where('status', 'completed')
+            ->sum('amount');
+    }
 }
